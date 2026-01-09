@@ -1,0 +1,40 @@
+name: Deploy Flutter Web to Pages
+
+on:
+  push:
+    branches:
+      - main # النشر يعمل فقط عندما ترفع كود لفرع main
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - run: flutter pub get
+
+      - name: Build Web
+        # استبدل retaj_crm باسم مستودعك بالضبط
+        run: flutter build web --release --base-href /retaj_crm/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
