@@ -6,14 +6,13 @@ import 'package:retaj_crm/features/layout/cubit/layout_state.dart';
 import 'package:retaj_crm/features/layout/widgets/logout_button.dart';
 import 'package:retaj_crm/features/layout/widgets/side_bar_logo.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_text_styles.dart';
-import '../../auth/cubit/auth_cubit.dart';
 import '../../auth/screens/accounts_management_screen.dart';
 import '../../dashboard/screens/dashboard_screen.dart';
 import '../../designs/screens/designs_list_screen.dart';
 import '../../leads/screens/leads_management_screen.dart';
 import '../../properties/screens/properties_list_screen.dart';
 import '../widgets/top_header.dart';
+import '../widgets/user_avatar.dart';
 
 
 
@@ -26,8 +25,27 @@ class LayoutScreen extends StatefulWidget {
   State<LayoutScreen> createState() => _LayoutScreenState();
 }
 
+
+
 class _LayoutScreenState extends State<LayoutScreen> {
+
   late PageController _pageController;
+
+  List<Widget> _getPagesByRole(ProfileModel user) {
+    return [
+      DashboardScreen(key: const PageStorageKey('dashboard_page')),
+
+      PropertiesListScreen(userId: user.id, role: user.role, key: const PageStorageKey('properties_page')),
+
+      LeadsManagementScreen(user: user, key: const PageStorageKey('leads_page')),
+
+      const DesignsListScreen(key: PageStorageKey('designs_page')),
+
+      if (user.role == 'admin')
+        const AccountsManagementScreen(key: PageStorageKey('accounts_page')),
+    ];
+  }
+
 
   @override
   void initState() {
@@ -41,6 +59,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
     super.dispose();
   }
 
+
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
@@ -48,6 +67,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
 
       child: Scaffold(
         body: BlocListener<LayoutCubit, LayoutState>(
+
           listener: (context, state) {
             if (state is LayoutNavigationChanged) {
               _pageController.animateToPage(
@@ -61,9 +81,10 @@ class _LayoutScreenState extends State<LayoutScreen> {
           child: Row(
             children: [
 
-              _buildSidebar(context),
+              _buildCustomSidebar(widget.user),
 
               Expanded(
+
                 child: Column(
                   children: [
 
@@ -88,63 +109,89 @@ class _LayoutScreenState extends State<LayoutScreen> {
     );
   }
 
-  List<Widget> _getPagesByRole(ProfileModel user) {
-    return [
-      DashboardScreen(key: const PageStorageKey('dashboard_page')),
 
-      // نمرر بيانات المستخدم (user) لكل صفحة لتحديد نوع جلب البيانات (Admin vs Sales)
-      PropertiesListScreen(userId: user.id, role: user.role, key: const PageStorageKey('properties_page')),
 
-      LeadsManagementScreen(user: user, key: const PageStorageKey('leads_page')),
-
-      const DesignsListScreen(key: PageStorageKey('designs_page')),
-
-      if (user.role == 'admin')
-        const AccountsManagementScreen(key: PageStorageKey('accounts_page')),
-    ];
-  }
-
-  // ... (نفس دوال السايد بار والهيدر السابقة مع التأكد من الربط مع الـ Cubit)
-  Widget _buildSidebar(BuildContext context) {
+  Widget _buildCustomSidebar(ProfileModel user) {
     return BlocBuilder<LayoutCubit, LayoutState>(
       builder: (context, state) {
         int currentIndex = 0;
         if (state is LayoutNavigationChanged) currentIndex = state.selectedIndex;
 
-        return NavigationRail(
-          extended: true,
-          minExtendedWidth: 260,
-          backgroundColor: AppColors.sidebarBackground,
-          selectedIndex: currentIndex,
-          onDestinationSelected: (index) {
-            context.read<LayoutCubit>().changeNavigation(index, widget.user.role);
-          },
-          leading: SideBarLogo(),
-          destinations: _buildDestinations(widget.user.role),
-          trailing: LogoutButton(),
-          selectedIconTheme: const IconThemeData(color: AppColors.primaryRed, size: 30),
-          unselectedIconTheme: const IconThemeData(color: Colors.white70, size: 26),
+        return Container(
+          width: 260,
+          color: AppColors.sidebarBackground,
+          child: Column(
+            children: [
+              SideBarLogo(),
+
+              const SizedBox(height: 10),
+
+              UserAvatar(user: widget.user,),
+
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Divider(
+                  color: AppColors.greyLight,
+                ),
+              ),
+
+              Expanded(
+                child: ListView(
+                  children: [
+                    _customNavItem(context, Icons.analytics_outlined, "Dashboard", 0, currentIndex),
+                    _customNavItem(context, Icons.home_work_outlined, "Properties", 1, currentIndex),
+                    _customNavItem(context, Icons.person_search_outlined, "Leads", 2, currentIndex),
+                    _customNavItem(context, Icons.format_paint_outlined, "Designs", 3, currentIndex),
+                    if (widget.user.role == 'admin')
+                      _customNavItem(context, Icons.admin_panel_settings_outlined, "Accounts", 4, currentIndex),
+                  ],
+                ),
+              ),
+
+              LogoutButton(),
+            ],
+          ),
         );
       },
     );
   }
 
+  Widget _customNavItem(BuildContext context, IconData icon, String label, int index, int currentIndex) {
+    bool isSelected = index == currentIndex;
 
-  List<NavigationRailDestination> _buildDestinations(String role) {
-    return [
-      _navItem(Icons.analytics_outlined, "Dashboard"),
-      _navItem(Icons.home_work_outlined, "Properties"),
-      _navItem(Icons.person_search_outlined, "Leads"),
-      _navItem(Icons.format_paint_outlined, "Designs"),
-      if (role == 'admin') _navItem(Icons.admin_panel_settings_outlined, "Accounts"),
-    ];
-  }
+    return GestureDetector(
+      onTap: () => context.read<LayoutCubit>().changeNavigation(index),
 
-  NavigationRailDestination _navItem(IconData icon, String label) {
-    return NavigationRailDestination(
-      icon: Icon(icon),
-      label: Text(label, style: AppTextStyles.white18SemiBold),
+      child: Container(
+        height: 50,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.white.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          child: Row(
+            children: [
+              Icon(icon, color: AppColors.white),
+
+              const SizedBox(width: 16),
+
+              Text(
+                label,
+                style: TextStyle(
+                  color:Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
+
 
 }

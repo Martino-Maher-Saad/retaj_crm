@@ -8,48 +8,25 @@ class SideBarLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 15),
+      padding: EdgeInsets.only(top: 50),
 
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-        width: 200,
-        height: 70,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
 
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12), // حواف دائرية بسيطة
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
+        children: [
+          const Icon(Icons.home_outlined, color: Colors.white, size: 45,),
+
+          const SizedBox(height: 10),
+
+          const Text(
+            "RETAJ CRM",
+            style: TextStyle(
+              color: AppColors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 20,
             ),
-          ],
-        ),
-
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-
-          children: [
-            Image.asset(
-              'assets/images/logo.png',
-              width: 80,
-              fit: BoxFit.contain,
-            ),
-
-            const SizedBox(width: 10),
-
-            const Text(
-              "CRM",
-              style: TextStyle(
-                color: AppColors.primaryBlueDark,
-                fontWeight: FontWeight.w900,
-                fontSize: 20,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

@@ -1,172 +1,119 @@
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:retaj_crm/features/properties/cubit/properties_state.dart';
 import 'dart:typed_data';
+import 'package:bloc/bloc.dart';
+import 'package:retaj_crm/features/properties/cubit/properties_state.dart';
 import '../../../data/models/property_model.dart';
 import '../../../data/repositories/property_repository.dart';
 
 
-
 class PropertiesCubit extends Cubit<PropertiesState> {
   final PropertiesRepository _repository;
-  final int _pageSize = 15;
-
   PropertiesCubit(this._repository) : super(PropertiesInitial());
 
-
-  void addPropertyToList(PropertyModel newProperty) {
-    if (state is PropertiesSuccess) {
-      final currentState = state as PropertiesSuccess;
-      final updatedList = [newProperty, ...currentState.properties];
-      emit(currentState.copyWith(properties: updatedList));
-    } else {
-      fetchProperties(userId: newProperty.createdBy, role: 'admin');
-    }
-  }
-
-
-  Future<void> fetchProperties({
+  // جلب صفحة معينة مع الفلاتر
+  Future<void> fetchPage({
+    required int page,
     required String userId,
     required String role,
-    bool isRefresh = false,
     String? city,
-    double? minPrice,
-    double? maxPrice,
+    String? type,
+    bool sortByPrice = false,
   }) async {
     emit(PropertiesLoading());
     try {
-      final properties = await _repository.fetchProperties(
-        page: 0,
-        pageSize: _pageSize,
-        userId: userId,
-        role: role,
-        city: city,
-        minPrice: minPrice,
-        maxPrice: maxPrice,
+      final result = await _repository.fetchPropertiesWithPagination(
+        page: page, userId: userId, role: role,
+        city: city, type: type, sortByPrice: sortByPrice,
       );
-
       emit(PropertiesSuccess(
-        properties: properties,
-        currentPage: 0,
-        hasMore: properties.length == _pageSize,
+        properties: result['properties'],
+        currentPage: page,
+        totalCount: result['totalCount'],
+        city: city, type: type, sortByPrice: sortByPrice,
       ));
     } catch (e) {
-      emit(PropertiesError("Error happened during fetching data$e"));
+      emit(PropertiesError("خطأ في التحميل: $e"));
     }
   }
 
 
-  Future<void> changePage(int newPage, String userId, String role) async {
+  // 2. تحديث محلي (Local Update)
+  // تُستخدم لتحديث واجهة المستخدم فوراً بعد نجاح تعديل عقار معين
+  void updatePropertyLocally(PropertyModel updatedProperty) {
     final currentState = state;
     if (currentState is PropertiesSuccess) {
-      emit(currentState.copyWith(isPaginationLoading: true));
+      // نقوم بإنشاء قائمة جديدة مع استبدال العقار القديم بالجديد بناءً على الـ ID
+      final updatedList = currentState.properties.map((property) {
+        return property.id == updatedProperty.id ? updatedProperty : property;
+      }).toList();
+
+      // نحدث الـ State بالقائمة الجديدة دون تغيير بقية البيانات (مثل رقم الصفحة أو العدد الكلي)
+      emit(currentState.copyWith(properties: updatedList));
+    }
+  }
+
+
+  // إضافة عقار: يظهر فوق فوراً لو إحنا في أول صفحة
+  Future<void> addProperty(PropertyModel newProp, List<Uint8List> images) async {
+    final currentState = state;
+    if (currentState is PropertiesSuccess) {
+      if (currentState.currentPage != 0) return;
+
+      // 1. لا نستخدم PropertiesLoading الشاملة لكي لا تختفي القائمة
+      // بل نعتمد على استجابة السيرفر مع بقاء الواجهة نشطة
       try {
-        final properties = await _repository.fetchProperties(
-          page: newPage,
-          pageSize: _pageSize,
-          userId: userId,
-          role: role,
+        // نصيحة: يفضل ضغط الصور قبل تمريرها لهذه الدالة
+        final createdProperty = await _repository.createProperty(
+            property: newProp,
+            imageFiles: images
         );
-        emit(PropertiesSuccess(
-          properties: properties,
-          currentPage: newPage,
-          hasMore: properties.length == _pageSize,
-        ));
-      } catch (e) {
-        emit(PropertiesError("Failed to load screen"));
-      }
-    }
-  }
 
+        final List<PropertyModel> updatedList = List.from(currentState.properties);
+        updatedList.insert(0, createdProperty);
 
-  Future<void> addProperty(PropertyModel newProperty, List<Uint8List> images) async {
-    final currentState = state;
-    if (currentState is PropertiesSuccess) {
-      try {
-        if (images.length > 10) throw "your limit is 10 images";
-        await _repository.createProperty(property: newProperty, imageFiles: images);
-        final List<PropertyModel> updatedList = [newProperty, ...currentState.properties];
-        if (updatedList.length > _pageSize) updatedList.removeLast();
-        emit(currentState.copyWith(properties: updatedList));
-      } catch (e) {
-        emit(PropertiesError(e.toString()));
-      }
-    }
-  }
-
-
-  Future<void> updateProperty(PropertyModel updatedProperty) async {
-    final currentState = state;
-    if (currentState is PropertiesSuccess) {
-      try {
-        await _repository.updatePropertyData(updatedProperty);
-        final List<PropertyModel> updatedList = currentState.properties.map((p) {
-          return p.id == updatedProperty.id ? updatedProperty : p;
-        }).toList();
-
-        emit(currentState.copyWith(properties: updatedList));
-      } catch (e) {
-        emit(PropertiesError("failed to update data in server"));
-      }
-    }
-  }
-
-
-  Future<void> deleteImageFromProperty(String imageUrl, String propertyId) async {
-    final currentState = state;
-    if (currentState is PropertiesSuccess) {
-      try {
-        await _repository.deleteSingleImage(imageUrl);
-
-        final updatedList = currentState.properties.map((p) {
-          if (p.id == propertyId) {
-            final newImages = List<String>.from(p.images)..remove(imageUrl);
-            return p.copyWith(images: newImages);
-          }
-          return p;
-        }).toList();
-
-        emit(currentState.copyWith(properties: updatedList));
-      } catch (e) {
-        emit(PropertiesError('$e'));
-      }
-    }
-  }
-
-
-  Future<void> deleteProperty(String propertyId) async {
-    final currentState = state;
-    if (currentState is PropertiesSuccess) {
-      try {
-        await _repository.deleteProperty(propertyId);
-        final updatedList = currentState.properties.where((p) => p.id != propertyId).toList();
-        emit(currentState.copyWith(properties: updatedList));
-      } catch (e) {
-        emit(PropertiesError("failed to delete property"));
-      }
-    }
-  }
-
-
-  Future<void> saveFullProperty({
-    required PropertyModel property,
-    required List<Uint8List> imageBytesList,
-  }) async {
-    try {
-      if (property.id == null) {
-        await _repository.createProperty(property: property, imageFiles: imageBytesList);
-      } else {
-        await _repository.updatePropertyData(property);
-        if (imageBytesList.isNotEmpty) {
-          await _repository.uploadAdditionalImages(
-            propertyId: property.id!,
-            currentImagesCount: property.images.length,
-            newImageFiles: imageBytesList,
-          );
+        if (updatedList.length > 15) {
+          updatedList.removeLast();
         }
+
+        emit(currentState.copyWith(
+            properties: updatedList,
+            totalCount: currentState.totalCount + 1
+        ));
+
+      } catch (e) {
+        emit(PropertiesError("فشل في إضافة العقار: $e"));
+        emit(currentState);
       }
-      await fetchProperties(userId: property.createdBy, role: 'admin');
+    }
+  }
+
+  // حذف لحظي
+  Future<void> deleteProperty(String id) async {
+    final currentState = state;
+    if (currentState is PropertiesSuccess) {
+      try {
+        await _repository.deleteProperty(id);
+        final newList = currentState.properties.where((p) => p.id != id).toList();
+        emit(currentState.copyWith(properties: newList, totalCount: currentState.totalCount - 1));
+      } catch (e) { /* Error handling */ }
+    }
+  }
+
+
+  // داخل PropertiesCubit
+
+  Future<void> updateProperty(PropertyModel updatedProp, List<Uint8List> newImages) async {
+    try {
+      // نكلم الـ Repo وننتظر النتيجة المحدثة
+      final result = await _repository.updateProperty(
+          property: updatedProp,
+          newImages: newImages
+      );
+
+      // نحدث الحالة محلياً فوراً (Local Update)
+      updatePropertyLocally(result);
+
     } catch (e) {
-      emit(PropertiesError("error in saving $e"));
+      emit(PropertiesError("خطأ أثناء التعديل: $e"));
       rethrow;
     }
   }
