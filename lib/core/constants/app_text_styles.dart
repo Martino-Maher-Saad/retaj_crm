@@ -71,7 +71,7 @@ class AppTextStyles {
   static const TextStyle blue16Bold = TextStyle(
     fontSize: 16,
     fontWeight: FontWeight.bold,
-    color: AppColors.primaryBlue,
+    color: AppColors.primaryBlueDark,
   );
 
 }

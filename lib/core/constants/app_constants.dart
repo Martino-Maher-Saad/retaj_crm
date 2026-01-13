@@ -1,5 +1,6 @@
 // نضع هذه القوائم في ملف منفصل يسمى constants.dart
 class AppConstants {
+  static const int pageSize = 5;
   static const List<String> cities = [
     'القاهرة', 'الجيزة', 'الإسكندرية', 'الشيخ زايد', 'التجمع الخامس'
   ];

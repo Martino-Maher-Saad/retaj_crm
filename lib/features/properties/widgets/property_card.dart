@@ -21,8 +21,9 @@ class PropertyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     // رابط الصورة المصغرة لتقليل استهلاك البيانات
     final bool hasImages = property.images.isNotEmpty;
+    // داخل build الـ Card، استبدل thumbnailUrl بـ:
     final String thumbnailUrl = hasImages
-        ? "${property.images.first}?width=200&height=200&resize=contain"
+        ? property.getThumbnailUrl(property.images.first)
         : "https://upload.wikimedia.org/wikipedia/commons/a/a3/Image-not-found.png";
 
     return Card(
@@ -60,12 +61,6 @@ class PropertyCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      property.titleEn,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
                     const SizedBox(height: 4),
                     Text(
                       "${property.price} EGP",

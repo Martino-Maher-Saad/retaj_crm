@@ -6,31 +6,38 @@ class CustomSearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      color: Colors.white,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Row(
         children: [
           Expanded(
+            flex: 10,
             child: TextField(
               decoration: InputDecoration(
                 hintText: "Search...",
                 prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(20),),
                 filled: true,
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20),),
+                focusColor: Colors.white,
                 fillColor: Colors.white,
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          OutlinedButton.icon(
-            onPressed: () {},
-            icon: Icon(Icons.filter_list, size: 18),
-            label: Text("Filters"),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.black,
-              side: const BorderSide(color: Color(0xFFE5E7EB)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+
+          const SizedBox(width: 10),
+
+          Expanded(
+            flex: 1,
+            child: OutlinedButton.icon(
+              onPressed: () {},
+              icon: Icon(Icons.filter_list, size: 20),
+              label: Text("Filters"),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.black,
+                side: const BorderSide(color: Colors.black87),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
             ),
           ),
         ],
