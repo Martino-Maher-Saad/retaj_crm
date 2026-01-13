@@ -6,7 +6,8 @@ class PropertiesInitial extends PropertiesState {}
 class PropertiesLoading extends PropertiesState {}
 
 class PropertiesSuccess extends PropertiesState {
-  final List<PropertyModel> properties;
+  // الكاش الجديد: يربط رقم الصفحة بقائمة عقاراتها
+  final Map<int, List<PropertyModel>> propertyCache;
   final int currentPage;
   final int totalCount;
   final String? city;
@@ -14,7 +15,7 @@ class PropertiesSuccess extends PropertiesState {
   final bool sortByPrice;
 
   PropertiesSuccess({
-    required this.properties,
+    required this.propertyCache, // تم التغيير من properties إلى propertyCache
     required this.currentPage,
     required this.totalCount,
     this.city,
@@ -22,10 +23,13 @@ class PropertiesSuccess extends PropertiesState {
     this.sortByPrice = false,
   });
 
+  // Getter لجلب عقارات الصفحة الحالية بسهولة في الـ UI
+  List<PropertyModel> get currentProperties => propertyCache[currentPage] ?? [];
+
   int get totalPages => (totalCount / 15).ceil();
 
   PropertiesSuccess copyWith({
-    List<PropertyModel>? properties,
+    Map<int, List<PropertyModel>>? propertyCache, // تحديث الكاش
     int? currentPage,
     int? totalCount,
     String? city,
@@ -33,7 +37,9 @@ class PropertiesSuccess extends PropertiesState {
     bool? sortByPrice,
   }) {
     return PropertiesSuccess(
-      properties: properties ?? this.properties,
+      // نستخدم Map.from لضمان إنشاء نسخة جديدة تماماً في الذاكرة (Deep Copy)
+      // لكي يشعر الـ Bloc بالتغيير ويحدث الواجهة
+      propertyCache: propertyCache ?? Map.from(this.propertyCache),
       currentPage: currentPage ?? this.currentPage,
       totalCount: totalCount ?? this.totalCount,
       city: city ?? this.city,
