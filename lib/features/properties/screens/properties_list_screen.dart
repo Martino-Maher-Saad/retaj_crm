@@ -1,20 +1,20 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:retaj_crm/core/constants/app_colors.dart';
-import 'package:retaj_crm/core/constants/app_text_styles.dart';
-import 'package:retaj_crm/data/repositories/property_repository.dart';
-import 'package:retaj_crm/data/services/property_service.dart';
-import 'package:retaj_crm/features/properties/screens/property_details_screen.dart';
-import 'package:retaj_crm/features/properties/screens/property_form_screen.dart';
-import 'package:shimmer/shimmer.dart'; // تأكد من إضافة حزمة shimmer في pubspec.yaml
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:shimmer/shimmer.dart';
+import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
-import '../../../core/widgets/custom_search_bar.dart';
+import '../../../core/constants/app_text_styles.dart';
+import '../../../core/utils/responsive_debouncer_wrapper.dart';
 import '../../../data/models/property_model.dart';
+import '../../../data/repositories/property_repository.dart';
+import '../../../data/services/property_service.dart';
 import '../cubit/properties_cubit.dart';
 import '../cubit/properties_state.dart';
 import '../widgets/build_pagination_bar.dart';
 import '../widgets/property_card.dart';
+import 'property_details_screen.dart';
+import 'property_form_screen.dart';
 
 class PropertiesListScreen extends StatefulWidget {
   final String userId;
@@ -35,7 +35,6 @@ class _PropertiesListScreenState extends State<PropertiesListScreen> with Automa
   @override
   void initState() {
     super.initState();
-    // إنشاء الكيوبت مرة واحدة فقط عند تشغيل الشاشة لأول مرة
     _cubit = PropertiesCubit(PropertiesRepository(PropertiesService()))
       ..fetchPage(userId: widget.userId, role: widget.role, page: 0);
   }
@@ -46,58 +45,139 @@ class _PropertiesListScreenState extends State<PropertiesListScreen> with Automa
 
     return BlocProvider.value(
       value: _cubit,
-      child: BlocConsumer<PropertiesCubit, PropertiesState>(
-        listener: (context, state) {
-          if (state is PropertiesError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message), backgroundColor: Colors.red),
-            );
-          }
-        },
-        builder: (context, state) {
-          bool isFirstPage = (state is PropertiesSuccess && state.currentPage == 0);
+      child: ResponsiveDebouncerWrapper(
+        child: Scaffold(
+          backgroundColor: Colors.white,
+          body: BlocConsumer<PropertiesCubit, PropertiesState>(
+            listener: (context, state) {
+              if (state is PropertiesError) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(state.message), backgroundColor: Colors.red),
+                );
+              }
 
-          return Scaffold(
-            backgroundColor: Colors.white,
-            appBar: AppBar(
-              title: const Text(
-                "Properties Inventory",
-                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-              ),
-              backgroundColor: Colors.white,
-              elevation: 10,
-              surfaceTintColor: Colors.white,
-              shadowColor: Colors.black87,
-            ),
-            body: Column(
-              children: [
-                const Padding(
-                  padding: EdgeInsets.only(top: 15),
-                  child: CustomSearchBar(),
-                ),
-                Expanded(
-                  child: _buildBody(state),
-                ),
-                if (state is PropertiesSuccess && state.totalCount > AppConstants.pageSize)
-                  BuildPaginationBar(
-                    state: state,
-                    cubit: _cubit,
+              // --- معالجة مشكلة حذف آخر عنصر في الصفحة ---
+              if (state is PropertiesSuccess) {
+                // حساب عدد الصفحات الكلي المتاح حالياً (مثلاً لو الإجمالي 15 والصفحة 15، النتيجة 0 وهي الصفحة الأولى)
+                int maxAvailablePage = state.totalCount <= 0
+                    ? 0
+                    : (state.totalCount / AppConstants.pageSize).ceil() - 1;
+
+                // إذا كان المستخدم في صفحة (مثلاً 2) وأصبحت أقصى صفحة متاحة (1)
+                if (state.currentPage > 0 && state.currentPage > maxAvailablePage) {
+                  _cubit.fetchPage(
+                    page: maxAvailablePage,
                     userId: widget.userId,
                     role: widget.role,
+                    city: state.city,
+                    type: state.type,
+                    sortByPrice: state.sortByPrice,
+                  );
+                }
+              }
+            },
+            builder: (context, state) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(state),
+                  _buildFilterSection(state),
+                  Expanded(
+                    child: _buildBody(state),
                   ),
-              ],
-            ),
-            floatingActionButton: isFirstPage
-                ? FloatingActionButton.extended(
-              heroTag: null,
-              onPressed: () => _openForm(context: context, cubit: _cubit),
-              label: Text("Add New Property", style: AppTextStyles.white16Bold.copyWith(fontSize: 14)),
-              icon: const Icon(Icons.add, color: Colors.white, size: 20),
+                  if (state is PropertiesSuccess && state.totalCount > AppConstants.pageSize)
+                    BuildPaginationBar(
+                      state: state,
+                      cubit: _cubit,
+                      userId: widget.userId,
+                      role: widget.role,
+                    ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(PropertiesState state) {
+    int total = 0;
+    if (state is PropertiesSuccess) total = state.totalCount;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20.w, 20.h, 20.w, 10.h),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Properties Inventory", style: AppTextStyles.blue20Medium.copyWith(fontSize: 22.sp, fontWeight: FontWeight.bold, color: Colors.black)),
+              SizedBox(height: 4.h),
+              Text("Manage and track your real estate listings ($total units)", style: const TextStyle(color: Colors.grey)),
+            ],
+          ),
+          ElevatedButton.icon(
+            onPressed: () => _openForm(context: context, cubit: _cubit),
+            icon: const Icon(Icons.add, color: Colors.white),
+            label: const Text("Add Property"),
+            style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryBlue,
-            )
-                : null,
-          );
-        },
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterSection(PropertiesState state) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 15.h),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: "Search by ID, Location...",
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10.r), borderSide: BorderSide(color: AppColors.greyLight)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10.r), borderSide: BorderSide(color: AppColors.greyLight)),
+                contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 16.w),
+              ),
+            ),
+          ),
+          SizedBox(width: 15.w),
+          _buildQuickFilter("City"),
+          SizedBox(width: 10.w),
+          _buildQuickFilter("Type"),
+          SizedBox(width: 10.w),
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.sort_rounded),
+            tooltip: "Sort by Price",
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickFilter(String label) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.greyLight),
+        borderRadius: BorderRadius.circular(8.r),
+      ),
+      child: Row(
+        children: [
+          Text(label, style: TextStyle(fontSize: 12.sp)),
+          Icon(Icons.arrow_drop_down, size: 18.sp),
+        ],
       ),
     );
   }
@@ -106,72 +186,55 @@ class _PropertiesListScreenState extends State<PropertiesListScreen> with Automa
     if (state is PropertiesLoading) {
       return _buildShimmerList();
     } else if (state is PropertiesSuccess) {
-      return _buildList(state, _cubit);
-    } else if (state is PropertiesError) {
-      return Center(
-        child: Text(
-          "Something went wrong\n${state.message}",
-          textAlign: TextAlign.center,
-          style: AppTextStyles.blue20Medium,
-        ),
-      );
-    }
-    return Center(child: Text("No properties found", style: AppTextStyles.blue20Medium));
-  }
-
-  Widget _buildList(PropertiesSuccess state, PropertiesCubit cubit) {
-    final properties = state.currentProperties; // استخدام الـ Getter الجديد
-
-    if (properties.isEmpty && state.currentPage > 0) {
-      cubit.fetchPage(
-        page: state.currentPage - 1,
-        userId: widget.userId,
-        role: widget.role,
-      );
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (properties.isEmpty) return const Center(child: Text("No Properties Found"));
-
-    return ListView.builder(
-      // PageStorageKey يضمن بقاء الـ Scroll في مكانه عند التنقل بين الصفحات
-      key: PageStorageKey('properties_page_${state.currentPage}'),
-      padding: const EdgeInsets.all(10),
-      itemCount: properties.length,
-      itemBuilder: (context, index) {
-        final property = properties[index];
-        return PropertyCard(
-          key: ValueKey(property.id),
-          property: property,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => PropertyDetailsScreen(property: property)),
+      final properties = state.currentProperties;
+      if (properties.isEmpty) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.inventory_2_outlined, size: 50.sp, color: Colors.grey),
+              SizedBox(height: 10.h),
+              const Text("No Properties Found in this page"),
+            ],
           ),
-          onEdit: () => _openForm(context: context, cubit: cubit, property: property),
-          onDelete: () => cubit.deleteProperty(property.id!),
         );
-      },
-    );
+      }
+
+      return ListView.builder(
+        key: PageStorageKey('properties_page_${state.currentPage}'),
+        padding: EdgeInsets.symmetric(horizontal: 10.w),
+        itemCount: properties.length,
+        itemBuilder: (context, index) {
+          final property = properties[index];
+          return PropertyCard(
+            key: ValueKey(property.id),
+            property: property,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => PropertyDetailsScreen(property: property)),
+            ),
+            onEdit: () => _openForm(context: context, cubit: _cubit, property: property),
+            onDelete: () => _cubit.deleteProperty(property.id),
+          );
+        },
+      );
+    }
+    return const Center(child: CircularProgressIndicator());
   }
 
   Widget _buildShimmerList() {
     return ListView.builder(
-      padding: const EdgeInsets.all(10),
-      itemCount: 5, // عدد العناصر الوهمية أثناء التحميل
-      itemBuilder: (context, index) {
-        return Shimmer.fromColors(
-          baseColor: Colors.grey[300]!,
-          highlightColor: Colors.grey[100]!,
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 15),
-            height: 120,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-      },
+      padding: EdgeInsets.all(20.w),
+      itemCount: 5,
+      itemBuilder: (context, index) => Shimmer.fromColors(
+        baseColor: Colors.grey[300]!,
+        highlightColor: Colors.grey[100]!,
+        child: Container(
+          margin: EdgeInsets.only(bottom: 15.h),
+          height: 130.h,
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12.r)),
+        ),
+      ),
     );
   }
 
