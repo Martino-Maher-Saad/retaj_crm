@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/utils/property_cache_manager.dart';
 import '../../../data/models/property_model.dart';
 
 class PropertyCard extends StatelessWidget {
@@ -21,10 +22,16 @@ class PropertyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // استخدام الـ Thumbnail لتقليل استهلاك البيانات
-    final String thumbnailUrl = property.images.isNotEmpty
-        ? property.getThumbnailUrl(property.images.first)
-        : "https://upload.wikimedia.org/wikipedia/commons/a/a3/Image-not-found.png";
+    // 1. استخراج رابط الصورة من الكائن PropertyImageModel
+    final String? firstImageUrl = (property.images != null && property.images!.isNotEmpty)
+        ? property.images!.first.imageUrl // نصل هنا لحقل الـ imageUrl داخل الموديل
+        : null;
+
+// 2. استخدام الرابط الافتراضي
+    final String displayUrl = firstImageUrl ?? "https://upload.wikimedia.org/wikipedia/commons/a/a3/Image-not-found.png";
+    // 2. تحديد الدورية السعرية (إيجار/بيع)
+    bool isRent = property.listingTypeEn?.toLowerCase() == 'rent';
+    String priceSuffix = isRent ? " / ${property.rentalFrequency ?? 'M'}" : "";
 
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
@@ -34,8 +41,8 @@ class PropertyCard extends StatelessWidget {
         border: Border.all(color: AppColors.greyLight.withOpacity(0.5)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
@@ -48,30 +55,34 @@ class PropertyCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. الصورة مع Badge الحالة
+              // --- القسم الأيسر: الصورة والتاجات ---
               Stack(
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10.r),
                     child: CachedNetworkImage(
-                      imageUrl: thumbnailUrl,
-                      width: 140.w,
-                      height: 110.h,
+                      cacheManager: PropertyCacheManager.instance,
+                      fadeInDuration: Duration.zero,
+                      fadeOutDuration: Duration.zero,
+                      useOldImageOnUrlChange: true,
+                      imageUrl: displayUrl,
+                      width: 135.w,
+                      height: 115.h,
                       fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(color: AppColors.greyLight),
-                      errorWidget: (context, url, error) => const Icon(Icons.error),
+                      placeholder: (context, url) => Container(color: Colors.grey[100], child: const Center(child: CircularProgressIndicator(strokeWidth: 2))),
+                      errorWidget: (context, url, error) => Container(color: Colors.grey[100], child: const Icon(Icons.broken_image, color: Colors.grey)),
                     ),
                   ),
                   Positioned(
-                    top: 8.h,
-                    left: 8.w,
+                    top: 6.h,
+                    right: 6.w, // يمين لأننا في سياق عربي
                     child: _buildStatusBadge(),
                   ),
                 ],
               ),
-              SizedBox(width: 16.w),
+              SizedBox(width: 14.w),
 
-              // 2. تفاصيل العقار (الوسط)
+              // --- القسم الأوسط: البيانات الأساسية ---
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,59 +91,53 @@ class PropertyCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          "ID: #${property.id.substring(0, 5)}",
-                          style: AppTextStyles.tableCellSub.copyWith(fontSize: 11.sp),
+                          "${property.listingTypeAr} - ${property.unitTypeAr}",
+                          style: TextStyle(fontSize: 11.sp, fontWeight: FontWeight.bold, color: AppColors.primaryBlue),
                         ),
                         Text(
-                          property.type, // Sale / Rent
-                          style: AppTextStyles.blue16Bold.copyWith(fontSize: 12.sp, color: AppColors.primaryBlue),
+                          "ID: #${property.id.length > 4 ? property.id.substring(property.id.length - 4) : property.id}",
+                          style: AppTextStyles.tableCellSub.copyWith(fontSize: 9.sp),
                         ),
                       ],
                     ),
                     SizedBox(height: 4.h),
                     Text(
-                      "${property.price.toStringAsFixed(0)} EGP",
+                      "${property.price?.toStringAsFixed(0) ?? '0'} EGP$priceSuffix",
                       style: AppTextStyles.blue20Medium.copyWith(
-                        fontSize: 18.sp,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 17.sp,
+                        fontWeight: FontWeight.w800,
                         color: AppColors.primaryBlueDark,
                       ),
                     ),
-                    SizedBox(height: 4.h),
+                    SizedBox(height: 6.h),
                     Row(
                       children: [
-                        Icon(Icons.location_on_outlined, size: 14.sp, color: AppColors.greyDark),
+                        Icon(Icons.location_on, size: 14.sp, color: Colors.redAccent),
                         SizedBox(width: 4.w),
                         Expanded(
                           child: Text(
-                            "${property.city} - ${property.locationAr}",
-                            style: AppTextStyles.tableCellSub.copyWith(fontSize: 12.sp),
+                            "${property.cityAr} - ${property.regionAr}",
+                            style: AppTextStyles.tableCellSub.copyWith(fontSize: 12.sp, color: Colors.black87),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
-                    SizedBox(height: 12.h),
+                    SizedBox(height: 10.h),
                     _buildFeaturesRow(),
                   ],
                 ),
               ),
 
-              // 3. أزرار التحكم
+              // --- القسم الأيمن: أزرار التحكم ---
+              SizedBox(width: 8.w),
               Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  IconButton(
-                    icon: Icon(Icons.edit_note, color: AppColors.primaryBlue, size: 24.sp),
-                    onPressed: onEdit,
-                    tooltip: "Edit",
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.delete_sweep_outlined, color: Colors.redAccent, size: 24.sp),
-                    onPressed: onDelete,
-                    tooltip: "Delete",
-                  ),
+                  _actionButton(Icons.edit_note_rounded, AppColors.primaryBlue, onEdit),
+                  SizedBox(height: 12.h),
+                  _actionButton(Icons.delete_outline_rounded, Colors.redAccent, onDelete),
                 ],
               ),
             ],
@@ -142,41 +147,66 @@ class PropertyCard extends StatelessWidget {
     );
   }
 
+  // --- Widgets المساعدة ---
+
+  Widget _actionButton(IconData icon, Color color, VoidCallback onPressed) {
+    return InkWell(
+      onTap: onPressed,
+      child: Container(
+        padding: EdgeInsets.all(8.w),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(8.r),
+          border: Border.all(color: color.withOpacity(0.1)),
+        ),
+        child: Icon(icon, color: color, size: 24.sp),
+      ),
+    );
+  }
+
   Widget _buildStatusBadge() {
+    final bool available = property.status; // الحقل الجديد status (bool)
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
       decoration: BoxDecoration(
-        color: property.isAvailable ? Colors.green.withOpacity(0.9) : Colors.red.withOpacity(0.9),
+        color: available ? Colors.green.withOpacity(0.9) : Colors.red.withOpacity(0.9),
         borderRadius: BorderRadius.circular(6.r),
+        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
       ),
       child: Text(
-        property.isAvailable ? "Available" : "Closed",
+        available ? "نشط" : "مغلق",
         style: TextStyle(color: Colors.white, fontSize: 10.sp, fontWeight: FontWeight.bold),
       ),
     );
   }
 
   Widget _buildFeaturesRow() {
-    return Wrap(
-      spacing: 12.w,
-      runSpacing: 8.h,
+    return Row(
       children: [
-        _featureIcon(Icons.king_bed_outlined, "${property.rooms}"),
-        _featureIcon(Icons.bathtub_outlined, "${property.baths}"),
-        _featureIcon(Icons.square_foot_outlined, "${property.area}m²"),
-        _featureIcon(Icons.layers_outlined, "F:${property.floor}"),
+        _featureIcon(Icons.king_bed_outlined, "${property.bedrooms ?? 0}"),
+        SizedBox(width: 12.w),
+        _featureIcon(Icons.bathtub_outlined, "${property.bathrooms ?? 0}"),
+        SizedBox(width: 12.w),
+        _featureIcon(Icons.straighten_rounded, "${property.builtArea ?? 0}م²"),
       ],
     );
   }
 
   Widget _featureIcon(IconData icon, String label) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16.sp, color: AppColors.greyDark),
-        SizedBox(width: 4.w),
-        Text(label, style: AppTextStyles.tableCellSub.copyWith(fontSize: 12.sp, fontWeight: FontWeight.w600)),
-      ],
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+      decoration: BoxDecoration(
+        color: AppColors.greyLight.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(4.r),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14.sp, color: AppColors.primaryBlueDark),
+          SizedBox(width: 4.w),
+          Text(label, style: TextStyle(fontSize: 11.sp, color: AppColors.primaryBlueDark, fontWeight: FontWeight.w700)),
+        ],
+      ),
     );
   }
 }

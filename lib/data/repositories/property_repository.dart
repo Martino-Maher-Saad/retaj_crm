@@ -1,80 +1,108 @@
 import 'dart:typed_data';
-import '../../core/constants/app_constants.dart';
 import '../models/property_model.dart';
 import '../services/property_service.dart';
+import '../services/storage_service.dart';
 
-class PropertiesRepository {
-  final PropertiesService _service;
-  PropertiesRepository(this._service);
+class PropertyRepository {
+  final PropertyService _pService;
+  final StorageService _sService;
 
-  Future<PropertyModel> createProperty({required PropertyModel property, required List<Uint8List> imageFiles}) async {
-    final initialData = await _service.insertProperty(property.toJson());
-    final String serverId = initialData['id'];
+  PropertyRepository(this._pService, this._sService);
 
+  // 1. إنشاء عقار كامل مع الصور
+  Future<PropertyModel> createFullProperty(PropertyModel model, List<Uint8List> images) async {
+    String? newId;
     try {
-      if (imageFiles.isNotEmpty) {
-        final List<String> urls = await _service.uploadImages(imageFiles, serverId);
-        await _service.insertImageUrls(serverId, urls);
+      // إرسال البيانات (الموديل سيولد JSON بالمسميات الجديدة تلقائياً)
+      final data = await _pService.insertProperty(model.toJson());
+      newId = data['id'].toString();
+
+      // رفع الصور وربطها بالعقار
+      for (int i = 0; i < images.length; i++) {
+        final name = 'img_${DateTime.now().microsecondsSinceEpoch}_$i.jpg';
+        final url = await _sService.uploadImage(images[i], newId, name);
+        await _pService.insertImageRecord(newId, url);
       }
-      final finalData = await _service.getPropertyById(serverId);
-      return PropertyModel.fromJson(finalData);
+
+      // جلب العقار بعد الإضافة لضمان الحصول على الـ search_vector والبيانات المحسوبة
+      // استخدمنا range(0,0) لجلب آخر واحد تمت إضافته لهذا المستخدم
+      final fresh = await _pService.getMyProperties(userId: model.createdBy!, from: 0, to: 0);
+      return PropertyModel.fromJson(fresh.first);
     } catch (e) {
-      await _service.deleteProperty(serverId);
-      throw Exception("فشل في استكمال إضافة العقار: $e");
+      // تراجع (Rollback) في حالة الفشل
+      if (newId != null) {
+        await _pService.deletePropertyRecord(newId);
+        await _sService.deleteFolder(newId);
+      }
+      throw Exception("فشل الإضافة الآمنة: $e");
     }
   }
 
-  // داخل ملف properties_repository.dart
+  // 2. جلب عقارات الموظف
+  Future<List<PropertyModel>> getMyProperties(String uid, int f, int t) async {
+    final data = await _pService.getMyProperties(userId: uid, from: f, to: t);
+    return data.map((e) => PropertyModel.fromJson(e)).toList();
+  }
 
-  // داخل كلاس PropertiesRepository في ملف property_repository.dart
+  // 3. الفلترة (توجيه البارامترات للأسماء الجديدة في الـ Service)
+  Future<List<PropertyModel>> filterProperties(int f, int t, {String? c, String? ty}) async {
+    final data = await _pService.filterProperties(from: f, to: t, city: c, type: ty);
+    return data.map((e) => PropertyModel.fromJson(e)).toList();
+  }
 
-  Future<PropertyModel> updateProperty({
-    required PropertyModel property,
-    required List<Uint8List> newImages,
-    List<String>? imagesToDelete, // 👈 الباراميتر الجديد
+  // 4. البحث النصي
+  Future<List<PropertyModel>> searchProperties(String q) async {
+    final data = await _pService.searchProperties(q);
+    return data.map((e) => PropertyModel.fromJson(e)).toList();
+  }
+
+  // 5. العدادات
+  Future<int> fetchMyCount(String uid) => _pService.getMyCount(uid);
+  Future<int> fetchFilterCount({String? c, String? ty}) =>
+      _pService.getFilterCount(city: c, type: ty);
+
+  // 6. حذف العقار بالكامل
+  Future<void> deleteFullProperty(String id) async {
+    await _sService.deleteFolder(id);
+    await _pService.deletePropertyRecord(id);
+  }
+
+  // 7. تحديث العقار والصور
+  Future<PropertyModel> updateFullProperty({
+    required PropertyModel p,
+    required List<Uint8List> newImgs,
+    List<String>? delImgs,
   }) async {
     try {
-      // 1. تنفيذ حذف الصور التي اختارها المستخدم (قبل أي شيء آخر)
-      if (imagesToDelete != null && imagesToDelete.isNotEmpty) {
-        await _service.deleteSpecificImages(imagesToDelete);
+      // تحديث البيانات النصية
+      await _pService.updateProperty(p.id, p.toJson());
+
+      // حذف الصور المختارة
+      if (delImgs != null && delImgs.isNotEmpty) {
+        await _pService.deleteImageRecords(p.id, delImgs);
+        for (var url in delImgs) {
+          final fileName = url.split('/').last;
+          await _sService.deleteFile(p.id, fileName);
+        }
       }
 
-      // 2. رفع الصور الجديدة (الزيادة)
-      if (newImages.isNotEmpty) {
-        final List<String> uploadedUrls = await _service.uploadImages(newImages, property.id);
-        await _service.insertImageUrls(property.id, uploadedUrls);
+      // رفع الصور الجديدة
+      for (int i = 0; i < newImgs.length; i++) {
+        final name = 'img_${DateTime.now().microsecondsSinceEpoch}_$i.jpg';
+        final url = await _sService.uploadImage(newImgs[i], p.id, name);
+        await _pService.insertImageRecord(p.id, url);
       }
 
-      // 3. تحديث البيانات النصية (السعر، الوصف، إلخ)
-      await _service.updateProperty(property.id, property.toJson());
+      // جلب البيانات المحدثة (تم تحسين الاستعلام ليجلب الموظف بمدى واسع للبحث عن الـ ID)
+      final fresh = await _pService.getMyProperties(userId: p.createdBy!, from: 0, to: 50);
+      final rawProp = fresh.firstWhere(
+            (element) => element['id'].toString() == p.id,
+        orElse: () => throw Exception("العقار غير موجود بعد التحديث"),
+      );
 
-      // 4. جلب أحدث نسخة للعقار من السيرفر (للـ State Management)
-      final finalData = await _service.getPropertyById(property.id);
-      return PropertyModel.fromJson(finalData);
+      return PropertyModel.fromJson(rawProp);
     } catch (e) {
-      // فشل العملية هنا لا يحذف العقار الأصلي لأنه موجود بالفعل
-      throw Exception("فشل في تحديث العقار: $e");
+      throw Exception("فشل تحديث العقار: $e");
     }
   }
-
-  Future<Map<String, dynamic>> fetchPropertiesWithPagination({
-    required int page,
-    required String userId,
-    required String role,
-    String? city,
-    String? type,
-    bool sortByPrice = false
-  }) async {
-    final results = await Future.wait([
-      _service.getProperties(page: page, pageSize: AppConstants.pageSize, userId: userId, role: role, city: city, type: type, sortByPrice: sortByPrice),
-      _service.getPropertiesCount(userId: userId, role: role, city: city, type: type),
-    ]);
-
-    return {
-      'properties': (results[0] as List).map((json) => PropertyModel.fromJson(json)).toList(),
-      'totalCount': results[1] as int,
-    };
-  }
-
-  Future<void> deleteProperty(String id) async => await _service.deleteProperty(id);
 }

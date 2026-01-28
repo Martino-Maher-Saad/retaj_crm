@@ -1,351 +1,217 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/utils/property_cache_manager.dart';
 import '../../../data/models/property_model.dart';
-import '../cubit/property_details_cubit.dart';
 
 class PropertyDetailsScreen extends StatelessWidget {
   final PropertyModel property;
-  final PageController _pageController = PageController();
 
-  PropertyDetailsScreen({super.key, required this.property});
+  const PropertyDetailsScreen({super.key, required this.property});
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => PropertyDetailsCubit(),
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC), // خلفية رمادية فاتحة جداً للراحة البصرية
-        appBar: AppBar(
-          title: Text("Property ID: #${property.id.substring(0, 5)}",
-              style: AppTextStyles.blue16Bold.copyWith(color: Colors.black)),
-          backgroundColor: Colors.white,
-          elevation: 0,
-          iconTheme: const IconThemeData(color: Colors.black),
-        ),
-        body: LayoutBuilder(
-          builder: (context, constraints) {
-            // إذا كان العرض أكبر من 900px نستخدم نظام العمودين
-            if (constraints.maxWidth > 900) {
-              return _buildDesktopLayout(context);
-            } else {
-              return _buildMobileLayout(context);
-            }
-          },
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        title: Text(property.titleAr ?? "تفاصيل العقار", style: AppTextStyles.blue16Bold),
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
-    );
-  }
-
-  // --- 1. Desktop Layout (Two Columns) ---
-  Widget _buildDesktopLayout(BuildContext context) {
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(24.w),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // الجانب الأيسر: الصور والوصف
-          Expanded(
-            flex: 6,
-            child: Column(
-              children: [
-                _buildMainImageWithSlider(context),
-                SizedBox(height: 24.h),
-                _buildDescriptionCard(),
-              ],
-            ),
-          ),
-          SizedBox(width: 24.w),
-          // الجانب الأيمن: السعر، المواصفات، وبيانات المالك
-          Expanded(
-            flex: 4,
-            child: Column(
-              children: [
-                _buildPriceAndActionCard(),
-                SizedBox(height: 20.h),
-                _buildSpecsGridCard(),
-                SizedBox(height: 20.h),
-                _buildOwnerInfoCard(),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- 2. Image Section with Slider ---
-  Widget _buildMainImageWithSlider(BuildContext context) {
-    return Column(
-      children: [
-        AspectRatio(
-          aspectRatio: 1.7,
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16.r),
-              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Stack(
-              children: [
-                GestureDetector(
-                  onTap: () => _openFullScreenGallery(context, property.images),
-                  child: PageView.builder(
-                    controller: _pageController,
-                    itemCount: property.images.isEmpty ? 1 : property.images.length,
-                    onPageChanged: (index) => context.read<PropertyDetailsCubit>().updateImageIndex(index),
-                    itemBuilder: (context, index) {
-                      if (property.images.isEmpty) return _buildNoImage();
-                      return CachedNetworkImage(
-                        imageUrl: property.getPreviewUrl(property.images[index]), // جودة متوسطة
-                        fit: BoxFit.cover,
-                      );
-                    },
-                  ),
-                ),
-                _buildImageCounter(),
-              ],
-            ),
-          ),
-        ),
-        if (property.images.length > 1) ...[
-          SizedBox(height: 12.h),
-          _buildThumbnailBar(),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildThumbnailBar() {
-    return BlocBuilder<PropertyDetailsCubit, PropertyDetailsState>(
-      builder: (context, state) {
-        return SizedBox(
-          height: 70.h,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: property.images.length,
-            itemBuilder: (context, index) {
-              bool isSelected = state.currentIndex == index;
-              return GestureDetector(
-                onTap: () {
-                  _pageController.animateToPage(index, duration: const Duration(milliseconds: 300), curve: Curves.easeIn);
-                },
-                child: Container(
-                  width: 90.w,
-                  margin: EdgeInsets.only(right: 10.w),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8.r),
-                    border: Border.all(color: isSelected ? AppColors.primaryBlue : Colors.transparent, width: 2),
-                    image: DecorationImage(
-                      image: CachedNetworkImageProvider(property.getThumbnailUrl(property.images[index])),
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
-
-  // --- 3. Specifications Grid ---
-  Widget _buildSpecsGridCard() {
-    final specs = [
-      {"l": "Area", "v": "${property.area} m²", "i": Icons.square_foot},
-      {"l": "Rooms", "v": property.rooms, "i": Icons.bed},
-      {"l": "Baths", "v": property.baths, "i": Icons.bathtub},
-      {"l": "Floor", "v": property.floor, "i": Icons.layers},
-      {"l": "Lounges", "v": property.lounges, "i": Icons.chair},
-      {"l": "Type", "v": property.type, "i": Icons.home},
-    ];
-
-    return Container(
-      padding: EdgeInsets.all(20.w),
-      decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text("Property Details", style: AppTextStyles.blue16Bold.copyWith(color: Colors.black)),
-          SizedBox(height: 16.h),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2, childAspectRatio: 3, crossAxisSpacing: 10.w, mainAxisSpacing: 10.h,
-            ),
-            itemCount: specs.length,
-            itemBuilder: (context, i) => _buildSpecItem(specs[i]),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSpecItem(Map<String, dynamic> spec) {
-    return Row(
-      children: [
-        Container(
-          padding: EdgeInsets.all(8.w),
-          decoration: BoxDecoration(color: AppColors.primaryBlue.withOpacity(0.1), borderRadius: BorderRadius.circular(8.r)),
-          child: Icon(spec['i'] as IconData, size: 18.sp, color: AppColors.primaryBlue),
-        ),
-        SizedBox(width: 10.w),
-        Column(
+      body: SingleChildScrollView(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(spec['l'].toString(), style: TextStyle(fontSize: 10.sp, color: Colors.grey)),
-            Text(spec['v'].toString(), style: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.bold)),
+            // 1. معرض الصور (Image Header)
+            _buildImageHeader(),
+
+            Padding(
+              padding: EdgeInsets.all(16.w),
+              child: Column(
+                children: [
+                  // 2. بطاقة المعلومات الأساسية والسعر
+                  _buildMainInfoCard(),
+                  SizedBox(height: 16.h),
+
+                  // 3. المواصفات الفنية (التقسيم الداخلي)
+                  _buildSectionCard("المواصفات الفنية", Icons.straighten, _buildSpecsGrid()),
+                  SizedBox(height: 16.h),
+
+                  // 4. الموقع والتفاصيل الجغرافية
+                  _buildSectionCard("الموقع", Icons.location_on, _buildLocationDetails()),
+                  SizedBox(height: 16.h),
+
+                  // 5. الوصف النصي
+                  _buildSectionCard("الوصف", Icons.description, _buildDescriptionSection()),
+                  SizedBox(height: 16.h),
+
+                  // 6. بيانات المالك والملاحظات السرية (مهمة للموظف)
+                  _buildSectionCard("بيانات الإدارة والمالك", Icons.admin_panel_settings, _buildOwnerSection()),
+                  SizedBox(height: 40.h),
+                ],
+              ),
+            ),
           ],
-        )
-      ],
+        ),
+      ),
     );
   }
 
-  // --- المساعدات (Helper Widgets) ---
+  // --- مكونات الصفحة ---
 
-  BoxDecoration _cardDecoration() => BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(16.r),
-    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 15, offset: const Offset(0, 5))],
-  );
+  Widget _buildImageHeader() {
+    final images = property.images ?? [];
+    return SizedBox(
+      height: 250.h,
+      child: images.isEmpty
+          ? Container(color: Colors.grey[200], child: const Icon(Icons.image_not_supported, size: 50))
+          : ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: images.length,
+        itemBuilder: (context, index) => Container(
+          width: 340.w,
+          margin: EdgeInsets.only(right: 8.w),
+          child: CachedNetworkImage(
+            imageUrl: images[index].imageUrl ?? '',
+            cacheManager: PropertyCacheManager.instance,
+            fit: BoxFit.cover,
+          ),
+        ),
+      ),
+    );
+  }
 
-  Widget _buildPriceAndActionCard() {
+  Widget _buildMainInfoCard() {
+    bool isRent = property.listingTypeEn?.toLowerCase() == 'rent';
     return Container(
       padding: EdgeInsets.all(20.w),
       decoration: _cardDecoration(),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("Price", style: TextStyle(color: Colors.grey, fontSize: 14.sp)),
-              Text(property.category, style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold)),
+              _badge("${property.listingTypeAr} - ${property.unitTypeAr}", AppColors.primaryBlue),
+              Text("ID: #${property.id.substring(0, 6)}", style: TextStyle(fontSize: 12.sp, color: Colors.grey)),
             ],
           ),
-          SizedBox(height: 8.h),
-          Text("${NumberFormat.decimalPattern().format(property.price)} EGP",
-              style: TextStyle(fontSize: 24.sp, fontWeight: FontWeight.bold, color: AppColors.primaryBlueDark)),
+          SizedBox(height: 12.h),
+          Text("${property.price?.toStringAsFixed(0)} EGP", style: AppTextStyles.blue20Medium.copyWith(fontSize: 24.sp, fontWeight: FontWeight.w900)),
+          if (isRent) Text("دورية الدفع: ${property.rentalFrequency}", style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
           const Divider(height: 30),
-          ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryBlue,
-              minimumSize: Size(double.infinity, 50.h),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
-            ),
-            child: const Text("Contact Support", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
+          Text(property.titleAr ?? '', style: AppTextStyles.blue16Bold.copyWith(color: Colors.black)),
+          SizedBox(height: 8.h),
+          Text(property.titleEn ?? '', style: TextStyle(color: Colors.grey[600], fontSize: 14.sp)),
         ],
       ),
     );
   }
 
-  // باقي الميثودز (Description, OwnerInfo, NoImage) تتبع نفس النمط...
-  Widget _buildDescriptionCard() {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(20.w),
-      decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text("Description", style: AppTextStyles.blue16Bold.copyWith(color: Colors.black)),
-          SizedBox(height: 12.h),
-          Text(property.descAr.isEmpty ? property.descEn : property.descAr,
-              style: TextStyle(fontSize: 14.sp, color: Colors.black87, height: 1.6)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOwnerInfoCard() {
-    return Container(
-      padding: EdgeInsets.all(20.w),
-      decoration: _cardDecoration().copyWith(color: const Color(0xFF1E293B)), // لون غامق للمعلومات السرية
-      child: Column(
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.lock_outline, color: Colors.amber, size: 20),
-              SizedBox(width: 10.w),
-              Text("Owner Information", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14.sp)),
-            ],
-          ),
-          const Divider(color: Colors.white24, height: 24),
-          _ownerDetailRow(Icons.person, "Name", property.ownerName),
-          SizedBox(height: 12.h),
-          _ownerDetailRow(Icons.phone, "Phone", property.ownerPhone),
-        ],
-      ),
-    );
-  }
-
-  Widget _ownerDetailRow(IconData icon, String label, String value) {
-    return Row(
+  Widget _buildSpecsGrid() {
+    return Wrap(
+      spacing: 20.w,
+      runSpacing: 20.h,
       children: [
-        Icon(icon, color: Colors.grey, size: 16.sp),
-        SizedBox(width: 8.w),
-        Text("$label: ", style: const TextStyle(color: Colors.grey)),
-        Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+        _specItem(Icons.king_bed, "الغرف", "${property.bedrooms}"),
+        _specItem(Icons.bathtub, "الحمامات", "${property.bathrooms}"),
+        _specItem(Icons.square_foot, "المساحة", "${property.builtArea} م²"),
+        _specItem(Icons.layers, "الدور", "${property.floor}"),
+        _specItem(Icons.format_paint, "التشطيب", property.completionStatus ?? "غير محدد"),
+        _specItem(Icons.chair, "مفروش", property.furnished == "yes" ? "نعم" : "لا"),
       ],
     );
   }
 
-  Widget _buildImageCounter() {
-    return Positioned(
-      bottom: 16, right: 16,
-      child: BlocBuilder<PropertyDetailsCubit, PropertyDetailsState>(
-        builder: (context, state) => Container(
-          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-          decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20.r)),
-          child: Text("${state.currentIndex + 1} / ${property.images.length}", style: const TextStyle(color: Colors.white)),
-        ),
-      ),
+  Widget _buildLocationDetails() {
+    return Column(
+      children: [
+        _infoRow("المحافظة", property.governorateAr),
+        _infoRow("المدينة", property.cityAr),
+        _infoRow("المنطقة", property.regionAr),
+        _infoRow("العنوان التفصيلي", property.locationInDetails),
+      ],
     );
   }
 
-  Widget _buildNoImage() => Container(color: Colors.grey[200], child: const Icon(Icons.image_not_supported, size: 50));
+  Widget _buildDescriptionSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("بالعربي:", style: TextStyle(fontWeight: FontWeight.bold)),
+        Text(property.descAr ?? "لا يوجد وصف"),
+        const Divider(height: 30),
+        const Text("English:", style: TextStyle(fontWeight: FontWeight.bold)),
+        Text(property.descEn ?? "No Description"),
+      ],
+    );
+  }
 
-  Widget _buildMobileLayout(BuildContext context) {
-    return SingleChildScrollView(
+  Widget _buildOwnerSection() {
+    return Column(
+      children: [
+        _infoRow("اسم المالك", property.ownerName, icon: Icons.person),
+        _infoRow("رقم الهاتف", property.ownerPhone, icon: Icons.phone, color: Colors.green),
+        const Divider(),
+        _infoRow("ملاحظات الموظفين", property.internalNotes, icon: Icons.note, isLong: true),
+      ],
+    );
+  }
+
+  // --- Helper UI Methods ---
+
+  Widget _buildSectionCard(String title, IconData icon, Widget content) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(16.w),
+      decoration: _cardDecoration(),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildMainImageWithSlider(context),
-          Padding(
-            padding: EdgeInsets.all(16.w),
-            child: Column(
-              children: [
-                _buildPriceAndActionCard(),
-                SizedBox(height: 16.h),
-                _buildSpecsGridCard(),
-                SizedBox(height: 16.h),
-                _buildDescriptionCard(),
-                SizedBox(height: 16.h),
-                _buildOwnerInfoCard(),
-              ],
-            ),
-          ),
+          Row(children: [Icon(icon, color: AppColors.primaryBlue, size: 20.sp), SizedBox(width: 8.w), Text(title, style: AppTextStyles.blue16Bold)]),
+          const Divider(height: 24),
+          content,
         ],
       ),
     );
   }
 
-  void _openFullScreenGallery(BuildContext context, List<String> images) {
-    if (images.isEmpty) return;
-    Navigator.push(context, MaterialPageRoute(builder: (_) => Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(backgroundColor: Colors.black, iconTheme: const IconThemeData(color: Colors.white)),
-      body: PageView.builder(
-        itemCount: images.length,
-        itemBuilder: (context, index) => InteractiveViewer(child: Center(child: CachedNetworkImage(imageUrl: images[index]))),
+  Widget _specItem(IconData icon, String label, String value) {
+    return SizedBox(
+      width: 80.w,
+      child: Column(
+        children: [
+          Icon(icon, color: Colors.grey[600], size: 22.sp),
+          SizedBox(height: 4.h),
+          Text(label, style: TextStyle(fontSize: 10.sp, color: Colors.grey)),
+          Text(value, style: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.bold)),
+        ],
       ),
-    )));
+    );
   }
+
+  Widget _infoRow(String label, String? value, {IconData? icon, Color? color, bool isLong = false}) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 8.h),
+      child: Row(
+        crossAxisAlignment: isLong ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+        children: [
+          if (icon != null) Icon(icon, size: 16.sp, color: AppColors.primaryBlue),
+          if (icon != null) SizedBox(width: 8.w),
+          Text("$label: ", style: const TextStyle(fontWeight: FontWeight.bold)),
+          Expanded(child: Text(value ?? "---", style: TextStyle(color: color ?? Colors.black87))),
+        ],
+      ),
+    );
+  }
+
+  BoxDecoration _cardDecoration() => BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12.r), border: Border.all(color: Colors.black12.withOpacity(0.05)));
+
+  Widget _badge(String text, Color color) => Container(padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(6.r)), child: Text(text, style: TextStyle(color: color, fontSize: 11.sp, fontWeight: FontWeight.bold)));
 }

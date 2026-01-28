@@ -1,0 +1,9 @@
+[
+  {"id": "1", "name_ar": "القاهرة", "name_en": "Cairo"},
+  {"id": "2", "name_ar": "الجيزة", "name_en": "Giza"},
+  {"id": "3", "name_ar": "الأسكندرية", "name_en": "Alexandria"},
+  {"id": "4", "name_ar": "مطروح (الساحل الشمالي)", "name_en": "Matrouh"},
+  {"id": "5", "name_ar": "البحر الأحمر", "name_en": "Red Sea"},
+  {"id": "6", "name_ar": "السويس (العين السخنة)", "name_en": "Suez"},
+  {"id": "7", "name_ar": "جنوب سيناء", "name_en": "South Sinai"}
+]

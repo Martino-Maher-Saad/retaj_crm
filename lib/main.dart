@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 // استيراداتك الأصلية
 import 'core/theme/app_theme.dart';
+import 'core/utils/static_data_manager.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/services/auth_service.dart';
 import 'features/auth/cubit/auth_cubit.dart';
@@ -16,6 +17,7 @@ import 'features/layout/screens/layout_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await StaticDataManager().initialize();
 
   await Supabase.initialize(
     url: 'https://owzahfesxoyqfkilvyck.supabase.co',

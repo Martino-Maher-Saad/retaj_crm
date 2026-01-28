@@ -1,12 +1,16 @@
 import 'dart:typed_data';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:intl/intl.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/utils/static_data_manager.dart';
 import '../../../data/models/property_model.dart';
+import '../../../data/models/property_image_model.dart';
 import '../cubit/properties_cubit.dart';
 import '../cubit/properties_state.dart';
 
@@ -22,113 +26,103 @@ class PropertyFormScreen extends StatefulWidget {
 
 class _PropertyFormScreenState extends State<PropertyFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  late Map<String, TextEditingController> _controllers;
+  final dataManager = StaticDataManager();
 
-  // الحالات المختارة (Selections)
-  String? _selectedCity, _selectedType, _selectedCategory, _selectedFinishing;
-  bool _isAvailable = true;
-  bool _isLastFloor = false;
-  bool _flatShare = false;
+  // مغيرات الاختيار
+  String? selectedListingTypeId;
+  String? selectedPropertyTypeId;
+  String? selectedUnitTypeId;
+  String? selectedGovId;
+  String? selectedCityId;
 
-  // معالجة الصور
+  String? selectedCompletionStatus;
+  String? selectedFurnished;
+  String? selectedRentalFrequency;
+  DateTime? selectedDeliveryDate;
+
   List<Uint8List> _newImagesBytes = [];
-  List<String> _existingImages = [];
+  List<PropertyImageModel> _existingImages = [];
   List<String> _imagesToDelete = [];
+
+  late Map<String, TextEditingController> _controllers;
+  bool status = true;
+  bool negotiable = false;
+  bool isCompound = false;
 
   @override
   void initState() {
     super.initState();
-    _initControllers();
+    _initData();
   }
 
-  void _initControllers() {
+  void _initData() {
     final p = widget.property;
     _controllers = {
+      'propertyCode': TextEditingController(text: p?.propertyCode),
+      'titleAr': TextEditingController(text: p?.titleAr),
+      'titleEn': TextEditingController(text: p?.titleEn),
       'descAr': TextEditingController(text: p?.descAr),
       'descEn': TextEditingController(text: p?.descEn),
-      'price': TextEditingController(text: p?.price != null ? p!.price.toStringAsFixed(0) : ""),
-      'area': TextEditingController(text: p?.area != null ? p!.area.toStringAsFixed(0) : ""),
-      'rooms': TextEditingController(text: p?.rooms?.toString()),
-      'baths': TextEditingController(text: p?.baths?.toString()),
-      'lounges': TextEditingController(text: p?.lounges?.toString()),
-      'kitchens': TextEditingController(text: p?.kitchens?.toString()),
-      'balconies': TextEditingController(text: p?.balconies?.toString()),
-      'floor': TextEditingController(text: p?.floor?.toString()),
-      'locAr': TextEditingController(text: p?.locationAr),
-      'locEn': TextEditingController(text: p?.locationEn),
+      'regionAr': TextEditingController(text: p?.regionAr),
+      'regionEn': TextEditingController(text: p?.regionEn),
+      'locDetails': TextEditingController(text: p?.locationInDetails),
       'locMap': TextEditingController(text: p?.locationMap),
+      'price': TextEditingController(text: p?.price?.toString() ?? ""),
+      'downPayment': TextEditingController(text: p?.downPayment?.toString() ?? ""),
+      'monthlyInstall': TextEditingController(text: p?.monthlyInstallation?.toString() ?? ""),
+      'monthsInstall': TextEditingController(text: p?.monthsInstallations?.toString() ?? ""),
+      'insurance': TextEditingController(text: p?.insurance?.toString() ?? ""),
+      'area': TextEditingController(text: p?.builtArea?.toString() ?? ""),
+      'landArea': TextEditingController(text: p?.landArea?.toString() ?? ""),
+      'gardenArea': TextEditingController(text: p?.gardenArea?.toString() ?? ""),
+      'bedrooms': TextEditingController(text: p?.bedrooms?.toString() ?? ""),
+      'bathrooms': TextEditingController(text: p?.bathrooms?.toString() ?? ""),
+      'kitchens': TextEditingController(text: p?.kitchens?.toString() ?? ""),
+      'balconies': TextEditingController(text: p?.balconies?.toString() ?? ""),
+      'floor': TextEditingController(text: p?.floor?.toString() ?? ""),
+      'totalFloors': TextEditingController(text: p?.totalFloors?.toString() ?? ""),
+      'totalApartments': TextEditingController(text: p?.totalApartments?.toString() ?? ""),
+      'buildingAge': TextEditingController(text: p?.buildingAge?.toString() ?? ""),
       'ownerName': TextEditingController(text: p?.ownerName),
       'ownerPhone': TextEditingController(text: p?.ownerPhone),
+      'internalNotes': TextEditingController(text: p?.internalNotes),
     };
 
-    _selectedCity = p?.city;
-    _selectedType = p?.type;
-    _selectedCategory = p?.category;
-    _selectedFinishing = p?.finishing_type;
-    _isAvailable = p?.isAvailable ?? true;
-    _isLastFloor = p?.is_last_floor ?? false;
-    _flatShare = p?.flat_share ?? false;
-    _existingImages = p?.images != null ? List.from(p!.images) : [];
+    if (p != null) {
+      status = p.status;
+      negotiable = p.negotiable ?? false;
+      selectedCompletionStatus = p.completionStatus;
+      selectedFurnished = p.furnished;
+      selectedRentalFrequency = p.rentalFrequency;
+      selectedDeliveryDate = p.deliveryDate;
+      _existingImages = p.images != null ? List.from(p.images!) : [];
+      // تحديد حالة الكمبوند بناءً على وجود بيانات مالية أو حالة تشطيب
+      isCompound = p.downPayment != null || p.completionStatus != null;
+      _syncSelection(p);
+    }
   }
 
-  @override
-  void dispose() {
-    for (var controller in _controllers.values) {
-      controller.dispose();
-    }
-    super.dispose();
+  void _syncSelection(PropertyModel p) {
+    try {
+      selectedListingTypeId = dataManager.listingTypes.firstWhere((e) => e.nameAr == p.listingTypeAr).id;
+      selectedPropertyTypeId = dataManager.propertyTypes.firstWhere((e) => e.nameAr == p.propertyTypeAr).id;
+      selectedUnitTypeId = dataManager.getUnitsByPropertyType(selectedPropertyTypeId!).firstWhere((u) => u.nameAr == p.unitTypeAr).id;
+      selectedGovId = dataManager.governorates.firstWhere((g) => g.nameAr == p.governorateAr).id;
+      selectedCityId = dataManager.getCitiesByGov(selectedGovId!).firstWhere((c) => c.nameAr == p.cityAr).id;
+    } catch (e) { debugPrint("Mapping Sync Error: $e"); }
   }
 
-  PropertyModel _mapFieldsToModel() {
-    return PropertyModel(
-      id: widget.property?.id ?? '',
-      descAr: _controllers['descAr']!.text,
-      descEn: _controllers['descEn']!.text,
-      price: double.tryParse(_controllers['price']!.text) ?? 0.0,
-      area: double.tryParse(_controllers['area']!.text) ?? 0.0,
-      rooms: int.tryParse(_controllers['rooms']!.text) ?? 0,
-      baths: int.tryParse(_controllers['baths']!.text) ?? 0,
-      lounges: int.tryParse(_controllers['lounges']!.text) ?? 0,
-      kitchens: int.tryParse(_controllers['kitchens']!.text) ?? 0,
-      balconies: int.tryParse(_controllers['balconies']!.text) ?? 0,
-      floor: int.tryParse(_controllers['floor']!.text) ?? 0,
-      locationAr: _controllers['locAr']!.text,
-      locationEn: _controllers['locEn']!.text,
-      locationMap: _controllers['locMap']!.text,
-      ownerName: _controllers['ownerName']!.text,
-      ownerPhone: _controllers['ownerPhone']!.text,
-      city: _selectedCity ?? '',
-      type: _selectedType ?? '',
-      category: _selectedCategory ?? '',
-      finishing_type: _selectedFinishing ?? '',
-      isAvailable: _isAvailable,
-      createdAt: widget.property?.createdAt ?? DateTime.now(),
-      is_last_floor: _isLastFloor,
-      flat_share: _flatShare,
-      createdBy: widget.property?.createdBy ?? widget.userId,
-      images: _existingImages,
-    );
-  }
-
-  void _handleSubmit() {
-    if (!_formKey.currentState!.validate()) return;
-    if (_existingImages.isEmpty && _newImagesBytes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please add at least one image")));
-      return;
+  bool _shouldShowFloor() {
+    if (selectedPropertyTypeId == 'commercial') return true;
+    if (selectedPropertyTypeId != null && selectedUnitTypeId != null) {
+      try {
+        final units = dataManager.getUnitsByPropertyType(selectedPropertyTypeId!);
+        final selectedUnit = units.firstWhere((u) => u.id == selectedUnitTypeId);
+        final nameEn = selectedUnit.nameEn.toLowerCase();
+        return nameEn.contains('apartment') || nameEn.contains('duplex') || nameEn.contains('penthouse') || nameEn.contains('roof') || nameEn.contains('chalet');
+      } catch (e) { return false; }
     }
-
-    final cubit = context.read<PropertiesCubit>();
-    final model = _mapFieldsToModel();
-
-    if (widget.property == null) {
-      cubit.addProperty(model, _newImagesBytes);
-    } else {
-      cubit.updateProperty(
-        property: model,
-        newImages: _newImagesBytes,
-        imagesToDelete: _imagesToDelete,
-      );
-    }
+    return false;
   }
 
   @override
@@ -136,266 +130,302 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
     return BlocListener<PropertiesCubit, PropertiesState>(
       listener: (context, state) {
         if (state is PropertiesSuccess) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Saved successfully"), backgroundColor: Colors.green));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("تم حفظ البيانات بنجاح")));
           Navigator.pop(context);
-        } else if (state is PropertiesError) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message), backgroundColor: Colors.red));
         }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
-        appBar: AppBar(
-          title: Text(widget.property == null ? "Add Property" : "Edit Property #${widget.property!.id.substring(0, 5)}"),
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
-          elevation: 0,
-        ),
-        body: Center(
-          child: Container(
-            constraints: BoxConstraints(maxWidth: 1000.w),
-            child: Form(
-              key: _formKey,
-              child: SingleChildScrollView(
-                padding: EdgeInsets.all(24.w),
-                child: Column(
-                  children: [
-                    _buildFormSection(
-                      title: "Media & Images",
-                      icon: Icons.collections_outlined,
-                      child: _buildImagePickerSection(),
-                    ),
-                    SizedBox(height: 20.h),
-                    _buildFormSection(
-                      title: "Basic Info",
-                      icon: Icons.info_outline,
-                      child: Column(
-                        children: [
-                          _buildResponsiveRow([
-                            _buildDropdown("Category", ["Residential", "Commercial", "Administrative"], (v) => setState(() => _selectedCategory = v), _selectedCategory),
-                            _buildDropdown("City", ["Zayed", "October", "Cairo", "Maadi", "New Cairo"], (v) => setState(() => _selectedCity = v), _selectedCity),
-                          ]),
-                          _buildResponsiveRow([
-                            _buildDropdown("Type", ["Sale", "Rent"], (v) => setState(() => _selectedType = v), _selectedType),
-                            _buildTextField(_controllers['price']!, "Price (EGP)", isNum: true, prefix: Icons.payments_outlined),
-                          ]),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 20.h),
-                    _buildFormSection(
-                      title: "Unit Specifications",
-                      icon: Icons.home_work_outlined,
-                      child: Column(
-                        children: [
-                          _buildResponsiveRow([
-                            _buildTextField(_controllers['area']!, "Area m²", isNum: true),
-                            _buildTextField(_controllers['rooms']!, "Rooms", isNum: true),
-                            _buildTextField(_controllers['baths']!, "Baths", isNum: true),
-                          ]),
-                          _buildResponsiveRow([
-                            _buildTextField(_controllers['floor']!, "Floor", isNum: true),
-                            _buildTextField(_controllers['lounges']!, "Lounges", isNum: true),
-                            _buildDropdown("Finishing", ["Super Lux", "Lux", "Semi Finished", "Core & Shell"], (v) => setState(() => _selectedFinishing = v), _selectedFinishing),
-                          ]),
-                          const Divider(),
-                          _buildOptionsRow(),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 20.h),
-                    _buildFormSection(
-                      title: "Location & Description",
-                      icon: Icons.map_outlined,
-                      child: Column(
-                        children: [
-                          _buildTextField(_controllers['locAr']!, "Address Details", prefix: Icons.location_on_outlined),
-                          _buildTextField(_controllers['locMap']!, "Google Maps Link", prefix: Icons.link),
-                          _buildTextField(_controllers['descAr']!, "Description", maxLines: 4),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 20.h),
-                    _buildFormSection(
-                      title: "Owner Data (Confidential)",
-                      icon: Icons.admin_panel_settings_outlined,
-                      color: Colors.blueGrey.shade50,
-                      child: _buildResponsiveRow([
-                        _buildTextField(_controllers['ownerName']!, "Owner Name", prefix: Icons.person_outline),
-                        _buildTextField(_controllers['ownerPhone']!, "Phone", isNum: true, prefix: Icons.phone_android_outlined),
-                      ]),
-                    ),
-                    SizedBox(height: 120.h),
-                  ],
-                ),
-              ),
+        backgroundColor: const Color(0xFFF1F5F9),
+        appBar: AppBar(title: Text(widget.property == null ? "إضافة إعلان" : "تعديل إعلان"), centerTitle: true),
+        body: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            padding: EdgeInsets.all(16.w),
+            child: Column(
+              children: [
+                _buildCard("الصور", Icons.photo_camera, _buildImageSection()),
+                _buildCard("المعلومات الأساسية", Icons.assignment, _buildBasicSection()),
+                _buildCard("الموقع", Icons.map, _buildLocationSection()),
+                _buildCard("المواصفات الفنية", Icons.straighten, _buildTechnicalSection()),
+                _buildCard("حالة العقار", Icons.info_outline, _buildStatusSection()),
+                _buildCard("بيانات السعر", Icons.payments, _buildFinancialSection()),
+                _buildCard("الإدارة", Icons.admin_panel_settings, _buildAdminSection()),
+                SizedBox(height: 24.h),
+                _buildSubmitButton(),
+                SizedBox(height: 40.h),
+              ],
             ),
           ),
         ),
-        floatingActionButton: _buildSubmitButton(),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       ),
     );
   }
 
-  // --- Image Picker Logic ---
-  Widget _buildImagePickerSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          height: 120.h,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              ..._existingImages.map((url) => _imageTile(
-                  CachedNetworkImage(imageUrl: url, fit: BoxFit.cover, placeholder: (c,u) => Container(color: Colors.grey[200])),
-                      () => setState(() { _existingImages.remove(url); _imagesToDelete.add(url); })
-              )),
-              ..._newImagesBytes.asMap().entries.map((e) => _imageTile(
-                  Image.memory(e.value, fit: BoxFit.cover),
-                      () => setState(() => _newImagesBytes.removeAt(e.key))
-              )),
-              if ((_existingImages.length + _newImagesBytes.length) < 10) _addPhotoButton(),
-            ],
-          ),
-        ),
-        SizedBox(height: 8.h),
-        Text("Max 10 images. First image is the thumbnail.", style: TextStyle(fontSize: 10.sp, color: Colors.grey)),
-      ],
-    );
-  }
+  Widget _buildTechnicalSection() {
+    bool isLand = selectedPropertyTypeId == 'land';
+    bool showFloor = _shouldShowFloor();
+    // استخدام IDs الجديدة للتحقق من السكني
+    bool isResidential = selectedPropertyTypeId == 'apartment' ||
+        selectedPropertyTypeId == 'villa' ||
+        selectedPropertyTypeId == 'chalet';
 
-  Widget _imageTile(Widget img, VoidCallback onDel) {
-    return Container(
-      width: 110.w,
-      margin: EdgeInsets.only(right: 12.w),
-      child: Stack(
-        children: [
-          ClipRRect(borderRadius: BorderRadius.circular(12.r), child: SizedBox.expand(child: img)),
-          Positioned(
-            right: 5, top: 5,
-            child: GestureDetector(
-              onTap: onDel,
-              child: CircleAvatar(radius: 12.r, backgroundColor: Colors.red, child: Icon(Icons.close, size: 16.sp, color: Colors.white)),
-            ),
-          ),
+    return Column(children: [
+      if (isLand) _buildField(_controllers['landArea']!, "مساحة الأرض الكلية", num: true, req: true),
+      if (!isLand) ...[
+        _buildField(_controllers['area']!, "المساحة المبنية (BUA)", num: true, req: true),
+        Row(children: [
+          Expanded(child: _buildField(_controllers['bedrooms']!, "الغرف", num: true)),
+          SizedBox(width: 8.w),
+          Expanded(child: _buildField(_controllers['bathrooms']!, "الحمامات", num: true)),
+        ]),
+        Row(children: [
+          Expanded(child: _buildField(_controllers['kitchens']!, "المطابخ", num: true)),
+          SizedBox(width: 8.w),
+          Expanded(child: _buildField(_controllers['balconies']!, "البلكونات", num: true)),
+        ]),
+
+        if (showFloor)
+          _buildField(_controllers['floor']!, "رقم الدور", num: true),
+
+        if (isResidential)
+          _buildFixedDrop("مفروش؟", ["yes", "no"], selectedFurnished, (v) => setState(() => selectedFurnished = v)),
+
+        if (selectedPropertyTypeId == 'villa' || selectedPropertyTypeId == 'building') ...[
+          _buildField(_controllers['totalFloors']!, "عدد الأدوار", num: true),
+          if (selectedPropertyTypeId == 'building') _buildField(_controllers['totalApartments']!, "عدد الشقق", num: true),
+          _buildField(_controllers['gardenArea']!, "مساحة الحديقة", num: true),
+          _buildField(_controllers['landArea']!, "مساحة الأرض الكلية", num: true),
         ],
-      ),
-    );
+      ]
+    ]);
   }
 
-  Widget _addPhotoButton() {
-    return GestureDetector(
-      onTap: () async {
-        final picked = await ImagePicker().pickMultiImage();
-        if (picked.isNotEmpty) {
-          for (var file in picked) {
-            if (_newImagesBytes.length + _existingImages.length < 10) {
-              final bytes = await file.readAsBytes();
-              setState(() => _newImagesBytes.add(bytes));
-            }
-          }
-        }
-      },
-      child: Container(
-        width: 110.w,
-        decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12.r), border: Border.all(color: Colors.grey[300]!, style: BorderStyle.solid)),
-        child: Icon(Icons.add_a_photo_outlined, color: AppColors.primaryBlue, size: 30.sp),
-      ),
-    );
+  Widget _buildBasicSection() {
+    return Column(children: [
+      _buildField(_controllers['propertyCode']!, "كود العقار"),
+      _buildJsonDrop("نوع الإدراج", dataManager.listingTypes, selectedListingTypeId, (v) => setState(() => selectedListingTypeId = v)),
+      Row(children: [
+        Expanded(child: _buildJsonDrop("نوع العقار", dataManager.propertyTypes, selectedPropertyTypeId, (v) => setState(() { selectedPropertyTypeId = v; selectedUnitTypeId = null; }))),
+        SizedBox(width: 8.w),
+        if (selectedPropertyTypeId != null)
+          Expanded(child: _buildJsonDrop("نوع الوحدة", dataManager.getUnitsByPropertyType(selectedPropertyTypeId!), selectedUnitTypeId, (v) => setState(() => selectedUnitTypeId = v))),
+      ]),
+      _buildField(_controllers['titleAr']!, "العنوان بالعربي", req: true),
+      _buildField(_controllers['titleEn']!, "العنوان بالإنجليزي", req: true),
+      _buildField(_controllers['descAr']!, "الوصف بالعربي", long: true, req: true),
+      _buildField(_controllers['descEn']!, "الوصف بالإنجليزي", long: true, req: true),
+    ]);
   }
 
-  // --- Helper Build Methods ---
-  Widget _buildFormSection({required String title, required IconData icon, required Widget child, Color? color}) {
-    return Container(
-      padding: EdgeInsets.all(20.w),
-      decoration: BoxDecoration(color: color ?? Colors.white, borderRadius: BorderRadius.circular(16.r), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10)]),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Icon(icon, color: AppColors.primaryBlue, size: 22.sp),
-            SizedBox(width: 10.w),
-            Text(title, style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold)),
-          ]),
-          const Divider(height: 32),
-          child,
-        ],
-      ),
-    );
+  Widget _buildLocationSection() {
+    return Column(children: [
+      Row(children: [
+        Expanded(child: _buildJsonDrop("المحافظة", dataManager.governorates, selectedGovId, (v) => setState(() { selectedGovId = v; selectedCityId = null; }))),
+        SizedBox(width: 8.w),
+        Expanded(child: _buildJsonDrop("المدينة", selectedGovId != null ? dataManager.getCitiesByGov(selectedGovId!) : [], selectedCityId, (v) => setState(() => selectedCityId = v))),
+      ]),
+      Row(children: [
+        Expanded(child: _buildField(_controllers['regionAr']!, "المنطقة بالعربي", req: true)),
+        SizedBox(width: 8.w),
+        Expanded(child: _buildField(_controllers['regionEn']!, "المنطقة بالإنجليزي", req: true)),
+      ]),
+      _buildField(_controllers['locDetails']!, "العنوان التفصيلي", req: true),
+      _buildField(_controllers['locMap']!, "رابط جوجل ماب"),
+    ]);
   }
 
-  Widget _buildResponsiveRow(List<Widget> children) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: 16.h),
-      child: LayoutBuilder(builder: (context, constraints) {
-        if (constraints.maxWidth > 600) {
-          return Row(crossAxisAlignment: CrossAxisAlignment.start, children: children.map((w) => Expanded(child: Padding(padding: EdgeInsets.symmetric(horizontal: 8.w), child: w))).toList());
-        } else {
-          return Column(children: children.map((w) => Padding(padding: EdgeInsets.only(bottom: 12.h), child: w)).toList());
-        }
-      }),
-    );
-  }
-
-  Widget _buildTextField(TextEditingController ctrl, String label, {bool isNum = false, int maxLines = 1, IconData? prefix}) {
-    return TextFormField(
-      controller: ctrl,
-      maxLines: maxLines,
-      keyboardType: isNum ? TextInputType.number : TextInputType.text,
-      style: TextStyle(fontSize: 14.sp),
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: prefix != null ? Icon(prefix, size: 20.sp) : null,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10.r)),
-        filled: true,
-        fillColor: Colors.white,
-      ),
-      validator: (v) => (v == null || v.isEmpty) ? "Field Required" : null,
-    );
-  }
-
-  Widget _buildDropdown(String label, List<String> items, Function(String?) onChg, String? val) {
-    return DropdownButtonFormField<String>(
-      value: items.contains(val) ? val : null,
-      items: items.map((i) => DropdownMenuItem(value: i, child: Text(i, style: TextStyle(fontSize: 14.sp)))).toList(),
-      onChanged: onChg,
-      decoration: InputDecoration(labelText: label, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10.r)), filled: true, fillColor: Colors.white),
-      validator: (v) => v == null ? "Required" : null,
-    );
-  }
-
-  Widget _buildOptionsRow() {
-    return Wrap(
-      spacing: 20.w,
-      runSpacing: 10.h,
-      children: [
-        _buildCheckOption("Last Floor", _isLastFloor, (v) => setState(() => _isLastFloor = v!)),
-        _buildCheckOption("Flat Share", _flatShare, (v) => setState(() => _flatShare = v!)),
-        _buildSwitchOption("Is Available", _isAvailable, (v) => setState(() => _isAvailable = v)),
+  Widget _buildStatusSection() {
+    return Column(children: [
+      SwitchListTile(title: const Text("داخل كمبوند"), value: isCompound, onChanged: (v) => setState(() => isCompound = v)),
+      if (isCompound) ...[
+        _buildFixedDrop("حالة التشطيب", ["ready", "off-plan"], selectedCompletionStatus, (v) => setState(() => selectedCompletionStatus = v)),
+        if (selectedCompletionStatus == "off-plan")
+          _buildDatePicker("تاريخ الاستلام المتوقع"),
       ],
-    );
+      if (selectedPropertyTypeId != 'land' && !isCompound)
+        _buildField(_controllers['buildingAge']!, "عمر العقار", num: true),
+    ]);
   }
 
-  Widget _buildCheckOption(String l, bool v, Function(bool?) onChg) => Row(mainAxisSize: MainAxisSize.min, children: [Checkbox(value: v, onChanged: onChg), Text(l, style: TextStyle(fontSize: 12.sp))]);
+  Widget _buildFinancialSection() {
+    bool isRent = selectedListingTypeId == 'rent';
+    return Column(children: [
+      _buildField(_controllers['price']!, isRent ? "قيمة الإيجار" : "السعر الكلي", num: true, req: true),
+      if (isRent) ...[
+        _buildFixedDrop("الدورية", ["daily", "weekly", "monthly", "yearly"], selectedRentalFrequency, (v) => setState(() => selectedRentalFrequency = v)),
+        _buildField(_controllers['insurance']!, "قيمة التأمين", num: true),
+      ],
+      if (!isRent && isCompound) ...[
+        Row(children: [
+          Expanded(child: _buildField(_controllers['downPayment']!, "المقدم", num: true)),
+          SizedBox(width: 8.w),
+          Expanded(child: _buildField(_controllers['monthlyInstall']!, "القسط", num: true)),
+        ]),
+        _buildField(_controllers['monthsInstall']!, "مدة التقسيط (شهور)", num: true),
+      ],
+      CheckboxListTile(title: const Text("السعر قابل للتفاوض"), value: negotiable, onChanged: (v) => setState(() => negotiable = v!)),
+    ]);
+  }
 
-  Widget _buildSwitchOption(String l, bool v, Function(bool) onChg) => Row(mainAxisSize: MainAxisSize.min, children: [Text(l, style: TextStyle(fontSize: 12.sp)), Switch(value: v, onChanged: onChg)]);
+  Widget _buildAdminSection() {
+    return Column(children: [
+      _buildField(_controllers['ownerName']!, "اسم المالك"),
+      _buildField(_controllers['ownerPhone']!, "رقم المالك"),
+      _buildField(_controllers['internalNotes']!, "ملاحظات إدارية", long: true),
+      SwitchListTile(title: const Text("نشط (يظهر للعملاء)"), value: status, onChanged: (v) => setState(() => status = v)),
+    ]);
+  }
 
   Widget _buildSubmitButton() {
     return BlocBuilder<PropertiesCubit, PropertiesState>(
       builder: (context, state) {
-        final bool isLoading = state is PropertiesLoading;
-        return SizedBox(
-          width: 300.w,
-          height: 50.h,
-          child: FloatingActionButton.extended(
-            onPressed: isLoading ? null : _handleSubmit,
-            label: isLoading ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text("Save Property", style: TextStyle(fontWeight: FontWeight.bold)),
-            icon: isLoading ? null : const Icon(Icons.check_circle_outline),
-            backgroundColor: AppColors.primaryBlue,
-          ),
+        bool isLoading = state is PropertiesLoading;
+        return ElevatedButton(
+          onPressed: isLoading ? null : _submit,
+          style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue, minimumSize: Size(double.infinity, 54.h)),
+          child: isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("حفظ العقار", style: TextStyle(color: Colors.white)),
         );
       },
     );
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+
+    final listing = dataManager.listingTypes.firstWhere((e) => e.id == selectedListingTypeId);
+    final property = dataManager.propertyTypes.firstWhere((e) => e.id == selectedPropertyTypeId);
+    final unit = dataManager.getUnitsByPropertyType(selectedPropertyTypeId!).firstWhere((u) => u.id == selectedUnitTypeId);
+    final gov = dataManager.governorates.firstWhere((g) => g.id == selectedGovId);
+    final city = dataManager.getCitiesByGov(selectedGovId!).firstWhere((c) => c.id == selectedCityId);
+
+    final model = PropertyModel(
+      id: widget.property?.id ?? '',
+      createdBy: widget.userId,
+      propertyCode: _controllers['propertyCode']!.text,
+      createdAt: widget.property?.createdAt ?? DateTime.now(),
+      titleAr: _controllers['titleAr']!.text, titleEn: _controllers['titleEn']!.text,
+      descAr: _controllers['descAr']!.text, descEn: _controllers['descEn']!.text,
+      listingTypeAr: listing.nameAr, listingTypeEn: listing.nameEn,
+      propertyTypeAr: property.nameAr, propertyTypeEn: property.nameEn,
+      unitTypeAr: unit.nameAr, unitTypeEn: unit.nameEn,
+      governorateAr: gov.nameAr, governorateEn: gov.nameEn,
+      cityAr: city.nameAr, cityEn: city.nameEn,
+      regionAr: _controllers['regionAr']!.text, regionEn: _controllers['regionEn']!.text,
+      locationInDetails: _controllers['locDetails']!.text,
+      locationMap: _controllers['locMap']!.text,
+      price: int.tryParse(_controllers['price']!.text),
+      downPayment: int.tryParse(_controllers['downPayment']!.text),
+      monthlyInstallation: int.tryParse(_controllers['monthlyInstall']!.text),
+      monthsInstallations: int.tryParse(_controllers['monthsInstall']!.text),
+      insurance: int.tryParse(_controllers['insurance']!.text),
+      rentalFrequency: selectedRentalFrequency,
+      builtArea: int.tryParse(_controllers['area']!.text),
+      bedrooms: int.tryParse(_controllers['bedrooms']!.text),
+      bathrooms: int.tryParse(_controllers['bathrooms']!.text),
+      kitchens: int.tryParse(_controllers['kitchens']!.text),
+      balconies: int.tryParse(_controllers['balconies']!.text),
+      floor: int.tryParse(_controllers['floor']!.text),
+      totalFloors: int.tryParse(_controllers['totalFloors']!.text),
+      totalApartments: int.tryParse(_controllers['totalApartments']!.text),
+      buildingAge: int.tryParse(_controllers['buildingAge']!.text),
+      deliveryDate: selectedDeliveryDate,
+      completionStatus: selectedCompletionStatus,
+      furnished: selectedFurnished,
+      landArea: int.tryParse(_controllers['landArea']!.text),
+      gardenArea: int.tryParse(_controllers['gardenArea']!.text),
+      status: status, negotiable: negotiable,
+      ownerName: _controllers['ownerName']!.text, ownerPhone: _controllers['ownerPhone']!.text,
+      internalNotes: _controllers['internalNotes']!.text,
+      images: _existingImages,
+    );
+
+    if (widget.property == null) {
+      context.read<PropertiesCubit>().addProperty(model, _newImagesBytes);
+    } else {
+      context.read<PropertiesCubit>().updateProperty(property: model, newImages: _newImagesBytes, imagesToDelete: _imagesToDelete);
+    }
+  }
+
+  // --- Widgets UI Helpers ---
+  Widget _buildCard(String title, IconData icon, Widget child) => Container(
+    margin: EdgeInsets.only(bottom: 16.h),
+    padding: EdgeInsets.all(16.w),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12.r), border: Border.all(color: Colors.grey.shade200)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [Icon(icon, size: 20.sp, color: AppColors.primaryBlue), SizedBox(width: 8.w), Text(title, style: AppTextStyles.blue16Bold)]),
+      const Divider(height: 24),
+      child,
+    ]),
+  );
+
+  Widget _buildField(TextEditingController ctrl, String label, {bool num = false, bool long = false, bool req = false}) => Padding(
+    padding: EdgeInsets.only(bottom: 12.h),
+    child: TextFormField(
+      controller: ctrl,
+      maxLines: long ? 3 : 1,
+      keyboardType: num ? TextInputType.number : TextInputType.text,
+      decoration: InputDecoration(labelText: label, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.r))),
+      validator: (v) => (req && (v == null || v.isEmpty)) ? "حقل مطلوب" : null,
+    ),
+  );
+
+  Widget _buildJsonDrop(String label, List<dynamic> items, String? val, Function(String?) onChg) => Padding(
+    padding: EdgeInsets.only(bottom: 12.h),
+    child: DropdownButtonFormField<String>(
+      value: val, onChanged: onChg,
+      decoration: InputDecoration(labelText: label, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.r))),
+      items: items.map((i) => DropdownMenuItem(value: i.id.toString(), child: Text(i.nameAr))).toList(),
+    ),
+  );
+
+  Widget _buildFixedDrop(String label, List<String> items, String? val, Function(String?) onChg) => Padding(
+    padding: EdgeInsets.only(bottom: 12.h),
+    child: DropdownButtonFormField<String>(
+      value: items.contains(val) ? val : null, onChanged: onChg,
+      decoration: InputDecoration(labelText: label, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.r))),
+      items: items.map((i) => DropdownMenuItem(value: i, child: Text(i.toUpperCase()))).toList(),
+    ),
+  );
+
+  Widget _buildDatePicker(String label) => ListTile(
+    title: Text(selectedDeliveryDate == null ? label : DateFormat('yyyy-MM-dd').format(selectedDeliveryDate!)),
+    trailing: const Icon(Icons.calendar_today),
+    onTap: () async {
+      final d = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime(2040));
+      if (d != null) setState(() => selectedDeliveryDate = d);
+    },
+  );
+
+  Widget _buildImageSection() {
+    return SizedBox(
+      height: 110.h,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          ..._existingImages.map((img) => _imgBox(CachedNetworkImage(imageUrl: img.imageUrl!, fit: BoxFit.cover),
+              onDel: () => setState(() { _imagesToDelete.add(img.id!); _existingImages.remove(img); }))),
+          ..._newImagesBytes.asMap().entries.map((e) => _imgBox(Image.memory(e.value, fit: BoxFit.cover),
+              onDel: () => setState(() => _newImagesBytes.removeAt(e.key)))),
+          if ((_newImagesBytes.length + _existingImages.length) < 10) _addImgBtn(),
+        ],
+      ),
+    );
+  }
+
+  Widget _imgBox(Widget img, {required VoidCallback onDel}) => Container(
+    width: 90.w, margin: EdgeInsets.only(right: 8.w),
+    child: Stack(children: [ClipRRect(borderRadius: BorderRadius.circular(8.r), child: SizedBox.expand(child: img)), Positioned(top: 2, right: 2, child: GestureDetector(onTap: onDel, child: CircleAvatar(radius: 11.r, backgroundColor: Colors.red, child: Icon(Icons.close, size: 14.sp, color: Colors.white))))]),
+  );
+
+  Widget _addImgBtn() => GestureDetector(onTap: _pick, child: Container(width: 90.w, decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8.r)), child: const Icon(Icons.add_a_photo, color: Colors.blue)));
+
+  Future<void> _pick() async {
+    final picked = await ImagePicker().pickMultiImage();
+    for (var f in picked) {
+      if ((_newImagesBytes.length + _existingImages.length) < 10) {
+        final b = await f.readAsBytes();
+        setState(() => _newImagesBytes.add(b));
+      }
+    }
   }
 }

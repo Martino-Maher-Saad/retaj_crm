@@ -1,183 +1,134 @@
 import 'dart:typed_data';
-import 'package:bloc/bloc.dart';
-import 'package:retaj_crm/features/properties/cubit/properties_state.dart';
-import '../../../core/constants/app_constants.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/models/property_model.dart';
 import '../../../data/repositories/property_repository.dart';
+import 'properties_state.dart';
+
 
 class PropertiesCubit extends Cubit<PropertiesState> {
-  final PropertiesRepository _repository;
-  PropertiesCubit(this._repository) : super(PropertiesInitial());
+  final PropertyRepository _repo;
+  PropertiesCubit(this._repo) : super(PropertiesInitial());
 
-  // --- 1. جلب البيانات مع الكاش ---
-  Future<void> fetchPage({
-    required int page,
-    required String userId,
-    required String role,
-    String? city,
-    String? type,
-    bool sortByPrice = false,
-  }) async {
-    final currentState = state;
+  // 1. جلب عقارات الموظف (Infinite Scroll)
+  Future<void> fetchMyProperties({bool isRefresh = false, required String userId}) async {
+    final current = state is PropertiesSuccess ? state as PropertiesSuccess : PropertiesSuccess();
 
-    // فحص تغير الفلاتر
-    bool filterChanged = false;
-    if (currentState is PropertiesSuccess) {
-      if (currentState.city != city || currentState.type != type || currentState.sortByPrice != sortByPrice) {
-        filterChanged = true;
-      } else if (currentState.propertyCache.containsKey(page)) {
-        emit(currentState.copyWith(currentPage: page));
-        return;
-      }
-    }
-
-    emit(PropertiesLoading());
+    // منع الطلبات المتكررة إذا وصلنا للنهاية
+    if (!isRefresh && current.myProperties.length >= current.myTotalCount && current.myTotalCount != 0) return;
 
     try {
-      final result = await _repository.fetchPropertiesWithPagination(
-        page: page, userId: userId, role: role, city: city, type: type, sortByPrice: sortByPrice,
+      if (isRefresh) emit(PropertiesLoading());
+
+      final count = await _repo.fetchMyCount(userId);
+      final newItems = await _repo.getMyProperties(
+          userId,
+          isRefresh ? 0 : current.myProperties.length,
+          (isRefresh ? 0 : current.myProperties.length) + 14
       );
 
-      final List<PropertyModel> fetchedProperties = result['properties'];
-      final int totalCount = result['totalCount'];
-
-      if (currentState is PropertiesSuccess && !filterChanged) {
-        final updatedCache = Map<int, List<PropertyModel>>.from(currentState.propertyCache);
-        updatedCache[page] = fetchedProperties;
-        emit(currentState.copyWith(propertyCache: updatedCache, currentPage: page, totalCount: totalCount));
-      } else {
-        emit(PropertiesSuccess(
-          propertyCache: {page: fetchedProperties},
-          currentPage: page,
-          totalCount: totalCount,
-          city: city,
-          type: type,
-          sortByPrice: sortByPrice,
-        ));
-      }
-    } catch (e) {
-      emit(PropertiesError("خطأ في التحميل: $e"));
-    }
-  }
-
-  // --- 2. إضافة عقار مع "الدفع لأسفل" (Push Down Shifting) ---
-  Future<void> addProperty(PropertyModel newProp, List<Uint8List> images) async {
-    final currentState = state;
-    if (currentState is! PropertiesSuccess) return;
-
-    emit(PropertiesLoading());
-    try {
-      final createdProperty = await _repository.createProperty(property: newProp, imageFiles: images);
-
-      final updatedCache = Map<int, List<PropertyModel>>.from(currentState.propertyCache);
-
-      // نبدأ التشفيت من الصفحة الأولى دائماً لأن الإضافة تكون في البداية
-      PropertyModel? carryOver = createdProperty;
-
-      for (int i = 0; i < updatedCache.length; i++) {
-        if (carryOver == null) break;
-
-        List<PropertyModel> pageList = List.from(updatedCache[i]!);
-        pageList.insert(0, carryOver); // إضافة العنصر في البداية
-
-        if (pageList.length > AppConstants.pageSize) {
-          carryOver = pageList.removeLast(); // العنصر الأخير يرحل للصفحة التالية
-          updatedCache[i] = pageList;
-        } else {
-          updatedCache[i] = pageList;
-          carryOver = null; // توقف التشفيت لأن الصفحة لم تكتمل بعد
-        }
-      }
-
-      emit(currentState.copyWith(
-        propertyCache: updatedCache,
-        totalCount: currentState.totalCount + 1,
+      emit(current.copyWith(
+        myProps: isRefresh ? newItems : [...current.myProperties, ...newItems],
+        myCount: count,
       ));
     } catch (e) {
-      emit(PropertiesError("فشل الإضافة: $e"));
-      emit(currentState);
+      emit(PropertiesError("فشل تحميل عقاراتي: $e"));
     }
   }
 
-  // --- 3. تحديث عقار (تحديث موضعي) ---
+  // 2. الفلترة العامة
+  Future<void> applyFilter({String? city, String? type}) async {
+    final current = state is PropertiesSuccess ? state as PropertiesSuccess : PropertiesSuccess();
+    emit(PropertiesLoading());
+    try {
+      final count = await _repo.fetchFilterCount(c: city, ty: type);
+      final newItems = await _repo.filterProperties(0, 14, c: city, ty: type);
+      emit(current.copyWith(
+          filterProps: newItems,
+          fCount: count
+      ));
+    } catch (e) {
+      emit(PropertiesError("فشل الفلترة: $e"));
+    }
+  }
+
+  // 3. البحث (يحدث قائمة البحث فقط دون لمس عقاراتي)
+  Future<void> search(String term) async {
+    final current = state is PropertiesSuccess ? state as PropertiesSuccess : PropertiesSuccess();
+    if (term.isEmpty) {
+      emit(current.copyWith(searchProps: []));
+      return;
+    }
+    try {
+      final results = await _repo.searchProperties(term);
+      emit(current.copyWith(searchProps: results));
+    } catch (e) {
+      emit(PropertiesError("فشل البحث: $e"));
+    }
+  }
+
+  // 4. إضافة عقار (التي استدعيناها في الـ Form)
+  Future<void> addProperty(PropertyModel p, List<Uint8List> imgs) async {
+    final current = state is PropertiesSuccess ? state as PropertiesSuccess : PropertiesSuccess();
+    try {
+      final newProp = await _repo.createFullProperty(p, imgs);
+      emit(current.copyWith(
+        myProps: [newProp, ...current.myProperties],
+        myCount: current.myTotalCount + 1,
+      ));
+    } catch (e) {
+      emit(PropertiesError("فشل إضافة العقار: $e"));
+    }
+  }
+
+  // 5. حذف عقار (التي استدعيناها في الـ UI)
+  Future<void> deleteFullProperty(String id) async {
+    final current = state is PropertiesSuccess ? state as PropertiesSuccess : PropertiesSuccess();
+    try {
+      await _repo.deleteFullProperty(id);
+
+      // تحديث القائمة محلياً فوراً لحذف العنصر من الـ UI
+      final updatedList = current.myProperties.where((p) => p.id != id).toList();
+      emit(current.copyWith(
+        myProps: updatedList,
+        myCount: current.myTotalCount - 1,
+      ));
+    } catch (e) {
+      emit(PropertiesError("فشل حذف العقار: $e"));
+    }
+  }
+
+
+
+  // 6. تحديث عقار (تحديث موضعي في القائمة)
   Future<void> updateProperty({
     required PropertyModel property,
     required List<Uint8List> newImages,
     List<String>? imagesToDelete,
   }) async {
-    final currentState = state;
-    if (currentState is! PropertiesSuccess) return;
+    final current = state is PropertiesSuccess ? state as PropertiesSuccess : PropertiesSuccess();
 
+    // إظهار حالة التحميل اختياري، لكن يفضل لراحة المستخدم
     emit(PropertiesLoading());
+
     try {
-      final result = await _repository.updateProperty(
-        property: property, newImages: newImages, imagesToDelete: imagesToDelete,
+      // استدعاء الريبوزيتوري للتحديث في قاعدة البيانات
+      final updatedProp = await _repo.updateFullProperty(
+          p: property,
+          newImgs: newImages,
+          delImgs: imagesToDelete
       );
 
-      final updatedCache = Map<int, List<PropertyModel>>.from(currentState.propertyCache);
-      updatedCache.forEach((key, list) {
-        final index = list.indexWhere((p) => p.id == result.id);
-        if (index != -1) {
-          final newList = List<PropertyModel>.from(list);
-          newList[index] = result;
-          updatedCache[key] = newList;
-        }
-      });
+      // تحديث العنصر في القائمة المحلية (myProperties) دون إعادة تحميل الكل
+      final updatedList = current.myProperties.map((p) {
+        return p.id == updatedProp.id ? updatedProp : p;
+      }).toList();
 
-      emit(currentState.copyWith(propertyCache: updatedCache));
+      emit(current.copyWith(myProps: updatedList));
     } catch (e) {
-      emit(PropertiesError("خطأ التعديل: $e"));
-      emit(currentState);
+      emit(PropertiesError("فشل تحديث العقار: $e"));
+      // إعادة الحالة السابقة في حال الخطأ لضمان استمرار عمل الواجهة
+      emit(current);
     }
   }
 
-  // --- 4. حذف عقار مع "السحب للأعلى" (Pull Up Shifting) ---
-  Future<void> deleteProperty(String id) async {
-    final currentState = state;
-    if (currentState is! PropertiesSuccess) return;
-
-    try {
-      await _repository.deleteProperty(id);
-      final updatedCache = Map<int, List<PropertyModel>>.from(currentState.propertyCache);
-      int startPage = -1;
-
-      // 1. حذف العنصر وتحديد مكان البدء
-      updatedCache.forEach((key, list) {
-        if (list.any((p) => p.id == id)) {
-          startPage = key;
-          final newList = List<PropertyModel>.from(list)..removeWhere((p) => p.id == id);
-          updatedCache[key] = newList;
-        }
-      });
-
-      if (startPage == -1) return;
-
-      // 2. عملية السحب (Pull Up) من الصفحات التالية
-      for (int i = startPage; i < updatedCache.length - 1; i++) {
-        if (updatedCache.containsKey(i + 1) && updatedCache[i + 1]!.isNotEmpty) {
-          List<PropertyModel> currentList = List.from(updatedCache[i]!);
-          List<PropertyModel> nextList = List.from(updatedCache[i + 1]!);
-
-          currentList.add(nextList.removeAt(0)); // سحب أول عنصر من الصفحة التالية
-
-          updatedCache[i] = currentList;
-          updatedCache[i + 1] = nextList;
-        }
-      }
-
-      // 3. معالجة النقص إذا كانت الصفحة التالية غير موجودة في الكاش
-      if (updatedCache[currentState.currentPage]!.length < AppConstants.pageSize &&
-          currentState.totalCount > (startPage + 1) * AppConstants.pageSize) {
-        // هنا نقوم بعمل Fetch خلفي بسيط لملء الفراغ إذا لزم الأمر
-        // أو نتركها للمستخدم عند عمل Refresh
-      }
-
-      emit(currentState.copyWith(
-        propertyCache: updatedCache,
-        totalCount: currentState.totalCount - 1,
-      ));
-    } catch (e) {
-      emit(PropertiesError("فشل الحذف: $e"));
-    }
-  }
 }
