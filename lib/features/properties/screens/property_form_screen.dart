@@ -345,61 +345,6 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
     );
   }
 
-  /*void _submit() {
-    if (!_formKey.currentState!.validate()) return;
-
-    final listing = dataManager.listingTypes.firstWhere((e) => e.id == selectedListingTypeId);
-    final property = dataManager.propertyTypes.firstWhere((e) => e.id == selectedPropertyTypeId);
-    final gov = dataManager.governorates.firstWhere((g) => g.id == selectedGovId);
-    final city = dataManager.getCitiesByGov(selectedGovId!).firstWhere((c) => c.id == selectedCityId);
-
-    final model = PropertyModel(
-      id: widget.property?.id ?? '',
-      createdBy: widget.userId,
-      propertyCode: _controllers['propertyCode']!.text,
-      createdAt: widget.property?.createdAt ?? DateTime.now(),
-      titleAr: _controllers['titleAr']!.text,
-      descAr: _controllers['descAr']!.text,
-      listingTypeAr: listing.nameAr,
-      propertyTypeAr: property.nameAr,
-      governorateAr: gov.nameAr,
-      cityAr: city.nameAr,
-      regionAr: _controllers['regionAr']!.text,
-      locationInDetails: _controllers['locDetails']!.text,
-      locationMap: _controllers['locMap']!.text,
-      price: int.tryParse(_controllers['price']!.text),
-      downPayment: int.tryParse(_controllers['downPayment']!.text),
-      monthlyInstallation: int.tryParse(_controllers['monthlyInstall']!.text),
-      monthsInstallations: int.tryParse(_controllers['monthsInstall']!.text),
-      insurance: int.tryParse(_controllers['insurance']!.text),
-      rentalFrequency: selectedRentalFrequency,
-      builtArea: int.tryParse(_controllers['area']!.text),
-      bedrooms: int.tryParse(_controllers['bedrooms']!.text),
-      bathrooms: int.tryParse(_controllers['bathrooms']!.text),
-      kitchens: int.tryParse(_controllers['kitchens']!.text),
-      balconies: int.tryParse(_controllers['balconies']!.text),
-      floor: int.tryParse(_controllers['floor']!.text),
-      totalFloors: int.tryParse(_controllers['totalFloors']!.text),
-      totalApartments: int.tryParse(_controllers['totalApartments']!.text),
-      buildingAge: int.tryParse(_controllers['buildingAge']!.text),
-      deliveryDate: selectedDeliveryDate,
-      completionStatus: selectedCompletionStatus,
-      furnished: selectedFurnished,
-      landArea: int.tryParse(_controllers['landArea']!.text),
-      gardenArea: int.tryParse(_controllers['gardenArea']!.text),
-      status: status, negotiable: negotiable,
-      ownerName: _controllers['ownerName']!.text, ownerPhone: _controllers['ownerPhone']!.text,
-      internalNotes: _controllers['internalNotes']!.text,
-      images: _existingImages,
-    );
-
-    if (widget.property == null) {
-      context.read<PropertiesCubit>().addProperty(model, _newImagesBytes);
-    } else {
-      context.read<PropertiesCubit>().updateProperty(property: model, newImages: _newImagesBytes, imagesToDelete: _imagesToDelete);
-    }
-  }*/
-  // ... (داخل كلاس _PropertyFormScreenState في دالة _submit)
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;

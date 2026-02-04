@@ -13,7 +13,6 @@ class PropertyRepository {
   Future<PropertyModel> createFullProperty(PropertyModel model, List<Uint8List> images) async {
     String? newId;
     try {
-      print("JSON DATA: ${model.toJson()}"); // السطر ده هو اللي هيحل اللغز
       // إرسال البيانات (الموديل سيولد JSON بالمسميات الجديدة تلقائياً)
       final data = await _pService.insertProperty(model.toJson());
       newId = data['id'].toString();
@@ -35,7 +34,6 @@ class PropertyRepository {
         await _pService.deletePropertyRecord(newId);
         await _sService.deleteFolder(newId);
       }
-      print("Supabase Error: $e");
       throw Exception("فشل الإضافة الآمنة: $e");
     }
   }
@@ -69,44 +67,6 @@ class PropertyRepository {
     await _pService.deletePropertyRecord(id);
   }
 
-  /*// 7. تحديث العقار والصور
-  Future<PropertyModel> updateFullProperty({
-    required PropertyModel p,
-    required List<Uint8List> newImgs,
-    List<String>? delImgs,
-  }) async {
-    try {
-      // تحديث البيانات النصية
-      await _pService.updateProperty(p.id, p.toJson());
-
-      // حذف الصور المختارة
-      if (delImgs != null && delImgs.isNotEmpty) {
-        await _pService.deleteImageRecords(p.id, delImgs);
-        for (var url in delImgs) {
-          final fileName = url.split('/').last;
-          await _sService.deleteFile(p.id, fileName);
-        }
-      }
-
-      // رفع الصور الجديدة
-      for (int i = 0; i < newImgs.length; i++) {
-        final name = 'img_${DateTime.now().microsecondsSinceEpoch}_$i.jpg';
-        final url = await _sService.uploadImage(newImgs[i], p.id, name);
-        await _pService.insertImageRecord(p.id, url);
-      }
-
-      // جلب البيانات المحدثة (تم تحسين الاستعلام ليجلب الموظف بمدى واسع للبحث عن الـ ID)
-      final fresh = await _pService.getMyProperties(userId: p.createdBy!, from: 0, to: 50);
-      final rawProp = fresh.firstWhere(
-            (element) => element['id'].toString() == p.id,
-        orElse: () => throw Exception("العقار غير موجود بعد التحديث"),
-      );
-
-      return PropertyModel.fromJson(rawProp);
-    } catch (e) {
-      throw Exception("فشل تحديث العقار: $e");
-    }
-  }*/
 
   // 7. تحديث العقار والصور
   Future<PropertyModel> updateFullProperty({

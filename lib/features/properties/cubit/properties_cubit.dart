@@ -67,19 +67,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     }
   }
 
-  /*// 4. إضافة عقار (التي استدعيناها في الـ Form)
-  Future<void> addProperty(PropertyModel p, List<Uint8List> imgs) async {
-    final current = state is PropertiesSuccess ? state as PropertiesSuccess : PropertiesSuccess();
-    try {
-      final newProp = await _repo.createFullProperty(p, imgs);
-      emit(current.copyWith(
-        myProps: [newProp, ...current.myProperties],
-        myCount: current.myTotalCount + 1,
-      ));
-    } catch (e) {
-      emit(PropertiesError("فشل إضافة العقار: $e"));
-    }
-  }*/
+
   Future<void> addProperty(PropertyModel p, List<Uint8List> imgs) async {
     final current = state is PropertiesSuccess ? state as PropertiesSuccess : PropertiesSuccess();
 
@@ -121,37 +109,6 @@ class PropertiesCubit extends Cubit<PropertiesState> {
 
 
 
-  /*// 6. تحديث عقار (تحديث موضعي في القائمة)
-  Future<void> updateProperty({
-    required PropertyModel property,
-    required List<Uint8List> newImages,
-    List<String>? imagesToDelete,
-  }) async {
-    final current = state is PropertiesSuccess ? state as PropertiesSuccess : PropertiesSuccess();
-
-    // إظهار حالة التحميل اختياري، لكن يفضل لراحة المستخدم
-    emit(PropertiesLoading());
-
-    try {
-      // استدعاء الريبوزيتوري للتحديث في قاعدة البيانات
-      final updatedProp = await _repo.updateFullProperty(
-          p: property,
-          newImgs: newImages,
-          delImgs: imagesToDelete
-      );
-
-      // تحديث العنصر في القائمة المحلية (myProperties) دون إعادة تحميل الكل
-      final updatedList = current.myProperties.map((p) {
-        return p.id == updatedProp.id ? updatedProp : p;
-      }).toList();
-
-      emit(current.copyWith(myProps: updatedList));
-    } catch (e) {
-      emit(PropertiesError("فشل تحديث العقار: $e"));
-      // إعادة الحالة السابقة في حال الخطأ لضمان استمرار عمل الواجهة
-      emit(current);
-    }
-  }*/
   Future<void> updateProperty({
     required PropertyModel property,
     required List<Uint8List> newImages,
