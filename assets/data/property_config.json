@@ -1,93 +1,32 @@
 {
   "listing_types": [
     {"id": "sale", "name_ar": "بيع", "name_en": "Sale"},
-    {"id": "rent", "name_ar": "إيجار", "name_en": "Rent"},
-    {"id": "compound", "name_ar": "كمبوند", "name_en": "Compound"}
+    {"id": "rent", "name_ar": "إيجار", "name_en": "Rent"}
   ],
   "property_types": [
-    {
-      "id": "apartment",
-      "name_ar": "شقة",
-      "name_en": "Apartment",
-      "units": [
-        {"id": "apt", "name_ar": "شقة", "name_en": "Apartment"},
-        {"id": "duplex", "name_ar": "دوبلكس", "name_en": "Duplex"},
-        {"id": "penthouse", "name_ar": "بنتهاوس", "name_en": "Penthouse"},
-        {"id": "roof", "name_ar": "روف", "name_en": "Roof"},
-        {"id": "studio", "name_ar": "استوديو", "name_en": "Studio"},
-        {"id": "other", "name_ar": "أخرى", "name_en": "Other"}
-      ]
-    },
-    {
-      "id": "villa",
-      "name_ar": "فيلا",
-      "name_en": "Villa",
-      "units": [
-        {"id": "standalone", "name_ar": "فيلا مستقلة", "name_en": "Standalone Villa"},
-        {"id": "town_house", "name_ar": "تاون هاوس", "name_en": "Town House"},
-        {"id": "twin_house", "name_ar": "توين هاوس", "name_en": "Twin House"},
-        {"id": "ivilla", "name_ar": "آي فيلا", "name_en": "iVilla"},
-        {"id": "other", "name_ar": "أخرى", "name_en": "Other"}
-      ]
-    },
-    {
-      "id": "chalet",
-      "name_ar": "شاليه",
-      "name_en": "Chalet",
-      "units": [
-        {"id": "chalet", "name_ar": "شاليه", "name_en": "Chalet"},
-        {"id": "duplex", "name_ar": "دوبلكس", "name_en": "Duplex"},
-        {"id": "penthouse", "name_ar": "بنتهاوس", "name_en": "Penthouse"},
-        {"id": "standalone", "name_ar": "فيلا مستقلة", "name_en": "Standalone Villa"},
-        {"id": "studio", "name_ar": "استوديو", "name_en": "Studio"},
-        {"id": "town_house", "name_ar": "تاون هاوس", "name_en": "Town House"},
-        {"id": "twin_house", "name_ar": "توين هاوس", "name_en": "Twin House"},
-        {"id": "cabin", "name_ar": "كابينة", "name_en": "Cabin"},
-        {"id": "other", "name_ar": "أخرى", "name_en": "Other"}
-      ]
-    },
-    {
-      "id": "commercial",
-      "name_ar": "تجاري / إداري",
-      "name_en": "Commercial / Office",
-      "units": [
-        {"id": "clinical", "name_ar": "عيادة", "name_en": "Clinical"},
-        {"id": "factory", "name_ar": "مصنع", "name_en": "Factory"},
-        {"id": "full_building", "name_ar": "مبنى تجاري كامل", "name_en": "Full Commercial Building"},
-        {"id": "garage", "name_ar": "جراج", "name_en": "Garage"},
-        {"id": "office", "name_ar": "مكتب", "name_en": "Office"},
-        {"id": "space", "name_ar": "مساحة مفتوحة", "name_en": "Space"},
-        {"id": "restaurant_cafe", "name_ar": "مطعم / كافيه", "name_en": "Restaurant / Cafe"},
-        {"id": "retail", "name_ar": "محل تجاري", "name_en": "Retail"},
-        {"id": "warehouse", "name_ar": "مخزن", "name_en": "Warehouse"},
-        {"id": "pharmacy", "name_ar": "صيدلية", "name_en": "Pharmacy"},
-        {"id": "other", "name_ar": "أخرى", "name_en": "Other"}
-      ]
-    },
-    {
-      "id": "building",
-      "name_ar": "عمارة / مبنى كامل",
-      "name_en": "Building",
-      "units": [
-        {"id": "residential_building", "name_ar": "عمارة سكنية", "name_en": "Residential Building"},
-        {"id": "commercial_building", "name_ar": "مبنى تجاري", "name_en": "Commercial Building"},
-        {"id": "administrative_building", "name_ar": "مبنى إداري", "name_en": "Administrative Building"},
-        {"id": "mixed_use_building", "name_ar": "مبنى متعدد الاستخدامات", "name_en": "Mixed Use Building"},
-        {"id": "other", "name_ar": "أخرى", "name_en": "Other"}
-      ]
-    },
-    {
-      "id": "land",
-      "name_ar": "أرض",
-      "name_en": "Land",
-      "units": [
-        {"id": "agricultural", "name_ar": "زراعية", "name_en": "Agricultural"},
-        {"id": "commercial_land", "name_ar": "تجارية", "name_en": "Commercial"},
-        {"id": "industrial", "name_ar": "صناعية", "name_en": "Industrial"},
-        {"id": "residential_land", "name_ar": "سكنية", "name_en": "Residential"},
-        {"id": "any_use", "name_ar": "كل الاستخدامات", "name_en": "Any Use"},
-        {"id": "other", "name_ar": "أخرى", "name_en": "Other"}
-      ]
-    }
+    {"id": "apt", "name_ar": "شقة", "name_en": "Apartment"},
+    {"id": "duplex", "name_ar": "دوبلكس", "name_en": "Duplex"},
+    {"id": "penthouse", "name_ar": "بنتهاوس", "name_en": "Penthouse"},
+    {"id": "roof", "name_ar": "روف", "name_en": "Roof"},
+    {"id": "studio", "name_ar": "استوديو", "name_en": "Studio"},
+    {"id": "standalone_villa", "name_ar": "فيلا مستقلة", "name_en": "Standalone Villa"},
+    {"id": "town_house", "name_ar": "تاون هاوس", "name_en": "Town House"},
+    {"id": "twin_house", "name_ar": "توين هاوس", "name_en": "Twin House"},
+    {"id": "ivilla", "name_ar": "آي فيلا", "name_en": "iVilla"},
+    {"id": "chalet", "name_ar": "شاليه", "name_en": "Chalet"},
+    {"id": "cabin", "name_ar": "كابينة", "name_en": "Cabin"},
+    {"id": "clinic", "name_ar": "عيادة", "name_en": "Clinical"},
+    {"id": "factory", "name_ar": "مصنع", "name_en": "Factory"},
+    {"id": "office", "name_ar": "مكتب", "name_en": "Office"},
+    {"id": "restaurant_cafe", "name_ar": "مطعم / كافيه", "name_en": "Restaurant / Cafe"},
+    {"id": "retail", "name_ar": "محل تجاري", "name_en": "Retail"},
+    {"id": "warehouse", "name_ar": "مخزن", "name_en": "Warehouse"},
+    {"id": "pharmacy", "name_ar": "صيدلية", "name_en": "Pharmacy"},
+    {"id": "residential_building", "name_ar": "عمارة سكنية", "name_en": "Residential Building"},
+    {"id": "commercial_building", "name_ar": "مبنى تجاري", "name_en": "Commercial Building"},
+    {"id": "agricultural_land", "name_ar": "أرض زراعية", "name_en": "Agricultural Land"},
+    {"id": "commercial_land", "name_ar": "أرض تجارية", "name_en": "Commercial Land"},
+    {"id": "residential_land", "name_ar": "أرض سكنية", "name_en": "Residential Land"},
+    {"id": "other", "name_ar": "أخرى", "name_en": "Other"}
   ]
 }

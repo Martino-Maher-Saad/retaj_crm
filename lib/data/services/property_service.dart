@@ -10,7 +10,7 @@ class PropertyService {
   }) async {
     final response = await _client
         .from('properties')
-        .select('*, property_images(image_url)')
+        .select('*, property_images(*)')
         .eq('created_by', userId)
         .order('created_at', ascending: false)
         .range(from, to);
@@ -23,7 +23,7 @@ class PropertyService {
     String? city,
     String? type,
   }) async {
-    var query = _client.from('properties').select('*, property_images(image_url)');
+    var query = _client.from('properties').select('*, property_images(*)');
     if (city != null && city.isNotEmpty) query = query.eq('city_ar', city);
     if (type != null && type.isNotEmpty) query = query.eq('property_type_ar', type);
 
@@ -34,7 +34,7 @@ class PropertyService {
   Future<List<Map<String, dynamic>>> searchProperties(String term) async {
     final response = await _client
         .from('properties')
-        .select('*, property_images(image_url)')
+        .select('*, property_images(*)')
         .textSearch('search_vector', term)
         .limit(30);
     return List<Map<String, dynamic>>.from(response);
@@ -53,8 +53,9 @@ class PropertyService {
     return res.count ?? 0;
   }
 
-  Future<Map<String, dynamic>> insertProperty(Map<String, dynamic> data) async =>
-      await _client.from('properties').insert(data).select().single();
+  Future<Map<String, dynamic>> insertProperty(Map<String, dynamic> data) async {
+    return await _client.from('properties').insert(data).select().single();
+  }
 
   Future<void> insertImageRecord(String propId, String url) async =>
       await _client.from('property_images').insert({'property_id': propId, 'image_url': url});
@@ -67,8 +68,11 @@ class PropertyService {
   Future<Map<String, dynamic>> updateProperty(String id, Map<String, dynamic> data) async =>
       await _client.from('properties').update(data).eq('id', id).select().single();
 
-  // حذف سجلات صور محددة بناءً على الرابط
+  /*// حذف سجلات صور محددة بناءً على الرابط
   Future<void> deleteImageRecords(String propId, List<String> urls) async =>
-      await _client.from('property_images').delete().eq('property_id', propId).inFilter('image_url', urls);
+      await _client.from('property_images').delete().eq('property_id', propId).inFilter('image_url', urls);*/
 
+  // حذف السجلات من الداتا بيز باستخدام الـ IDs (أسرع وأدق)
+  Future<void> deleteImageRecordsByIds(List<String> ids) async =>
+      await _client.from('property_images').delete().inFilter('id', ids);
 }

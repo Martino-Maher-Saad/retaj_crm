@@ -13,6 +13,7 @@ class PropertyRepository {
   Future<PropertyModel> createFullProperty(PropertyModel model, List<Uint8List> images) async {
     String? newId;
     try {
+      print("JSON DATA: ${model.toJson()}"); // السطر ده هو اللي هيحل اللغز
       // إرسال البيانات (الموديل سيولد JSON بالمسميات الجديدة تلقائياً)
       final data = await _pService.insertProperty(model.toJson());
       newId = data['id'].toString();
@@ -34,6 +35,7 @@ class PropertyRepository {
         await _pService.deletePropertyRecord(newId);
         await _sService.deleteFolder(newId);
       }
+      print("Supabase Error: $e");
       throw Exception("فشل الإضافة الآمنة: $e");
     }
   }
@@ -67,7 +69,7 @@ class PropertyRepository {
     await _pService.deletePropertyRecord(id);
   }
 
-  // 7. تحديث العقار والصور
+  /*// 7. تحديث العقار والصور
   Future<PropertyModel> updateFullProperty({
     required PropertyModel p,
     required List<Uint8List> newImgs,
@@ -104,5 +106,51 @@ class PropertyRepository {
     } catch (e) {
       throw Exception("فشل تحديث العقار: $e");
     }
+  }*/
+
+  // 7. تحديث العقار والصور
+  Future<PropertyModel> updateFullProperty({
+    required PropertyModel p,
+    required List<Uint8List> newImgs,
+    List<String>? delImgsIds, // قائمة الـ IDs للمسح من DB
+    List<String>? delImgsUrls, // قائمة الـ URLs للمسح من Storage
+  }) async {
+    try {
+      // تحديث البيانات النصية
+      await _pService.updateProperty(p.id, p.toJson());
+
+      // 2. حذف الصور (داتا بيز + ستوريدج)
+      if (delImgsIds != null && delImgsIds.isNotEmpty) {
+        // حذف من الداتا بيز بطلقة واحدة
+        await _pService.deleteImageRecordsByIds(delImgsIds);
+
+        // حذف من الـ Storage (بنلف على الـ URLs)
+        for (var url in delImgsUrls!) {
+          final fileName = url.split('/').last;
+          await _sService.deleteFile(p.id, fileName);
+        }
+      }
+
+      // رفع الصور الجديدة
+      for (int i = 0; i < newImgs.length; i++) {
+        final name = 'img_${DateTime.now().microsecondsSinceEpoch}_$i.jpg';
+        final url = await _sService.uploadImage(newImgs[i], p.id, name);
+        await _pService.insertImageRecord(p.id, url);
+      }
+
+      // جلب البيانات المحدثة (تم تحسين الاستعلام ليجلب الموظف بمدى واسع للبحث عن الـ ID)
+      final fresh = await _pService.getMyProperties(userId: p.createdBy!, from: 0, to: 50);
+      final rawProp = fresh.firstWhere(
+            (element) => element['id'].toString() == p.id,
+        orElse: () => throw Exception("العقار غير موجود بعد التحديث"),
+      );
+
+      return PropertyModel.fromJson(rawProp);
+    } catch (e) {
+      throw Exception("فشل تحديث العقار: $e");
+    }
   }
+
+
+
 }

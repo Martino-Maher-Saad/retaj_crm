@@ -11,21 +11,12 @@ class PropertyModel {
 
   // 2. النصوص والعناوين (Localization)
   final String titleAr;
-  final String titleEn;
   final String descAr;
-  final String descEn;
   final String listingTypeAr;
-  final String listingTypeEn;
   final String propertyTypeAr;
-  final String propertyTypeEn;
-  final String unitTypeAr;
-  final String unitTypeEn;
   final String governorateAr;
-  final String governorateEn;
   final String cityAr;
-  final String cityEn;
   final String regionAr;
-  final String regionEn;
   final String locationInDetails;
   final String? locationMap;
 
@@ -69,21 +60,12 @@ class PropertyModel {
     required this.status,
     this.negotiable,
     required this.titleAr,
-    required this.titleEn,
     required this.descAr,
-    required this.descEn,
     required this.listingTypeAr,
-    required this.listingTypeEn,
     required this.propertyTypeAr,
-    required this.propertyTypeEn,
-    required this.unitTypeAr,
-    required this.unitTypeEn,
     required this.governorateAr,
-    required this.governorateEn,
     required this.cityAr,
-    required this.cityEn,
     required this.regionAr,
-    required this.regionEn,
     required this.locationInDetails,
     this.locationMap,
     this.floor,
@@ -126,21 +108,12 @@ class PropertyModel {
       status: json['status'] ?? false,
       negotiable: json['negotiable'],
       titleAr: json['title_ar'] ?? '',
-      titleEn: json['title_en'] ?? '',
       descAr: json['desc_ar'] ?? '',
-      descEn: json['desc_en'] ?? '',
       listingTypeAr: json['listing_type_ar'] ?? '',
-      listingTypeEn: json['listing_type_en'] ?? '',
       propertyTypeAr: json['property_type_ar'] ?? '',
-      propertyTypeEn: json['property_type_en'] ?? '',
-      unitTypeAr: json['unit_type_ar'] ?? '',
-      unitTypeEn: json['unit_type_en'] ?? '',
       governorateAr: json['governorate_ar'] ?? '',
-      governorateEn: json['governorate_en'] ?? '',
       cityAr: json['city_ar'] ?? '',
-      cityEn: json['city_en'] ?? '',
       regionAr: json['region_ar'] ?? '',
-      regionEn: json['region_en'] ?? '',
       locationInDetails: json['location_in_details'] ?? '',
       locationMap: json['location_map'],
       floor: _toInt(json['floor']),
@@ -177,21 +150,12 @@ class PropertyModel {
       'status': status,
       'negotiable': negotiable,
       'title_ar': titleAr,
-      'title_en': titleEn,
       'desc_ar': descAr,
-      'desc_en': descEn,
       'listing_type_ar': listingTypeAr,
-      'listing_type_en': listingTypeEn,
       'property_type_ar': propertyTypeAr,
-      'property_type_en': propertyTypeEn,
-      'unit_type_ar': unitTypeAr,
-      'unit_type_en': unitTypeEn,
       'governorate_ar': governorateAr,
-      'governorate_en': governorateEn,
       'city_ar': cityAr,
-      'city_en': cityEn,
       'region_ar': regionAr,
-      'region_en': regionEn,
       'location_in_details': locationInDetails,
       'location_map': locationMap,
       'floor': floor,
@@ -235,21 +199,12 @@ class PropertyModel {
     bool? status,
     bool? negotiable,
     String? titleAr,
-    String? titleEn,
     String? descAr,
-    String? descEn,
     String? listingTypeAr,
-    String? listingTypeEn,
     String? propertyTypeAr,
-    String? propertyTypeEn,
-    String? unitTypeAr,
-    String? unitTypeEn,
     String? governorateAr,
-    String? governorateEn,
     String? cityAr,
-    String? cityEn,
     String? regionAr,
-    String? regionEn,
     String? locationInDetails,
     String? locationMap,
     int? floor,
@@ -285,21 +240,12 @@ class PropertyModel {
       status: status ?? this.status,
       negotiable: negotiable ?? this.negotiable,
       titleAr: titleAr ?? this.titleAr,
-      titleEn: titleEn ?? this.titleEn,
       descAr: descAr ?? this.descAr,
-      descEn: descEn ?? this.descEn,
       listingTypeAr: listingTypeAr ?? this.listingTypeAr,
-      listingTypeEn: listingTypeEn ?? this.listingTypeEn,
       propertyTypeAr: propertyTypeAr ?? this.propertyTypeAr,
-      propertyTypeEn: propertyTypeEn ?? this.propertyTypeEn,
-      unitTypeAr: unitTypeAr ?? this.unitTypeAr,
-      unitTypeEn: unitTypeEn ?? this.unitTypeEn,
       governorateAr: governorateAr ?? this.governorateAr,
-      governorateEn: governorateEn ?? this.governorateEn,
       cityAr: cityAr ?? this.cityAr,
-      cityEn: cityEn ?? this.cityEn,
       regionAr: regionAr ?? this.regionAr,
-      regionEn: regionEn ?? this.regionEn,
       locationInDetails: locationInDetails ?? this.locationInDetails,
       locationMap: locationMap ?? this.locationMap,
       floor: floor ?? this.floor,

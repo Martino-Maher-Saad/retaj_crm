@@ -23,14 +23,14 @@ class PropertyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 1. استخراج رابط الصورة من الكائن PropertyImageModel
-    final String? firstImageUrl = (property.images != null && property.images!.isNotEmpty)
-        ? property.images!.first.imageUrl // نصل هنا لحقل الـ imageUrl داخل الموديل
+    final String? firstImageUrl = (property.images.isNotEmpty)
+        ? property.images.first.imageUrl
         : null;
 
-// 2. استخدام الرابط الافتراضي
+    // 2. استخدام الرابط الافتراضي
     final String displayUrl = firstImageUrl ?? "https://upload.wikimedia.org/wikipedia/commons/a/a3/Image-not-found.png";
     // 2. تحديد الدورية السعرية (إيجار/بيع)
-    bool isRent = property.listingTypeEn?.toLowerCase() == 'rent';
+    bool isRent = property.listingTypeAr.toLowerCase() == 'إيجار';
     String priceSuffix = isRent ? " / ${property.rentalFrequency ?? 'M'}" : "";
 
     return Container(
@@ -91,7 +91,7 @@ class PropertyCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          "${property.listingTypeAr} - ${property.unitTypeAr}",
+                          "${property.listingTypeAr} - ${property.propertyTypeAr}",
                           style: TextStyle(fontSize: 11.sp, fontWeight: FontWeight.bold, color: AppColors.primaryBlue),
                         ),
                         Text(

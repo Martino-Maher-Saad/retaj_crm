@@ -63,8 +63,9 @@ class ProfileModel {
   final String role;
   final String? firstName;
   final String? lastName;
+  final String? imageUrl;
 
-  ProfileModel({this.firstName, this.lastName,required this.id, required this.email, required this.role});
+  ProfileModel({this.firstName, this.lastName,required this.id, required this.email, required this.role, this.imageUrl});
 
   factory ProfileModel.fromJson(Map<String, dynamic> json) {
     return ProfileModel(
@@ -73,6 +74,7 @@ class ProfileModel {
       role: json['role'] ?? 'sales',
       firstName: json['first_name'] ?? 'user',
       lastName: json['last_name'] ?? 'name',
+      imageUrl: json['image_url'] ?? ''
     );
   }
 

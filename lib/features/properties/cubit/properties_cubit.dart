@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../data/models/property_image_model.dart';
 import '../../../data/models/property_model.dart';
 import '../../../data/repositories/property_repository.dart';
 import 'properties_state.dart';
@@ -66,7 +67,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     }
   }
 
-  // 4. إضافة عقار (التي استدعيناها في الـ Form)
+  /*// 4. إضافة عقار (التي استدعيناها في الـ Form)
   Future<void> addProperty(PropertyModel p, List<Uint8List> imgs) async {
     final current = state is PropertiesSuccess ? state as PropertiesSuccess : PropertiesSuccess();
     try {
@@ -78,7 +79,28 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     } catch (e) {
       emit(PropertiesError("فشل إضافة العقار: $e"));
     }
+  }*/
+  Future<void> addProperty(PropertyModel p, List<Uint8List> imgs) async {
+    final current = state is PropertiesSuccess ? state as PropertiesSuccess : PropertiesSuccess();
+
+    // 1. إرسال حالة التحميل فوراً لتغيير شكل الزر في الواجهة
+    emit(PropertiesLoading());
+
+    try {
+      final newProp = await _repo.createFullProperty(p, imgs);
+      emit(current.copyWith(
+        myProps: [newProp, ...current.myProperties],
+        myCount: current.myTotalCount + 1,
+      ));
+    } catch (e) {
+      // 2. إرسال الخطأ
+      emit(PropertiesError("فشل إضافة العقار: $e"));
+      // 3. إعادة الحالة السابقة (Success) عشان الزرار يرجع يظهر تاني والبيانات متضيعش
+      emit(current);
+    }
   }
+
+
 
   // 5. حذف عقار (التي استدعيناها في الـ UI)
   Future<void> deleteFullProperty(String id) async {
@@ -99,7 +121,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
 
 
 
-  // 6. تحديث عقار (تحديث موضعي في القائمة)
+  /*// 6. تحديث عقار (تحديث موضعي في القائمة)
   Future<void> updateProperty({
     required PropertyModel property,
     required List<Uint8List> newImages,
@@ -127,6 +149,37 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     } catch (e) {
       emit(PropertiesError("فشل تحديث العقار: $e"));
       // إعادة الحالة السابقة في حال الخطأ لضمان استمرار عمل الواجهة
+      emit(current);
+    }
+  }*/
+  Future<void> updateProperty({
+    required PropertyModel property,
+    required List<Uint8List> newImages,
+    List<PropertyImageModel>? imagesToDelete, // تعديل النوع هنا
+  }) async {
+    final current = state is PropertiesSuccess ? state as PropertiesSuccess : PropertiesSuccess();
+
+    emit(PropertiesLoading());
+
+    try {
+      // فصل الـ IDs والـ URLs قبل إرسالهم للـ Repository
+      final List<String> delIds = imagesToDelete?.map((e) => e.id!).toList() ?? [];
+      final List<String> delUrls = imagesToDelete?.map((e) => e.imageUrl).toList() ?? [];
+
+      final updatedProp = await _repo.updateFullProperty(
+          p: property,
+          newImgs: newImages,
+          delImgsIds: delIds,   // نمرر الـ IDs للداتا بيز
+          delImgsUrls: delUrls  // نمرر الـ URLs للستوريدج
+      );
+
+      final updatedList = current.myProperties.map((p) {
+        return p.id == updatedProp.id ? updatedProp : p;
+      }).toList();
+
+      emit(current.copyWith(myProps: updatedList));
+    } catch (e) {
+      emit(PropertiesError("فشل تحديث العقار: $e"));
       emit(current);
     }
   }

@@ -1,8 +1,10 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:retaj_crm/data/models/profile_model.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/utils/property_cache_manager.dart';
 
 class UserAvatar extends StatelessWidget {
   final ProfileModel user;
@@ -17,14 +19,35 @@ class UserAvatar extends StatelessWidget {
         children: [
           // الدائرة التعريفية للمستخدم
           CircleAvatar(
-            radius: 28.r, // استخدام .r للـ Radius لضمان التناسق
+            radius: 28.r,
             backgroundColor: AppColors.primaryBlue,
-            child: Text(
-              user.firstName?[0].toUpperCase() ?? 'U',
-              style: TextStyle(
-                color: AppColors.white,
-                fontSize: 26.sp, // حجم الخط داخل الدائرة
-                fontWeight: FontWeight.bold,
+            // نستخدم الـ child لعرض المحتوى
+            child: ClipOval( // لضمان أن الصورة تظل دائرية تماماً حتى لو كانت أبعادها غير متساوية
+              child: user.imageUrl == null || user.imageUrl!.isEmpty
+                  ? Text(
+                user.firstName?[0].toUpperCase() ?? 'U',
+                style: TextStyle(
+                  color: AppColors.white,
+                  fontSize: 26.sp,
+                  fontWeight: FontWeight.bold,
+                ),
+              )
+                  : CachedNetworkImage(
+                imageUrl: user.imageUrl!,
+                width: 56.r * 2, // القطر كامل (radius * 2)
+                height: 56.r * 2,
+                fit: BoxFit.cover,
+                // نستخدم الـ CacheManager المخصص للويب الذي أنشأناه سابقاً
+                cacheManager: PropertyCacheManager.instance,
+                placeholder: (context, url) => CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.white),
+                ),
+                errorWidget: (context, url, error) => Icon(
+                  Icons.person,
+                  color: AppColors.white,
+                  size: 30.sp,
+                ),
               ),
             ),
           ),

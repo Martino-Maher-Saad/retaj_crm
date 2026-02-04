@@ -88,7 +88,7 @@ class PropertyDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildMainInfoCard() {
-    bool isRent = property.listingTypeEn?.toLowerCase() == 'rent';
+    bool isRent = property.listingTypeAr?.toLowerCase() == 'rent';
     return Container(
       padding: EdgeInsets.all(20.w),
       decoration: _cardDecoration(),
@@ -98,7 +98,7 @@ class PropertyDetailsScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _badge("${property.listingTypeAr} - ${property.unitTypeAr}", AppColors.primaryBlue),
+              _badge("${property.listingTypeAr} - ${property.propertyTypeAr}", AppColors.primaryBlue),
               Text("ID: #${property.id.substring(0, 6)}", style: TextStyle(fontSize: 12.sp, color: Colors.grey)),
             ],
           ),
@@ -108,7 +108,6 @@ class PropertyDetailsScreen extends StatelessWidget {
           const Divider(height: 30),
           Text(property.titleAr ?? '', style: AppTextStyles.blue16Bold.copyWith(color: Colors.black)),
           SizedBox(height: 8.h),
-          Text(property.titleEn ?? '', style: TextStyle(color: Colors.grey[600], fontSize: 14.sp)),
         ],
       ),
     );
@@ -148,7 +147,6 @@ class PropertyDetailsScreen extends StatelessWidget {
         Text(property.descAr ?? "لا يوجد وصف"),
         const Divider(height: 30),
         const Text("English:", style: TextStyle(fontWeight: FontWeight.bold)),
-        Text(property.descEn ?? "No Description"),
       ],
     );
   }

@@ -5,7 +5,6 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
-
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/static_data_manager.dart';
@@ -31,7 +30,6 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
   // مغيرات الاختيار
   String? selectedListingTypeId;
   String? selectedPropertyTypeId;
-  String? selectedUnitTypeId;
   String? selectedGovId;
   String? selectedCityId;
 
@@ -42,12 +40,13 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
 
   List<Uint8List> _newImagesBytes = [];
   List<PropertyImageModel> _existingImages = [];
-  List<String> _imagesToDelete = [];
+  List<PropertyImageModel> _imagesToDeleteObjects = [];
 
   late Map<String, TextEditingController> _controllers;
   bool status = true;
   bool negotiable = false;
   bool isCompound = false;
+  bool hasInstallment = false; // للتحكم في ظهور حقول التقسيط
 
   @override
   void initState() {
@@ -60,11 +59,8 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
     _controllers = {
       'propertyCode': TextEditingController(text: p?.propertyCode),
       'titleAr': TextEditingController(text: p?.titleAr),
-      'titleEn': TextEditingController(text: p?.titleEn),
       'descAr': TextEditingController(text: p?.descAr),
-      'descEn': TextEditingController(text: p?.descEn),
       'regionAr': TextEditingController(text: p?.regionAr),
-      'regionEn': TextEditingController(text: p?.regionEn),
       'locDetails': TextEditingController(text: p?.locationInDetails),
       'locMap': TextEditingController(text: p?.locationMap),
       'price': TextEditingController(text: p?.price?.toString() ?? ""),
@@ -99,6 +95,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
       // تحديد حالة الكمبوند بناءً على وجود بيانات مالية أو حالة تشطيب
       isCompound = p.downPayment != null || p.completionStatus != null;
       _syncSelection(p);
+      hasInstallment = p.downPayment != null || p.monthlyInstallation != null;
     }
   }
 
@@ -106,23 +103,31 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
     try {
       selectedListingTypeId = dataManager.listingTypes.firstWhere((e) => e.nameAr == p.listingTypeAr).id;
       selectedPropertyTypeId = dataManager.propertyTypes.firstWhere((e) => e.nameAr == p.propertyTypeAr).id;
-      selectedUnitTypeId = dataManager.getUnitsByPropertyType(selectedPropertyTypeId!).firstWhere((u) => u.nameAr == p.unitTypeAr).id;
       selectedGovId = dataManager.governorates.firstWhere((g) => g.nameAr == p.governorateAr).id;
       selectedCityId = dataManager.getCitiesByGov(selectedGovId!).firstWhere((c) => c.nameAr == p.cityAr).id;
     } catch (e) { debugPrint("Mapping Sync Error: $e"); }
   }
 
   bool _shouldShowFloor() {
-    if (selectedPropertyTypeId == 'commercial') return true;
-    if (selectedPropertyTypeId != null && selectedUnitTypeId != null) {
-      try {
-        final units = dataManager.getUnitsByPropertyType(selectedPropertyTypeId!);
-        final selectedUnit = units.firstWhere((u) => u.id == selectedUnitTypeId);
-        final nameEn = selectedUnit.nameEn.toLowerCase();
-        return nameEn.contains('apartment') || nameEn.contains('duplex') || nameEn.contains('penthouse') || nameEn.contains('roof') || nameEn.contains('chalet');
-      } catch (e) { return false; }
-    }
-    return false;
+    // 1. إذا لم يتم اختيار نوع عقار بعد، لا تظهر الحقل
+    if (selectedPropertyTypeId == null) return false;
+
+    // 2. قائمة بالأنواع التي تتطلب "رقم دور" (استخدم الـ IDs الجديدة في الـ JSON)
+    const typesWithFloors = [
+      'apt',               // شقة
+      'duplex',            // دوبلكس
+      'penthouse',         // بنتهاوس
+      'roof',              // روف
+      'studio',            // استوديو
+      'chalet',            // شاليه
+      'office',            // مكتب
+      'clinic',            // عيادة
+      'restaurant_cafe',   // مطعم وكافيه
+      'pharmacy'           // صيدلية
+    ];
+
+    // 3. التحقق المباشر
+    return typesWithFloors.contains(selectedPropertyTypeId);
   }
 
   @override
@@ -205,15 +210,11 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
       _buildField(_controllers['propertyCode']!, "كود العقار"),
       _buildJsonDrop("نوع الإدراج", dataManager.listingTypes, selectedListingTypeId, (v) => setState(() => selectedListingTypeId = v)),
       Row(children: [
-        Expanded(child: _buildJsonDrop("نوع العقار", dataManager.propertyTypes, selectedPropertyTypeId, (v) => setState(() { selectedPropertyTypeId = v; selectedUnitTypeId = null; }))),
+        Expanded(child: _buildJsonDrop("نوع العقار", dataManager.propertyTypes, selectedPropertyTypeId, (v) => setState(() { selectedPropertyTypeId = v;}))),
         SizedBox(width: 8.w),
-        if (selectedPropertyTypeId != null)
-          Expanded(child: _buildJsonDrop("نوع الوحدة", dataManager.getUnitsByPropertyType(selectedPropertyTypeId!), selectedUnitTypeId, (v) => setState(() => selectedUnitTypeId = v))),
       ]),
       _buildField(_controllers['titleAr']!, "العنوان بالعربي", req: true),
-      _buildField(_controllers['titleEn']!, "العنوان بالإنجليزي", req: true),
       _buildField(_controllers['descAr']!, "الوصف بالعربي", long: true, req: true),
-      _buildField(_controllers['descEn']!, "الوصف بالإنجليزي", long: true, req: true),
     ]);
   }
 
@@ -227,7 +228,6 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
       Row(children: [
         Expanded(child: _buildField(_controllers['regionAr']!, "المنطقة بالعربي", req: true)),
         SizedBox(width: 8.w),
-        Expanded(child: _buildField(_controllers['regionEn']!, "المنطقة بالإنجليزي", req: true)),
       ]),
       _buildField(_controllers['locDetails']!, "العنوان التفصيلي", req: true),
       _buildField(_controllers['locMap']!, "رابط جوجل ماب"),
@@ -247,7 +247,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
     ]);
   }
 
-  Widget _buildFinancialSection() {
+  /*Widget _buildFinancialSection() {
     bool isRent = selectedListingTypeId == 'rent';
     return Column(children: [
       _buildField(_controllers['price']!, isRent ? "قيمة الإيجار" : "السعر الكلي", num: true, req: true),
@@ -265,6 +265,39 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
       ],
       CheckboxListTile(title: const Text("السعر قابل للتفاوض"), value: negotiable, onChanged: (v) => setState(() => negotiable = v!)),
     ]);
+  }*/
+  Widget _buildFinancialSection() {
+    // معرفة هل الإدراج الحالي "بيع" (نفترض أن ID البيع هو 'sale' حسب الـ StaticDataManager)
+    bool isSale = selectedListingTypeId == 'sale';
+    bool isRent = selectedListingTypeId == 'rent';
+
+    return Column(children: [
+      _buildField(_controllers['price']!, isRent ? "قيمة الإيجار" : "السعر الكلي", num: true, req: true),
+
+      if (isRent) ...[
+        _buildFixedDrop("الدورية", ["daily", "weekly", "monthly", "yearly"], selectedRentalFrequency, (v) => setState(() => selectedRentalFrequency = v)),
+        _buildField(_controllers['insurance']!, "قيمة التأمين", num: true),
+      ],
+
+      // حقول التقسيط تظهر فقط في حالة البيع
+      if (isSale) ...[
+        SwitchListTile(
+          title: const Text("يوجد نظام تقسيط؟"),
+          value: hasInstallment,
+          onChanged: (v) => setState(() => hasInstallment = v),
+        ),
+        if (hasInstallment) ...[
+          Row(children: [
+            Expanded(child: _buildField(_controllers['downPayment']!, "المقدم", num: true)),
+            SizedBox(width: 8.w),
+            Expanded(child: _buildField(_controllers['monthlyInstall']!, "القسط الشهري", num: true)),
+          ]),
+          _buildField(_controllers['monthsInstall']!, "مدة التقسيط (شهور)", num: true),
+        ],
+      ],
+
+      CheckboxListTile(title: const Text("السعر قابل للتفاوض"), value: negotiable, onChanged: (v) => setState(() => negotiable = v!)),
+    ]);
   }
 
   Widget _buildAdminSection() {
@@ -276,7 +309,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
     ]);
   }
 
-  Widget _buildSubmitButton() {
+  /*Widget _buildSubmitButton() {
     return BlocBuilder<PropertiesCubit, PropertiesState>(
       builder: (context, state) {
         bool isLoading = state is PropertiesLoading;
@@ -287,14 +320,36 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
         );
       },
     );
+  }*/
+  Widget _buildSubmitButton() {
+    return BlocBuilder<PropertiesCubit, PropertiesState>(
+      builder: (context, state) {
+        // التحقق من حالة التحميل
+        bool isLoading = state is PropertiesLoading;
+
+        return Container(
+          width: double.infinity,
+          height: 54.h,
+          child: isLoading
+              ? const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue))
+              : ElevatedButton(
+            onPressed: _submit, // الدالة المستدعاة
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryBlue,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+            ),
+            child: const Text("حفظ العقار", style: TextStyle(color: Colors.white, fontSize: 16)),
+          ),
+        );
+      },
+    );
   }
 
-  void _submit() {
+  /*void _submit() {
     if (!_formKey.currentState!.validate()) return;
 
     final listing = dataManager.listingTypes.firstWhere((e) => e.id == selectedListingTypeId);
     final property = dataManager.propertyTypes.firstWhere((e) => e.id == selectedPropertyTypeId);
-    final unit = dataManager.getUnitsByPropertyType(selectedPropertyTypeId!).firstWhere((u) => u.id == selectedUnitTypeId);
     final gov = dataManager.governorates.firstWhere((g) => g.id == selectedGovId);
     final city = dataManager.getCitiesByGov(selectedGovId!).firstWhere((c) => c.id == selectedCityId);
 
@@ -303,14 +358,13 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
       createdBy: widget.userId,
       propertyCode: _controllers['propertyCode']!.text,
       createdAt: widget.property?.createdAt ?? DateTime.now(),
-      titleAr: _controllers['titleAr']!.text, titleEn: _controllers['titleEn']!.text,
-      descAr: _controllers['descAr']!.text, descEn: _controllers['descEn']!.text,
-      listingTypeAr: listing.nameAr, listingTypeEn: listing.nameEn,
-      propertyTypeAr: property.nameAr, propertyTypeEn: property.nameEn,
-      unitTypeAr: unit.nameAr, unitTypeEn: unit.nameEn,
-      governorateAr: gov.nameAr, governorateEn: gov.nameEn,
-      cityAr: city.nameAr, cityEn: city.nameEn,
-      regionAr: _controllers['regionAr']!.text, regionEn: _controllers['regionEn']!.text,
+      titleAr: _controllers['titleAr']!.text,
+      descAr: _controllers['descAr']!.text,
+      listingTypeAr: listing.nameAr,
+      propertyTypeAr: property.nameAr,
+      governorateAr: gov.nameAr,
+      cityAr: city.nameAr,
+      regionAr: _controllers['regionAr']!.text,
       locationInDetails: _controllers['locDetails']!.text,
       locationMap: _controllers['locMap']!.text,
       price: int.tryParse(_controllers['price']!.text),
@@ -344,7 +398,97 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
     } else {
       context.read<PropertiesCubit>().updateProperty(property: model, newImages: _newImagesBytes, imagesToDelete: _imagesToDelete);
     }
+  }*/
+  // ... (داخل كلاس _PropertyFormScreenState في دالة _submit)
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+
+    try {
+      // جلب البيانات من الـ DataManager بناءً على الاختيارات
+      final listing = dataManager.listingTypes.firstWhere((e) => e.id == selectedListingTypeId);
+      final propertyType = dataManager.propertyTypes.firstWhere((e) => e.id == selectedPropertyTypeId);
+      final gov = dataManager.governorates.firstWhere((g) => g.id == selectedGovId);
+      final city = dataManager.getCitiesByGov(selectedGovId!).firstWhere((c) => c.id == selectedCityId);
+
+      // تجهيز كود العقار (لأن الأسكيما تطلبه NOT NULL)
+      // إذا كان تعديل نأخذ الكود القديم، إذا كان جديد نولد كود مؤقت أو نأخذه من الحقل
+      String finalCode = _controllers['propertyCode']!.text;
+      if (finalCode.isEmpty) {
+        finalCode = "PROP-${DateTime.now().millisecondsSinceEpoch}";
+      }
+
+      final model = PropertyModel(
+        // إذا كان تعديل نرسل الـ ID، إذا كان جديد نرسل نص فارغ ليتجاهله الموديل في الـ toJson
+        id: widget.property?.id ?? '',
+        propertyCode: finalCode,
+        createdBy: widget.userId, // الـ userId قادم من السكرينة السابقة وهو مطلوب (UUID)
+        status: status,
+        negotiable: negotiable,
+        titleAr: _controllers['titleAr']!.text,
+        descAr: _controllers['descAr']!.text,
+        listingTypeAr: listing.nameAr,
+        propertyTypeAr: propertyType.nameAr,
+        governorateAr: gov.nameAr,
+        cityAr: city.nameAr,
+        regionAr: _controllers['regionAr']!.text,
+        locationInDetails: _controllers['locDetails']!.text,
+        locationMap: _controllers['locMap']!.text,
+
+        // تحويل القيم الرقمية بشكل آمن
+        price: num.tryParse(_controllers['price']!.text),
+        downPayment: num.tryParse(_controllers['downPayment']!.text),
+        monthlyInstallation: num.tryParse(_controllers['monthlyInstall']!.text),
+        insurance: num.tryParse(_controllers['insurance']!.text),
+        monthsInstallations: int.tryParse(_controllers['monthsInstall']!.text),
+
+        // المواصفات الفنية
+        builtArea: int.tryParse(_controllers['area']!.text),
+        landArea: int.tryParse(_controllers['landArea']!.text),
+        gardenArea: int.tryParse(_controllers['gardenArea']!.text),
+        bedrooms: int.tryParse(_controllers['bedrooms']!.text),
+        bathrooms: int.tryParse(_controllers['bathrooms']!.text),
+        kitchens: int.tryParse(_controllers['kitchens']!.text),
+        balconies: int.tryParse(_controllers['balconies']!.text),
+        floor: int.tryParse(_controllers['floor']!.text),
+        totalFloors: int.tryParse(_controllers['totalFloors']!.text),
+        totalApartments: int.tryParse(_controllers['totalApartments']!.text),
+        buildingAge: int.tryParse(_controllers['buildingAge']!.text),
+
+        // المواعيد والحالة
+        deliveryDate: selectedDeliveryDate,
+        completionStatus: selectedCompletionStatus,
+        furnished: selectedFurnished,
+        rentalFrequency: selectedRentalFrequency,
+
+        // بيانات التواصل والملاحظات
+        ownerName: _controllers['ownerName']!.text,
+        ownerPhone: _controllers['ownerPhone']!.text,
+        internalNotes: _controllers['internalNotes']!.text,
+
+        // الصور الحالية (في حالة التعديل)
+        images: _existingImages,
+      );
+
+      if (widget.property == null) {
+        // حالة الإضافة
+        context.read<PropertiesCubit>().addProperty(model, _newImagesBytes);
+      } else {
+        // حالة التعديل
+        context.read<PropertiesCubit>().updateProperty(
+          property: model,
+          newImages: _newImagesBytes,
+          imagesToDelete: _imagesToDeleteObjects,
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("خطأ في معالجة البيانات: $e")),
+      );
+    }
   }
+
+// ... بقية الـ Widgets كما هي
 
   // --- Widgets UI Helpers ---
   Widget _buildCard(String title, IconData icon, Widget child) => Container(
@@ -403,7 +547,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
         scrollDirection: Axis.horizontal,
         children: [
           ..._existingImages.map((img) => _imgBox(CachedNetworkImage(imageUrl: img.imageUrl!, fit: BoxFit.cover),
-              onDel: () => setState(() { _imagesToDelete.add(img.id!); _existingImages.remove(img); }))),
+              onDel: () => setState(() { _imagesToDeleteObjects.add(img); _existingImages.remove(img); }))),
           ..._newImagesBytes.asMap().entries.map((e) => _imgBox(Image.memory(e.value, fit: BoxFit.cover),
               onDel: () => setState(() => _newImagesBytes.removeAt(e.key)))),
           if ((_newImagesBytes.length + _existingImages.length) < 10) _addImgBtn(),

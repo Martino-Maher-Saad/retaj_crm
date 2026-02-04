@@ -11,6 +11,7 @@ class PropertyImageModel {
 
   // المعالج لتحويل JSON القادم من قاعدة البيانات إلى كائن Dart
   factory PropertyImageModel.fromJson(Map<String, dynamic> json) {
+    print("Debug Image JSON: $json");
     return PropertyImageModel(
       id: json['id']?.toString(),
       propertyId: json['property_id']?.toString() ?? '',
