@@ -37,6 +37,7 @@ dependencies:
   google_fonts: ^6.3.2
   font_awesome_flutter: ^10.7.0
   supabase_flutter: ^2.12.0
+  http: ^1.2.2
   image_picker: ^1.2.1
   bloc: ^9.1.0
   flutter_bloc: ^9.1.1
@@ -48,6 +49,7 @@ dependencies:
   equatable: ^2.0.8
   responsive_grid_list: ^1.4.1
   flutter_cache_manager: ^3.4.1
+  google_generative_ai: ^0.4.6
 
 dev_dependencies:
   flutter_test:

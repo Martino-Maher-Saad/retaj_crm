@@ -6,7 +6,7 @@ class LeadService {
   final _supabase = Supabase.instance.client;
 
   // 1. جلب كل العملاء (مرتبين من الأحدث للأقدم)
-  Future<List<LeadModel>> fetchAllLeads() async {
+  /*Future<List<LeadModel>> fetchAllLeads() async {
     // الـ RLS في سوبابيز سيتكفل بجلب بيانات الموظف نفسه فقط
     final response = await _supabase
         .from('leads')
@@ -14,6 +14,31 @@ class LeadService {
         .order('created_at', ascending: false);
 
     return (response as List).map((e) => LeadModel.fromJson(e)).toList();
+  }*/
+  Future<List<LeadModel>> fetchAllLeads({
+    required String role,
+    required String userId,
+    required int from,
+    required int to,
+  }) async {
+    var query = _supabase.from('leads').select();
+
+    if (role != 'manager' && role != 'admin') {
+      query = query.eq('created_by', userId);
+    }
+
+    final response = await query.order('created_at', ascending: false).range(from, to);
+    return (response as List).map((e) => LeadModel.fromJson(e)).toList();
+  }
+
+  // جلب إجمالي عدد العملاء
+  Future<int> getLeadsCount({required String role, required String userId}) async {
+    var query = _supabase.from('leads').select('*');
+    if (role != 'manager' && role != 'admin') {
+      query = query.eq('created_by', userId);
+    }
+    final response = await query.limit(0).count(CountOption.exact);
+    return response.count ?? 0;
   }
 
   // 2. إضافة عميل جديد

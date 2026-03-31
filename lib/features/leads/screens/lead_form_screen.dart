@@ -11,6 +11,9 @@ import '../../../data/models/lead_model.dart';
 import '../../../data/models/location_model.dart';
 import '../cubit/leads_cubit.dart';
 import '../cubit/leads_state.dart';
+import '../widgets/form_sections/client_basic_section.dart';
+import '../widgets/form_sections/client_requirements_section.dart';
+import '../widgets/form_sections/client_admin_section.dart';
 
 
 class LeadFormScreen extends StatefulWidget {
@@ -37,6 +40,8 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
   String? _selectedStatus;
   List<City> _allCities = [];
   bool _isLoadingCities = true;
+  String _selectedChannel = 'مكالمة هاتفية';
+  final List<String> _channels = ['مكالمة هاتفية', 'واتساب', 'مسنجر', 'زيارة مقر'];
 
   @override
   void initState() {
@@ -104,7 +109,7 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
   Widget build(BuildContext context) {
     bool isEdit = widget.lead != null;
 
-    return BlocListener<LeadCubit, LeadState>(
+    return BlocConsumer<LeadCubit, LeadState>(
       listener: (context, state) {
         if (state is LeadLoaded) {
           Navigator.pop(context);
@@ -117,152 +122,91 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
           );
         }
       },
-      child: Scaffold(
-        backgroundColor: AppColors.bgMain,
-        appBar: AppBar(
-          title: Text(isEdit ? 'تعديل بيانات عميل' : 'إضافة عميل جديد', style: AppTextStyles.h2),
-          backgroundColor: AppColors.bgSurface,
-          elevation: 0,
-          centerTitle: true,
-        ),
-        body: _isLoadingCities
-            ? const Center(child: CircularProgressIndicator(color: AppColors.brandPrimary))
-            : Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            padding: EdgeInsets.all(AppConstants.p16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildSectionTitle("المعلومات الأساسية"),
-                _buildTextField(_nameController, "اسم العميل بالكامل *", Icons.person_outline, isRequired: true),
-                SizedBox(height: AppConstants.p16),
-                _buildSectionTitle("أرقام التواصل *"),
-                ..._buildPhoneFields(),
-                SizedBox(height: AppConstants.p16),
-                Row(
-                  children: [
-                    Expanded(child: _buildCityDropdown()),
-                    SizedBox(width: AppConstants.p16),
-                    Expanded(child: _buildStatusDropdown()),
-                  ],
-                ),
-                SizedBox(height: AppConstants.p24),
-                _buildSectionTitle("تفاصيل العقار والاحتياج"),
-                _buildTextField(_propertyCodeController, "كود العقار المهتم به", Icons.home_work_outlined),
-                SizedBox(height: AppConstants.p16),
-                _buildTextField(_sourceController, "مصدر العميل (فيسبوك، ترشيح...)", Icons.campaign_outlined),
-                SizedBox(height: AppConstants.p16),
-                _buildTextField(_descController, "وصف دقيق لما يبحث عنه العميل", Icons.description_outlined, maxLines: 3),
-                SizedBox(height: AppConstants.p16),
-                _buildTextField(_commentController, "ملاحظات إضافية للموظف", Icons.note_alt_outlined, maxLines: 2),
-                SizedBox(height: AppConstants.p32),
-                _buildSubmitButton(isEdit),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // --- [ UI Build Methods ] ---
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: AppConstants.p8, right: AppConstants.p4),
-      child: Text(title, style: AppTextStyles.inputLabel),
-    );
-  }
-
-  Widget _buildTextField(TextEditingController controller, String hint, IconData icon, {bool isRequired = false, int maxLines = 1}) {
-    return TextFormField(
-      controller: controller,
-      maxLines: maxLines,
-      style: AppTextStyles.inputText,
-      decoration: InputDecoration(
-        hintText: hint,
-        prefixIcon: Icon(icon, color: AppColors.brandPrimary, size: AppConstants.iconMd),
-        filled: true,
-        fillColor: AppColors.bgSurface,
-        contentPadding: EdgeInsets.all(AppConstants.p16),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppConstants.r8), borderSide: const BorderSide(color: AppColors.borderSubtle)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppConstants.r8), borderSide: const BorderSide(color: AppColors.brandPrimary, width: 1.5)),
-      ),
-      validator: (val) => isRequired && (val == null || val.isEmpty) ? "هذا الحقل مطلوب" : null,
-    );
-  }
-
-  List<Widget> _buildPhoneFields() {
-    return _phoneControllers.asMap().entries.map((entry) {
-      int idx = entry.key;
-      return Padding(
-        padding: EdgeInsets.only(bottom: AppConstants.p8),
-        child: Row(
-          children: [
-            Expanded(child: _buildTextField(entry.value, "رقم التليفون", Icons.phone_android_rounded, isRequired: idx == 0)),
-            SizedBox(width: AppConstants.p8),
-            if (idx == 0)
-              _buildCircularAction(Icons.add, AppColors.success, () => setState(() => _phoneControllers.add(TextEditingController())))
-            else
-              _buildCircularAction(Icons.remove, AppColors.brandAccent, () => setState(() => _phoneControllers.removeAt(idx))),
-          ],
-        ),
-      );
-    }).toList();
-  }
-
-  Widget _buildCityDropdown() {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_buildSectionTitle("المدينة"), DropdownButtonFormField<String>(value: _selectedCity, isExpanded: true, icon: const Icon(Icons.arrow_drop_down, color: AppColors.brandPrimary), style: AppTextStyles.inputText, decoration: _dropdownDecoration(), items: _allCities.map((city) => DropdownMenuItem(value: city.nameAr, child: Text(city.nameAr, overflow: TextOverflow.ellipsis))).toList(), onChanged: (val) => setState(() => _selectedCity = val))]);
-  }
-
-  Widget _buildStatusDropdown() {
-    final statuses = ['جديد', 'تم التواصل', 'تفاوض', 'تم التعاقد', 'مستبعد'];
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_buildSectionTitle("الحالة"), DropdownButtonFormField<String>(value: _selectedStatus, icon: const Icon(Icons.arrow_drop_down, color: AppColors.brandPrimary), style: AppTextStyles.inputText, decoration: _dropdownDecoration(), items: statuses.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(), onChanged: (val) => setState(() => _selectedStatus = val))]);
-  }
-
-  InputDecoration _dropdownDecoration() {
-    return InputDecoration(filled: true, fillColor: AppColors.bgSurface, contentPadding: EdgeInsets.symmetric(horizontal: AppConstants.p16, vertical: AppConstants.p8), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppConstants.r8), borderSide: const BorderSide(color: AppColors.borderSubtle)));
-  }
-
-  Widget _buildCircularAction(IconData icon, Color color, VoidCallback onTap) {
-    return InkWell(onTap: onTap, child: Container(padding: EdgeInsets.all(AppConstants.p8), decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle), child: Icon(icon, color: color, size: AppConstants.iconMd)));
-  }
-
-  Widget _buildSubmitButton(bool isEdit) {
-    // 1. نستخدم BlocBuilder لمراقبة حالة الكيوبيت
-    return BlocBuilder<LeadCubit, LeadState>(
       builder: (context, state) {
-        // 2. نتحقق هل الحالة الحالية هي حالة تحميل؟
         final isLoading = state is LeadLoading;
 
-        return SizedBox(
-          width: double.infinity,
-          height: 54.h,
-          child: ElevatedButton(
-            // 3. إذا كان يحمل، نجعل onPressed تساوي null لتعطيل الزر
-            onPressed: isLoading ? null : _submitForm,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.brandPrimary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.r8)),
-              elevation: 0,
-            ),
-            // 4. هنا الشرط: إذا كان يحمل أظهر مؤشر التحميل، وإلا أظهر النص العادي
-            child: isLoading
-                ? const SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(
-                color: Colors.white,
-                strokeWidth: 2,
+        return Scaffold(
+          backgroundColor: AppColors.bgMain,
+          appBar: AppBar(
+            title: Text(isEdit ? 'تعديل بيانات عميل' : 'إضافة عميل جديد', style: AppTextStyles.h2),
+            backgroundColor: AppColors.bgSurface,
+            elevation: 0,
+            centerTitle: true,
+          ),
+          body: _isLoadingCities
+              ? const Center(child: CircularProgressIndicator(color: AppColors.brandPrimary))
+              : Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(16.w),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 1. القسم الأساسي (الاسم والأرقام)
+                  ClientBasicSection(
+                    nameController: _nameController,
+                    phoneControllers: _phoneControllers,
+                    onAddPhone: () => setState(() => _phoneControllers.add(TextEditingController())),
+                    onRemovePhone: (idx) => setState(() => _phoneControllers.removeAt(idx)),
+                  ),
+                  SizedBox(height: 16.h),
+
+                  // 2. تفاصيل الطلب
+                  ClientRequirementsSection(
+                    propertyCodeController: _propertyCodeController,
+                    sourceController: _sourceController,
+                    descController: _descController,
+                    selectedChannel: _selectedChannel,
+                    channels: _channels,
+                    onChannelChanged: (val) => setState(() => _selectedChannel = val!),
+                  ),
+                  SizedBox(height: 16.h),
+
+                  // 3. قسم الإدارة
+                  ClientAdminSection(
+                    selectedCity: _selectedCity,
+                    selectedStatus: _selectedStatus,
+                    cities: _allCities.map((c) => c.nameAr).toList(),
+                    statuses: const ['جديد', 'تم التواصل', 'تفاوض', 'تم التعاقد', 'مستبعد'],
+                    onCityChanged: (val) => setState(() => _selectedCity = val),
+                    onStatusChanged: (val) => setState(() => _selectedStatus = val),
+                    commentController: _commentController,
+                  ),
+                  SizedBox(height: 32.h),
+
+                  // 4. زر الحفظ
+                  _buildSubmitButton(isEdit, isLoading),
+                ],
               ),
-            )
-                : Text(
-              isEdit ? 'تحديث بيانات العميل' : 'حفظ العميل الجديد',
-              style: AppTextStyles.buttonLarge,
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildSubmitButton(bool isEdit, bool isLoading) {
+    return SizedBox(
+      width: double.infinity,
+      height: 54.h,
+      child: ElevatedButton(
+        onPressed: isLoading ? null : _submitForm,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.brandPrimary,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.r8)),
+          elevation: 0,
+        ),
+        child: isLoading
+            ? const SizedBox(
+          height: 20,
+          width: 20,
+          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+        )
+            : Text(
+          isEdit ? 'تحديث بيانات العميل' : 'حفظ العميل الجديد',
+          style: AppTextStyles.buttonLarge,
+        ),
+      ),
     );
   }
 

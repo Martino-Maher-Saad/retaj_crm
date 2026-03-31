@@ -3,15 +3,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/static_data_manager.dart';
 import '../../../data/models/property_model.dart';
 import '../../../data/models/property_image_model.dart';
 import '../cubit/properties_cubit.dart';
 import '../cubit/properties_state.dart';
+
+import '../widgets/property_form_card.dart';
+import '../widgets/form_sections/basic_section.dart';
+import '../widgets/form_sections/location_section.dart';
+import '../widgets/form_sections/technical_section.dart';
+import '../widgets/form_sections/status_section.dart';
+import '../widgets/form_sections/financial_section.dart';
+import '../widgets/form_sections/admin_section.dart';
+import '../widgets/form_sections/image_section.dart';
 
 class PropertyFormScreen extends StatefulWidget {
   final PropertyModel? property;
@@ -46,7 +52,8 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
   bool status = true;
   bool negotiable = false;
   bool isCompound = false;
-  bool hasInstallment = false; // للتحكم في ظهور حقول التقسيط
+  bool hasInstallment = false;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -91,8 +98,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
       selectedFurnished = p.furnished;
       selectedRentalFrequency = p.rentalFrequency;
       selectedDeliveryDate = p.deliveryDate;
-      _existingImages = p.images != null ? List.from(p.images!) : [];
-      // تحديد حالة الكمبوند بناءً على وجود بيانات مالية أو حالة تشطيب
+      _existingImages = p.images != null ? List.from(p.images) : [];
       isCompound = p.downPayment != null || p.completionStatus != null;
       _syncSelection(p);
       hasInstallment = p.downPayment != null || p.monthlyInstallation != null;
@@ -109,265 +115,203 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
   }
 
   bool _shouldShowFloor() {
-    // 1. إذا لم يتم اختيار نوع عقار بعد، لا تظهر الحقل
     if (selectedPropertyTypeId == null) return false;
-
-    // 2. قائمة بالأنواع التي تتطلب "رقم دور" (استخدم الـ IDs الجديدة في الـ JSON)
     const typesWithFloors = [
-      'apt',               // شقة
-      'duplex',            // دوبلكس
-      'penthouse',         // بنتهاوس
-      'roof',              // روف
-      'studio',            // استوديو
-      'chalet',            // شاليه
-      'office',            // مكتب
-      'clinic',            // عيادة
-      'restaurant_cafe',   // مطعم وكافيه
-      'pharmacy'           // صيدلية
+      'apt', 'duplex', 'penthouse', 'roof', 'studio', 
+      'chalet', 'office', 'clinic', 'restaurant_cafe', 'pharmacy'
     ];
-
-    // 3. التحقق المباشر
     return typesWithFloors.contains(selectedPropertyTypeId);
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<PropertiesCubit, PropertiesState>(
+    return BlocConsumer<PropertiesCubit, PropertiesState>(
       listener: (context, state) {
         if (state is PropertiesSuccess) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("تم حفظ البيانات بنجاح")));
+          if (!_isLoading) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("تم حفظ البيانات بنجاح ✅"), backgroundColor: Colors.green),
+          );
+          setState(() => _isLoading = false);
           Navigator.pop(context);
+        } else if (state is PropertiesError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.message), backgroundColor: Colors.red),
+          );
+          setState(() => _isLoading = false);
         }
       },
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF1F5F9),
-        appBar: AppBar(title: Text(widget.property == null ? "إضافة إعلان" : "تعديل إعلان"), centerTitle: true),
-        body: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            padding: EdgeInsets.all(16.w),
-            child: Column(
-              children: [
-                _buildCard("الصور", Icons.photo_camera, _buildImageSection()),
-                _buildCard("المعلومات الأساسية", Icons.assignment, _buildBasicSection()),
-                _buildCard("الموقع", Icons.map, _buildLocationSection()),
-                _buildCard("المواصفات الفنية", Icons.straighten, _buildTechnicalSection()),
-                _buildCard("حالة العقار", Icons.info_outline, _buildStatusSection()),
-                _buildCard("بيانات السعر", Icons.payments, _buildFinancialSection()),
-                _buildCard("الإدارة", Icons.admin_panel_settings, _buildAdminSection()),
-                SizedBox(height: 24.h),
-                _buildSubmitButton(),
-                SizedBox(height: 40.h),
-              ],
+      builder: (context, state) {
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(widget.property == null ? "إضافة إعلان" : "تعديل إعلان"),
+            centerTitle: true,
+          ),
+          body: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(16.w),
+              child: Column(
+                children: [
+                  PropertyFormCard(
+                    title: "الصور",
+                    icon: Icons.photo_camera_outlined,
+                    stepNumber: 1,
+                    child: ImageSection(
+                      existingImages: _existingImages,
+                      newImagesBytes: _newImagesBytes,
+                      onRemoveExisting: (img) => setState(() {
+                        _imagesToDeleteObjects.add(img);
+                        _existingImages.remove(img);
+                      }),
+                      onRemoveNew: (index) => setState(() => _newImagesBytes.removeAt(index)),
+                      onAddPressed: _pick,
+                    ),
+                  ),
+                  PropertyFormCard(
+                    title: "المعلومات الأساسية",
+                    icon: Icons.assignment_outlined,
+                    stepNumber: 2,
+                    child: BasicSection(
+                      controllers: _controllers,
+                      dataManager: dataManager,
+                      selectedListingTypeId: selectedListingTypeId,
+                      selectedPropertyTypeId: selectedPropertyTypeId,
+                      onListingTypeChanged: (v) => setState(() => selectedListingTypeId = v),
+                      onPropertyTypeChanged: (v) => setState(() => selectedPropertyTypeId = v),
+                    ),
+                  ),
+                  PropertyFormCard(
+                    title: "الموقع",
+                    icon: Icons.location_on_outlined,
+                    stepNumber: 3,
+                    child: LocationSection(
+                      controllers: _controllers,
+                      dataManager: dataManager,
+                      selectedGovId: selectedGovId,
+                      selectedCityId: selectedCityId,
+                      onGovChanged: (v) => setState(() {
+                        selectedGovId = v;
+                        selectedCityId = null;
+                      }),
+                      onCityChanged: (v) => setState(() => selectedCityId = v),
+                    ),
+                  ),
+                  PropertyFormCard(
+                    title: "المواصفات الفنية",
+                    icon: Icons.straighten_rounded,
+                    stepNumber: 4,
+                    child: TechnicalSection(
+                      controllers: _controllers,
+                      selectedPropertyTypeId: selectedPropertyTypeId,
+                      selectedFurnished: selectedFurnished,
+                      showFloor: _shouldShowFloor(),
+                      onFurnishedChanged: (v) => setState(() => selectedFurnished = v),
+                    ),
+                  ),
+                  PropertyFormCard(
+                    title: "حالة العقار",
+                    icon: Icons.check_circle_outline,
+                    stepNumber: 5,
+                    child: StatusSection(
+                      controllers: _controllers,
+                      isCompound: isCompound,
+                      selectedPropertyTypeId: selectedPropertyTypeId,
+                      selectedCompletionStatus: selectedCompletionStatus,
+                      selectedDeliveryDate: selectedDeliveryDate,
+                      onCompoundChanged: (v) => setState(() => isCompound = v),
+                      onCompletionStatusChanged: (v) => setState(() => selectedCompletionStatus = v),
+                      onDeliveryDateSelected: (v) => setState(() => selectedDeliveryDate = v),
+                    ),
+                  ),
+                  PropertyFormCard(
+                    title: "بيانات السعر",
+                    icon: Icons.payments_outlined,
+                    stepNumber: 6,
+                    child: FinancialSection(
+                      controllers: _controllers,
+                      selectedListingTypeId: selectedListingTypeId,
+                      selectedRentalFrequency: selectedRentalFrequency,
+                      hasInstallment: hasInstallment,
+                      negotiable: negotiable,
+                      onRentalFrequencyChanged: (v) => setState(() => selectedRentalFrequency = v),
+                      onInstallmentChanged: (v) => setState(() => hasInstallment = v),
+                      onNegotiableChanged: (v) => setState(() => negotiable = v),
+                    ),
+                  ),
+                  PropertyFormCard(
+                    title: "الإدارة والمالك",
+                    icon: Icons.admin_panel_settings_outlined,
+                    stepNumber: 7,
+                    child: AdminSection(
+                      controllers: _controllers,
+                      status: status,
+                      onStatusChanged: (v) => setState(() => status = v),
+                    ),
+                  ),
+                  SizedBox(height: 24.h),
+                  _buildSubmitButton(),
+                  SizedBox(height: 40.h),
+                ],
+              ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTechnicalSection() {
-    bool isLand = selectedPropertyTypeId == 'land';
-    bool showFloor = _shouldShowFloor();
-    // استخدام IDs الجديدة للتحقق من السكني
-    bool isResidential = selectedPropertyTypeId == 'apartment' ||
-        selectedPropertyTypeId == 'villa' ||
-        selectedPropertyTypeId == 'chalet';
-
-    return Column(children: [
-      if (isLand) _buildField(_controllers['landArea']!, "مساحة الأرض الكلية", num: true, req: true),
-      if (!isLand) ...[
-        _buildField(_controllers['area']!, "المساحة المبنية (BUA)", num: true, req: true),
-        Row(children: [
-          Expanded(child: _buildField(_controllers['bedrooms']!, "الغرف", num: true)),
-          SizedBox(width: 8.w),
-          Expanded(child: _buildField(_controllers['bathrooms']!, "الحمامات", num: true)),
-        ]),
-        Row(children: [
-          Expanded(child: _buildField(_controllers['kitchens']!, "المطابخ", num: true)),
-          SizedBox(width: 8.w),
-          Expanded(child: _buildField(_controllers['balconies']!, "البلكونات", num: true)),
-        ]),
-
-        if (showFloor)
-          _buildField(_controllers['floor']!, "رقم الدور", num: true),
-
-        if (isResidential)
-          _buildFixedDrop("مفروش؟", ["yes", "no"], selectedFurnished, (v) => setState(() => selectedFurnished = v)),
-
-        if (selectedPropertyTypeId == 'villa' || selectedPropertyTypeId == 'building') ...[
-          _buildField(_controllers['totalFloors']!, "عدد الأدوار", num: true),
-          if (selectedPropertyTypeId == 'building') _buildField(_controllers['totalApartments']!, "عدد الشقق", num: true),
-          _buildField(_controllers['gardenArea']!, "مساحة الحديقة", num: true),
-          _buildField(_controllers['landArea']!, "مساحة الأرض الكلية", num: true),
-        ],
-      ]
-    ]);
-  }
-
-  Widget _buildBasicSection() {
-    return Column(children: [
-      _buildField(_controllers['propertyCode']!, "كود العقار"),
-      _buildJsonDrop("نوع الإدراج", dataManager.listingTypes, selectedListingTypeId, (v) => setState(() => selectedListingTypeId = v)),
-      Row(children: [
-        Expanded(child: _buildJsonDrop("نوع العقار", dataManager.propertyTypes, selectedPropertyTypeId, (v) => setState(() { selectedPropertyTypeId = v;}))),
-        SizedBox(width: 8.w),
-      ]),
-      _buildField(_controllers['titleAr']!, "العنوان بالعربي", req: true),
-      _buildField(_controllers['descAr']!, "الوصف بالعربي", long: true, req: true),
-    ]);
-  }
-
-  Widget _buildLocationSection() {
-    return Column(children: [
-      Row(children: [
-        Expanded(child: _buildJsonDrop("المحافظة", dataManager.governorates, selectedGovId, (v) => setState(() { selectedGovId = v; selectedCityId = null; }))),
-        SizedBox(width: 8.w),
-        Expanded(child: _buildJsonDrop("المدينة", selectedGovId != null ? dataManager.getCitiesByGov(selectedGovId!) : [], selectedCityId, (v) => setState(() => selectedCityId = v))),
-      ]),
-      Row(children: [
-        Expanded(child: _buildField(_controllers['regionAr']!, "المنطقة بالعربي", req: true)),
-        SizedBox(width: 8.w),
-      ]),
-      _buildField(_controllers['locDetails']!, "العنوان التفصيلي", req: true),
-      _buildField(_controllers['locMap']!, "رابط جوجل ماب"),
-    ]);
-  }
-
-  Widget _buildStatusSection() {
-    return Column(children: [
-      SwitchListTile(title: const Text("داخل كمبوند"), value: isCompound, onChanged: (v) => setState(() => isCompound = v)),
-      if (isCompound) ...[
-        _buildFixedDrop("حالة التشطيب", ["ready", "off-plan"], selectedCompletionStatus, (v) => setState(() => selectedCompletionStatus = v)),
-        if (selectedCompletionStatus == "off-plan")
-          _buildDatePicker("تاريخ الاستلام المتوقع"),
-      ],
-      if (selectedPropertyTypeId != 'land' && !isCompound)
-        _buildField(_controllers['buildingAge']!, "عمر العقار", num: true),
-    ]);
-  }
-
-  /*Widget _buildFinancialSection() {
-    bool isRent = selectedListingTypeId == 'rent';
-    return Column(children: [
-      _buildField(_controllers['price']!, isRent ? "قيمة الإيجار" : "السعر الكلي", num: true, req: true),
-      if (isRent) ...[
-        _buildFixedDrop("الدورية", ["daily", "weekly", "monthly", "yearly"], selectedRentalFrequency, (v) => setState(() => selectedRentalFrequency = v)),
-        _buildField(_controllers['insurance']!, "قيمة التأمين", num: true),
-      ],
-      if (!isRent && isCompound) ...[
-        Row(children: [
-          Expanded(child: _buildField(_controllers['downPayment']!, "المقدم", num: true)),
-          SizedBox(width: 8.w),
-          Expanded(child: _buildField(_controllers['monthlyInstall']!, "القسط", num: true)),
-        ]),
-        _buildField(_controllers['monthsInstall']!, "مدة التقسيط (شهور)", num: true),
-      ],
-      CheckboxListTile(title: const Text("السعر قابل للتفاوض"), value: negotiable, onChanged: (v) => setState(() => negotiable = v!)),
-    ]);
-  }*/
-  Widget _buildFinancialSection() {
-    // معرفة هل الإدراج الحالي "بيع" (نفترض أن ID البيع هو 'sale' حسب الـ StaticDataManager)
-    bool isSale = selectedListingTypeId == 'sale';
-    bool isRent = selectedListingTypeId == 'rent';
-
-    return Column(children: [
-      _buildField(_controllers['price']!, isRent ? "قيمة الإيجار" : "السعر الكلي", num: true, req: true),
-
-      if (isRent) ...[
-        _buildFixedDrop("الدورية", ["daily", "weekly", "monthly", "yearly"], selectedRentalFrequency, (v) => setState(() => selectedRentalFrequency = v)),
-        _buildField(_controllers['insurance']!, "قيمة التأمين", num: true),
-      ],
-
-      // حقول التقسيط تظهر فقط في حالة البيع
-      if (isSale) ...[
-        SwitchListTile(
-          title: const Text("يوجد نظام تقسيط؟"),
-          value: hasInstallment,
-          onChanged: (v) => setState(() => hasInstallment = v),
-        ),
-        if (hasInstallment) ...[
-          Row(children: [
-            Expanded(child: _buildField(_controllers['downPayment']!, "المقدم", num: true)),
-            SizedBox(width: 8.w),
-            Expanded(child: _buildField(_controllers['monthlyInstall']!, "القسط الشهري", num: true)),
-          ]),
-          _buildField(_controllers['monthsInstall']!, "مدة التقسيط (شهور)", num: true),
-        ],
-      ],
-
-      CheckboxListTile(title: const Text("السعر قابل للتفاوض"), value: negotiable, onChanged: (v) => setState(() => negotiable = v!)),
-    ]);
-  }
-
-  Widget _buildAdminSection() {
-    return Column(children: [
-      _buildField(_controllers['ownerName']!, "اسم المالك"),
-      _buildField(_controllers['ownerPhone']!, "رقم المالك"),
-      _buildField(_controllers['internalNotes']!, "ملاحظات إدارية", long: true),
-      SwitchListTile(title: const Text("نشط (يظهر للعملاء)"), value: status, onChanged: (v) => setState(() => status = v)),
-    ]);
-  }
-
-  /*Widget _buildSubmitButton() {
-    return BlocBuilder<PropertiesCubit, PropertiesState>(
-      builder: (context, state) {
-        bool isLoading = state is PropertiesLoading;
-        return ElevatedButton(
-          onPressed: isLoading ? null : _submit,
-          style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue, minimumSize: Size(double.infinity, 54.h)),
-          child: isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("حفظ العقار", style: TextStyle(color: Colors.white)),
         );
       },
     );
-  }*/
+  }
+
   Widget _buildSubmitButton() {
-    return BlocBuilder<PropertiesCubit, PropertiesState>(
-      builder: (context, state) {
-        // التحقق من حالة التحميل
-        bool isLoading = state is PropertiesLoading;
-
-        return Container(
-          width: double.infinity,
-          height: 54.h,
-          child: isLoading
-              ? const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue))
-              : ElevatedButton(
-            onPressed: _submit, // الدالة المستدعاة
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryBlue,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+    final bool isEdit = widget.property != null;
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 250),
+      child: _isLoading
+          ? Container(
+              key: const ValueKey('loading'),
+              height: 54.h,
+              alignment: Alignment.center,
+              child: const CircularProgressIndicator(color: AppColors.primaryBlue),
+            )
+          : SizedBox(
+              key: const ValueKey('button'),
+              width: double.infinity,
+              height: 54.h,
+              child: ElevatedButton.icon(
+                onPressed: _submit,
+                icon: Icon(isEdit ? Icons.save_outlined : Icons.add_task, size: 20.sp),
+                label: Text(
+                  isEdit ? "حفظ التعديلات" : "إضافة العقار",
+                  style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryBlue,
+                  foregroundColor: Colors.white,
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                ),
+              ),
             ),
-            child: const Text("حفظ العقار", style: TextStyle(color: Colors.white, fontSize: 16)),
-          ),
-        );
-      },
     );
   }
-
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
-
+    setState(() => _isLoading = true);
     try {
-      // جلب البيانات من الـ DataManager بناءً على الاختيارات
       final listing = dataManager.listingTypes.firstWhere((e) => e.id == selectedListingTypeId);
       final propertyType = dataManager.propertyTypes.firstWhere((e) => e.id == selectedPropertyTypeId);
       final gov = dataManager.governorates.firstWhere((g) => g.id == selectedGovId);
       final city = dataManager.getCitiesByGov(selectedGovId!).firstWhere((c) => c.id == selectedCityId);
 
-      // تجهيز كود العقار (لأن الأسكيما تطلبه NOT NULL)
-      // إذا كان تعديل نأخذ الكود القديم، إذا كان جديد نولد كود مؤقت أو نأخذه من الحقل
       String finalCode = _controllers['propertyCode']!.text;
       if (finalCode.isEmpty) {
         finalCode = "PROP-${DateTime.now().millisecondsSinceEpoch}";
       }
 
       final model = PropertyModel(
-        // إذا كان تعديل نرسل الـ ID، إذا كان جديد نرسل نص فارغ ليتجاهله الموديل في الـ toJson
         id: widget.property?.id ?? '',
         propertyCode: finalCode,
-        createdBy: widget.userId, // الـ userId قادم من السكرينة السابقة وهو مطلوب (UUID)
+        createdBy: widget.userId,
         status: status,
         negotiable: negotiable,
         titleAr: _controllers['titleAr']!.text,
@@ -379,15 +323,11 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
         regionAr: _controllers['regionAr']!.text,
         locationInDetails: _controllers['locDetails']!.text,
         locationMap: _controllers['locMap']!.text,
-
-        // تحويل القيم الرقمية بشكل آمن
-        price: num.tryParse(_controllers['price']!.text),
-        downPayment: num.tryParse(_controllers['downPayment']!.text),
-        monthlyInstallation: num.tryParse(_controllers['monthlyInstall']!.text),
+        price: num.tryParse(_controllers['price']!.text.replaceAll(',', '')),
+        downPayment: num.tryParse(_controllers['downPayment']!.text.replaceAll(',', '')),
+        monthlyInstallation: num.tryParse(_controllers['monthlyInstall']!.text.replaceAll(',', '')),
         insurance: num.tryParse(_controllers['insurance']!.text),
         monthsInstallations: int.tryParse(_controllers['monthsInstall']!.text),
-
-        // المواصفات الفنية
         builtArea: int.tryParse(_controllers['area']!.text),
         landArea: int.tryParse(_controllers['landArea']!.text),
         gardenArea: int.tryParse(_controllers['gardenArea']!.text),
@@ -399,27 +339,19 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
         totalFloors: int.tryParse(_controllers['totalFloors']!.text),
         totalApartments: int.tryParse(_controllers['totalApartments']!.text),
         buildingAge: int.tryParse(_controllers['buildingAge']!.text),
-
-        // المواعيد والحالة
         deliveryDate: selectedDeliveryDate,
         completionStatus: selectedCompletionStatus,
         furnished: selectedFurnished,
         rentalFrequency: selectedRentalFrequency,
-
-        // بيانات التواصل والملاحظات
         ownerName: _controllers['ownerName']!.text,
         ownerPhone: _controllers['ownerPhone']!.text,
         internalNotes: _controllers['internalNotes']!.text,
-
-        // الصور الحالية (في حالة التعديل)
         images: _existingImages,
       );
 
       if (widget.property == null) {
-        // حالة الإضافة
         context.read<PropertiesCubit>().addProperty(model, _newImagesBytes);
       } else {
-        // حالة التعديل
         context.read<PropertiesCubit>().updateProperty(
           property: model,
           newImages: _newImagesBytes,
@@ -430,83 +362,9 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("خطأ في معالجة البيانات: $e")),
       );
+      setState(() => _isLoading = false);
     }
   }
-
-// ... بقية الـ Widgets كما هي
-
-  // --- Widgets UI Helpers ---
-  Widget _buildCard(String title, IconData icon, Widget child) => Container(
-    margin: EdgeInsets.only(bottom: 16.h),
-    padding: EdgeInsets.all(16.w),
-    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12.r), border: Border.all(color: Colors.grey.shade200)),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [Icon(icon, size: 20.sp, color: AppColors.primaryBlue), SizedBox(width: 8.w), Text(title, style: AppTextStyles.blue16Bold)]),
-      const Divider(height: 24),
-      child,
-    ]),
-  );
-
-  Widget _buildField(TextEditingController ctrl, String label, {bool num = false, bool long = false, bool req = false}) => Padding(
-    padding: EdgeInsets.only(bottom: 12.h),
-    child: TextFormField(
-      controller: ctrl,
-      maxLines: long ? 3 : 1,
-      keyboardType: num ? TextInputType.number : TextInputType.text,
-      decoration: InputDecoration(labelText: label, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.r))),
-      validator: (v) => (req && (v == null || v.isEmpty)) ? "حقل مطلوب" : null,
-    ),
-  );
-
-  Widget _buildJsonDrop(String label, List<dynamic> items, String? val, Function(String?) onChg) => Padding(
-    padding: EdgeInsets.only(bottom: 12.h),
-    child: DropdownButtonFormField<String>(
-      value: val, onChanged: onChg,
-      decoration: InputDecoration(labelText: label, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.r))),
-      items: items.map((i) => DropdownMenuItem(value: i.id.toString(), child: Text(i.nameAr))).toList(),
-    ),
-  );
-
-  Widget _buildFixedDrop(String label, List<String> items, String? val, Function(String?) onChg) => Padding(
-    padding: EdgeInsets.only(bottom: 12.h),
-    child: DropdownButtonFormField<String>(
-      value: items.contains(val) ? val : null, onChanged: onChg,
-      decoration: InputDecoration(labelText: label, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.r))),
-      items: items.map((i) => DropdownMenuItem(value: i, child: Text(i.toUpperCase()))).toList(),
-    ),
-  );
-
-  Widget _buildDatePicker(String label) => ListTile(
-    title: Text(selectedDeliveryDate == null ? label : DateFormat('yyyy-MM-dd').format(selectedDeliveryDate!)),
-    trailing: const Icon(Icons.calendar_today),
-    onTap: () async {
-      final d = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime(2040));
-      if (d != null) setState(() => selectedDeliveryDate = d);
-    },
-  );
-
-  Widget _buildImageSection() {
-    return SizedBox(
-      height: 110.h,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: [
-          ..._existingImages.map((img) => _imgBox(CachedNetworkImage(imageUrl: img.imageUrl!, fit: BoxFit.cover),
-              onDel: () => setState(() { _imagesToDeleteObjects.add(img); _existingImages.remove(img); }))),
-          ..._newImagesBytes.asMap().entries.map((e) => _imgBox(Image.memory(e.value, fit: BoxFit.cover),
-              onDel: () => setState(() => _newImagesBytes.removeAt(e.key)))),
-          if ((_newImagesBytes.length + _existingImages.length) < 10) _addImgBtn(),
-        ],
-      ),
-    );
-  }
-
-  Widget _imgBox(Widget img, {required VoidCallback onDel}) => Container(
-    width: 90.w, margin: EdgeInsets.only(right: 8.w),
-    child: Stack(children: [ClipRRect(borderRadius: BorderRadius.circular(8.r), child: SizedBox.expand(child: img)), Positioned(top: 2, right: 2, child: GestureDetector(onTap: onDel, child: CircleAvatar(radius: 11.r, backgroundColor: Colors.red, child: Icon(Icons.close, size: 14.sp, color: Colors.white))))]),
-  );
-
-  Widget _addImgBtn() => GestureDetector(onTap: _pick, child: Container(width: 90.w, decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8.r)), child: const Icon(Icons.add_a_photo, color: Colors.blue)));
 
   Future<void> _pick() async {
     final picked = await ImagePicker().pickMultiImage();

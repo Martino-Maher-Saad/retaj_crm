@@ -6,8 +6,12 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/property_cache_manager.dart';
 import '../../../data/models/property_model.dart';
 
+/// كارت عقار واحد — يظهر في قائمة العقارات ويعرض ملخصاً سريعاً
+/// يحتوي على: صورة العقار مع badge الحالة + معلومات نصية + أزرار التحكم (تعديل/حذف)
 class PropertyCard extends StatelessWidget {
   final PropertyModel property;
+  final String currentUserId;
+  final String role;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onTap;
@@ -15,23 +19,29 @@ class PropertyCard extends StatelessWidget {
   const PropertyCard({
     super.key,
     required this.property,
+    required this.currentUserId,
+    required this.role,
     required this.onEdit,
     required this.onDelete,
     required this.onTap,
   });
 
+
   @override
   Widget build(BuildContext context) {
     // 1. استخراج رابط الصورة من الكائن PropertyImageModel
-    final String? firstImageUrl = (property.images.isNotEmpty)
-        ? property.images.first.imageUrl
-        : null;
+    final String? firstImageUrl = (property.images.isNotEmpty) ? property.images.first.thumbnail : null;
 
     // 2. استخدام الرابط الافتراضي
     final String displayUrl = firstImageUrl ?? "https://upload.wikimedia.org/wikipedia/commons/a/a3/Image-not-found.png";
-    // 2. تحديد الدورية السعرية (إيجار/بيع)
+    // 3. تحديد الدورية السعرية (إيجار/بيع)
     bool isRent = property.listingTypeAr.toLowerCase() == 'إيجار';
     String priceSuffix = isRent ? " / ${property.rentalFrequency ?? 'M'}" : "";
+
+    // 4. منطق الصلاحيات وحجب البيانات للمبيعات
+    final bool isMine = property.createdBy == currentUserId;
+    final bool isManager = role == 'manager';
+    final bool shouldMask = role == 'sales' && !isMine;
 
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
@@ -50,11 +60,35 @@ class PropertyCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12.r),
-        child: Padding(
-          padding: EdgeInsets.all(12.w),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        child: Column(
+          children: [
+            if (shouldMask)
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(vertical: 6.h),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(12.r),
+                    topRight: Radius.circular(12.r),
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    "هذا العقار يخص زميل مبيعات آخر", 
+                    style: TextStyle(
+                      color: Colors.red.shade800,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12.sp,
+                    ),
+                  ),
+                ),
+              ),
+            Padding(
+              padding: EdgeInsets.all(12.w),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               // --- القسم الأيسر: الصورة والتاجات ---
               Stack(
                 children: [
@@ -66,11 +100,18 @@ class PropertyCard extends StatelessWidget {
                       fadeOutDuration: Duration.zero,
                       useOldImageOnUrlChange: true,
                       imageUrl: displayUrl,
-                      width: 135.w,
-                      height: 115.h,
+                      width: 300.w,
+                      height: 200.h,
+                      memCacheWidth: 400, // تحسين استهلاك الذاكرة
                       fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(color: Colors.grey[100], child: const Center(child: CircularProgressIndicator(strokeWidth: 2))),
-                      errorWidget: (context, url, error) => Container(color: Colors.grey[100], child: const Icon(Icons.broken_image, color: Colors.grey)),
+                      placeholder: (context, url) => Container(
+                        color: Colors.grey[100],
+                        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        color: Colors.grey[100],
+                        child: const Icon(Icons.broken_image, color: Colors.grey),
+                      ),
                     ),
                   ),
                   Positioned(
@@ -131,21 +172,25 @@ class PropertyCard extends StatelessWidget {
               ),
 
               // --- القسم الأيمن: أزرار التحكم ---
-              SizedBox(width: 8.w),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  _actionButton(Icons.edit_note_rounded, AppColors.primaryBlue, onEdit),
-                  SizedBox(height: 12.h),
-                  _actionButton(Icons.delete_outline_rounded, Colors.redAccent, onDelete),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+              if (isMine || isManager) ...[
+                SizedBox(width: 8.w),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    _actionButton(Icons.edit_note_rounded, AppColors.primaryBlue, onEdit),
+                    SizedBox(height: 12.h),
+                    _actionButton(Icons.delete_outline_rounded, Colors.redAccent, onDelete),
+                  ],
+                ),
+              ],
+            ], // نهاية Row children
+          ), // نهاية Row
+        ), // نهاية Padding
+      ], // نهاية Column children
+    ), // نهاية Column
+  ), // نهاية InkWell
+); // نهاية Container
+}
 
   // --- Widgets المساعدة ---
 

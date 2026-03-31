@@ -52,7 +52,10 @@ class PropertyModel {
   // 6. قائمة الصور
   final List<PropertyImageModel> images;
 
+  final List<double>? embedding;
+
   PropertyModel({
+    this.embedding,
     required this.id,
     this.propertyCode,
     this.createdBy,
@@ -95,16 +98,20 @@ class PropertyModel {
   });
 
   factory PropertyModel.fromJson(Map<String, dynamic> json) {
-    var imagesList = (json['property_images'] as List?)
-        ?.map((e) => PropertyImageModel.fromJson(e))
-        .take(10)
-        .toList() ?? [];
+    var imagesList =
+        (json['property_images'] as List?)
+            ?.map((e) => PropertyImageModel.fromJson(e))
+            .take(10)
+            .toList() ??
+        [];
 
     return PropertyModel(
       id: json['id']?.toString() ?? '',
       propertyCode: json['property_code'],
       createdBy: json['created_by'],
-      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']).toLocal() : null,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at']).toLocal()
+          : null,
       status: json['status'] ?? false,
       negotiable: json['negotiable'],
       titleAr: json['title_ar'] ?? '',
@@ -135,7 +142,9 @@ class PropertyModel {
       rentalFrequency: json['rental_frequency'],
       completionStatus: json['completion_status'],
       furnished: json['furnished'],
-      deliveryDate: json['delivery_date'] != null ? DateTime.parse(json['delivery_date']) : null,
+      deliveryDate: json['delivery_date'] != null
+          ? DateTime.parse(json['delivery_date'])
+          : null,
       ownerName: json['owner_name'],
       ownerPhone: json['owner_phone'],
       internalNotes: json['internal_notes'],
@@ -145,6 +154,7 @@ class PropertyModel {
 
   Map<String, dynamic> toJson() {
     return {
+      'embedding': embedding,
       'property_code': propertyCode,
       'created_by': createdBy,
       'status': status,
@@ -192,6 +202,7 @@ class PropertyModel {
   }
 
   PropertyModel copyWith({
+    List<double>? embedding,
     String? id,
     String? propertyCode,
     String? createdBy,
@@ -233,6 +244,7 @@ class PropertyModel {
     List<PropertyImageModel>? images,
   }) {
     return PropertyModel(
+      embedding: embedding ?? this.embedding,
       id: id ?? this.id,
       propertyCode: propertyCode ?? this.propertyCode,
       createdBy: createdBy ?? this.createdBy,

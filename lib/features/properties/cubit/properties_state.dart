@@ -10,6 +10,8 @@ class PropertiesSuccess extends PropertiesState {
   final List<PropertyModel> searchedProperties;
   final int myTotalCount;
   final int filteredTotalCount;
+  final bool isSearching;
+  final bool isFiltering;
 
   PropertiesSuccess({
     this.myProperties = const [],
@@ -17,6 +19,8 @@ class PropertiesSuccess extends PropertiesState {
     this.searchedProperties = const [],
     this.myTotalCount = 0,
     this.filteredTotalCount = 0,
+    this.isSearching = false,
+    this.isFiltering = false,
   });
 
   PropertiesSuccess copyWith({
@@ -25,6 +29,8 @@ class PropertiesSuccess extends PropertiesState {
     List<PropertyModel>? searchProps,
     int? myCount,
     int? fCount,
+    bool? isSearching,
+    bool? isFiltering,
   }) {
     return PropertiesSuccess(
       myProperties: myProps ?? this.myProperties,
@@ -32,6 +38,8 @@ class PropertiesSuccess extends PropertiesState {
       searchedProperties: searchProps ?? this.searchedProperties,
       myTotalCount: myCount ?? this.myTotalCount,
       filteredTotalCount: fCount ?? this.filteredTotalCount,
+      isSearching: isSearching ?? this.isSearching,
+      isFiltering: isFiltering ?? this.isFiltering,
     );
   }
 }

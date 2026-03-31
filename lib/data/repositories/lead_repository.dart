@@ -8,15 +8,29 @@ class LeadRepository {
 
   LeadRepository(this._leadService);
 
-  // جلب كل العملاء
-  Future<List<LeadModel>> getAllLeads() async {
+  // جلب كل العملاء مع ترقيم الصفحات (Pagination)
+  Future<List<LeadModel>> getAllLeads({
+    required String role,
+    required String userId,
+    required int from,
+    required int to,
+  }) async {
     try {
-      return await _leadService.fetchAllLeads();
+      return await _leadService.fetchAllLeads(
+          role: role, userId: userId, from: from, to: to);
     } on PostgrestException catch (e) {
-      // هنا نهندل أخطاء سوبابيز الخاصة بالـ Query
       throw _handlePostgrestError(e);
     } catch (e) {
       throw "حدث خطأ غير متوقع أثناء جلب البيانات";
+    }
+  }
+
+  // جلب إجمالي العدد
+  Future<int> getLeadsCount({required String role, required String userId}) async {
+    try {
+      return await _leadService.getLeadsCount(role: role, userId: userId);
+    } catch (e) {
+      return 0;
     }
   }
 

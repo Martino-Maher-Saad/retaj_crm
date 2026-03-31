@@ -10,7 +10,7 @@ class PropertyCacheManager {
     Config(
       _cacheKey,
       stalePeriod: const Duration(days: 30), // حفظ الصور لمدة 30 يوم في المتصفح
-      maxNrOfCacheObjects: 1000, // أقصى عدد صور يتم تخزينها
+      maxNrOfCacheObjects: 500, // أقصى عدد صور يتم تخزينها
 
       // ملاحظة تقنية: قمنا بحذف حقل الـ repo تماماً
       // على الويب، المكتبة ستستخدم تلقائياً الـ WebCacheInfoRepository
