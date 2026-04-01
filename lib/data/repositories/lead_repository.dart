@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/lead_model.dart';
+import '../models/profile_model.dart';
 import '../services/lead_service.dart';
 
 
@@ -14,21 +15,26 @@ class LeadRepository {
     required String userId,
     required int from,
     required int to,
+    String? filterByEmployeeId,
   }) async {
     try {
       return await _leadService.fetchAllLeads(
-          role: role, userId: userId, from: from, to: to);
-    } on PostgrestException catch (e) {
+          role: role, userId: userId, from: from, to: to, filterByEmployeeId: filterByEmployeeId);
+    } on PostgrestException catch (e, stack) {
+      print("❌ PostgrestException in getAllLeads: ${e.message}");
+      print(stack);
       throw _handlePostgrestError(e);
-    } catch (e) {
+    } catch (e, stack) {
+      print("❌ General Exception in getAllLeads: $e");
+      print(stack);
       throw "حدث خطأ غير متوقع أثناء جلب البيانات";
     }
   }
 
   // جلب إجمالي العدد
-  Future<int> getLeadsCount({required String role, required String userId}) async {
+  Future<int> getLeadsCount({required String role, required String userId, String? filterByEmployeeId}) async {
     try {
-      return await _leadService.getLeadsCount(role: role, userId: userId);
+      return await _leadService.getLeadsCount(role: role, userId: userId, filterByEmployeeId: filterByEmployeeId);
     } catch (e) {
       return 0;
     }
@@ -38,9 +44,13 @@ class LeadRepository {
   Future<LeadModel> addNewLead(LeadModel lead) async {
     try {
       return await _leadService.addLead(lead);
-    } on PostgrestException catch (e) {
+    } on PostgrestException catch (e, stack) {
+      print("❌ PostgrestException in addNewLead: ${e.message}");
+      print(stack);
       throw _handlePostgrestError(e);
-    } catch (e) {
+    } catch (e, stack) {
+      print("❌ General Exception in addNewLead: $e");
+      print(stack);
       throw "فشل الاتصال بالسيرفر، تأكد من الإنترنت";
     }
   }
@@ -76,6 +86,15 @@ class LeadRepository {
       case '23505': return "هذا العميل موجود بالفعل (رقم الهاتف مكرر)";
       case '42P01': return "خطأ في الوصول لجدول البيانات";
       default: return "خطأ في السيرفر: ${e.message}";
+    }
+  }
+
+  // جلب الموظفين للإدارة
+  Future<List<ProfileModel>> getAllEmployees() async {
+    try {
+      return await _leadService.fetchAllEmployees();
+    } catch(e) {
+      return [];
     }
   }
 }

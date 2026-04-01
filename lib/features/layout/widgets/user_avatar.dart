@@ -5,6 +5,10 @@ import 'package:retaj_crm/data/models/profile_model.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/property_cache_manager.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../profile/screens/user_profile_screen.dart';
+import '../../profile/cubit/profile_cubit.dart';
+import '../../../data/services/profile_service.dart';
 
 class UserAvatar extends StatelessWidget {
   final ProfileModel user;
@@ -12,10 +16,22 @@ class UserAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      // استخدام .w و .h للمسافات الخارجية
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 24.h),
-      child: Row(
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => BlocProvider(
+              create: (_) => ProfileCubit(ProfileService()),
+              child: UserProfileScreen(currentUser: user),
+            ),
+          ),
+        );
+      },
+      child: Padding(
+        // استخدام .w و .h للمسافات الخارجية
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 24.h),
+        child: Row(
         children: [
           // الدائرة التعريفية للمستخدم
           CircleAvatar(
@@ -95,6 +111,7 @@ class UserAvatar extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

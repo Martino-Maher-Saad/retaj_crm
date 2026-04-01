@@ -14,6 +14,8 @@ class LeadModel {
   final String? descLeadNeed;
   final String assignedTo;
   final String? communicationChannel; // الحقل الجديد
+  final String? assignedToName;
+  final String? createdByName;
 
   LeadModel({
     this.id,
@@ -30,6 +32,8 @@ class LeadModel {
     this.descLeadNeed,
     required this.assignedTo,
     this.communicationChannel,
+    this.assignedToName,
+    this.createdByName,
   });
 
   // دالة copyWith لإعادة إنشاء الكائن مع تعديل حقول محددة فقط
@@ -48,6 +52,8 @@ class LeadModel {
     String? descLeadNeed,
     String? assignedTo,
     String? communicationChannel,
+    String? assignedToName,
+    String? createdByName,
   }) {
     return LeadModel(
       id: id ?? this.id,
@@ -64,6 +70,8 @@ class LeadModel {
       descLeadNeed: descLeadNeed ?? this.descLeadNeed,
       assignedTo: assignedTo ?? this.assignedTo,
       communicationChannel: communicationChannel ?? this.communicationChannel,
+      assignedToName: assignedToName ?? this.assignedToName,
+      createdByName: createdByName ?? this.createdByName,
     );
   }
 
@@ -103,6 +111,8 @@ class LeadModel {
       descLeadNeed: json['desc_lead_need'],
       assignedTo: json['assigned_to'],
       communicationChannel: json['communication_channel'],
+      assignedToName: json['assignee'] != null ? "${json['assignee']['first_name'] ?? ''} ${json['assignee']['last_name'] ?? ''}".trim() : null,
+      createdByName: json['creator'] != null ? "${json['creator']['first_name'] ?? ''} ${json['creator']['last_name'] ?? ''}".trim() : null,
     );
   }
 }

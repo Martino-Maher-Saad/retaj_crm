@@ -12,7 +12,9 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/constants/app_constants.dart';
 
-import '../../auth/screens/accounts_management_screen.dart';
+import '../../admin_users/screens/admin_users_screen.dart';
+import '../../admin_users/cubit/admin_users_cubit.dart';
+import '../../../data/services/admin_user_service.dart';
 import '../../dashboard/screens/dashboard_screen.dart';
 import '../../designs/screens/designs_list_screen.dart';
 import '../../leads/screens/leads_management_screen.dart';
@@ -38,7 +40,11 @@ class _LayoutScreenState extends State<LayoutScreen> {
       LeadsManagementScreen(user: user, key: const PageStorageKey('leads_page')),
       const DesignsListScreen(key: PageStorageKey('designs_page')),
       if (user.role == 'admin')
-        const AccountsManagementScreen(key: PageStorageKey('accounts_page')),
+        BlocProvider(
+          key: const PageStorageKey('accounts_page'),
+          create: (_) => AdminUsersCubit(AdminUserService()),
+          child: const AdminUsersScreen(),
+        ),
     ];
   }
 

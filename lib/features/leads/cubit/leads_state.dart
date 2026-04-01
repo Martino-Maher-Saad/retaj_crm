@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../../data/models/lead_model.dart';
+import '../../../data/models/profile_model.dart';
 
 
 abstract class LeadState extends Equatable {
@@ -21,6 +22,7 @@ class LeadLoaded extends LeadState {
   final String currentFilter;
   final int totalCount;
   final bool isLoadingMore;
+  final List<ProfileModel> employees;
 
   const LeadLoaded({
     required this.allLeads,
@@ -28,6 +30,7 @@ class LeadLoaded extends LeadState {
     this.currentFilter = 'الكل',
     this.totalCount = 0,
     this.isLoadingMore = false,
+    this.employees = const [],
   });
 
   LeadLoaded copyWith({
@@ -36,6 +39,7 @@ class LeadLoaded extends LeadState {
     String? currentFilter,
     int? totalCount,
     bool? isLoadingMore,
+    List<ProfileModel>? employees,
   }) {
     return LeadLoaded(
       allLeads: allLeads ?? this.allLeads,
@@ -43,11 +47,12 @@ class LeadLoaded extends LeadState {
       currentFilter: currentFilter ?? this.currentFilter,
       totalCount: totalCount ?? this.totalCount,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      employees: employees ?? this.employees,
     );
   }
 
   @override
-  List<Object?> get props => [allLeads, filteredLeads, currentFilter, totalCount, isLoadingMore];
+  List<Object?> get props => [allLeads, filteredLeads, currentFilter, totalCount, isLoadingMore, employees];
 }
 
 // حالة الخطأ

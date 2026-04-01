@@ -95,6 +95,26 @@ class LeadCard extends StatelessWidget {
                         Text(lead.city ?? "غير محدد", style: AppTextStyles.cardLocation),
                       ],
                     ),
+                    if (lead.assignedToName != null) ...[
+                      SizedBox(height: AppConstants.p4),
+                      Row(
+                        children: [
+                          Icon(Icons.person, size: AppConstants.iconSm, color: AppColors.textSecondary),
+                          SizedBox(width: AppConstants.p4),
+                          Text('المسؤول: ${lead.assignedToName}', style: AppTextStyles.tableCellSub),
+                        ],
+                      ),
+                    ],
+                    if (lead.createdByName != null && lead.assignedTo != lead.createdBy) ...[
+                      SizedBox(height: AppConstants.p4),
+                      Row(
+                        children: [
+                          Icon(Icons.person_outline, size: AppConstants.iconSm, color: AppColors.textSecondary),
+                          SizedBox(width: AppConstants.p4),
+                          Text('المُضيف: ${lead.createdByName}', style: AppTextStyles.tableCellSub),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),

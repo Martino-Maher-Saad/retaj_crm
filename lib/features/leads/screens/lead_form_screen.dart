@@ -16,11 +16,13 @@ import '../widgets/form_sections/client_requirements_section.dart';
 import '../widgets/form_sections/client_admin_section.dart';
 
 
+import '../../../data/models/profile_model.dart';
+
 class LeadFormScreen extends StatefulWidget {
   final LeadModel? lead;
-  final String currentUserId;
+  final ProfileModel user;
 
-  const LeadFormScreen({super.key, this.lead, required this.currentUserId});
+  const LeadFormScreen({super.key, this.lead, required this.user});
 
   @override
   State<LeadFormScreen> createState() => _LeadFormScreenState();
@@ -38,8 +40,10 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
 
   String? _selectedCity;
   String? _selectedStatus;
+  String? _selectedEmployeeId;
   List<City> _allCities = [];
   bool _isLoadingCities = true;
+  bool _isSubmitting = false;
   String _selectedChannel = 'مكالمة هاتفية';
   final List<String> _channels = ['مكالمة هاتفية', 'واتساب', 'مسنجر', 'زيارة مقر'];
 
@@ -86,6 +90,7 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
     _commentController = TextEditingController(text: widget.lead?.comment);
     _sourceController = TextEditingController(text: widget.lead?.source);
     _selectedStatus = widget.lead?.leadStatus ?? 'جديد';
+    _selectedEmployeeId = widget.lead?.assignedTo ?? widget.user.id;
 
     if (widget.lead != null && widget.lead!.clientPhone.isNotEmpty) {
       _phoneControllers = widget.lead!.clientPhone.map((p) => TextEditingController(text: p)).toList();
@@ -112,18 +117,19 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
     return BlocConsumer<LeadCubit, LeadState>(
       listener: (context, state) {
         if (state is LeadLoaded) {
+          setState(() => _isSubmitting = false);
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("تم حفظ البيانات بنجاح"), backgroundColor: Colors.green),
           );
         } else if (state is LeadError) {
+          setState(() => _isSubmitting = false);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(state.message), backgroundColor: AppColors.brandAccent),
           );
         }
       },
       builder: (context, state) {
-        final isLoading = state is LeadLoading;
 
         return Scaffold(
           backgroundColor: AppColors.bgMain,
@@ -172,10 +178,32 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
                     onStatusChanged: (val) => setState(() => _selectedStatus = val),
                     commentController: _commentController,
                   ),
+                  if (widget.user.role == 'manager' || widget.user.role == 'admin') ...[
+                    SizedBox(height: 16.h),
+                    Container(
+                      padding: EdgeInsets.all(16.w),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12.r),
+                        border: Border.all(color: AppColors.borderSubtle),
+                      ),
+                      child: (state is LeadLoaded && state.employees.isNotEmpty)
+                        ? DropdownButtonFormField<String>(
+                            decoration: InputDecoration(
+                              labelText: 'تعيين الموظف المسؤول (خاص بالإدارة)',
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            value: state.employees.any((e) => e.id == _selectedEmployeeId) ? _selectedEmployeeId : null,
+                            items: state.employees.map((e) => DropdownMenuItem(value: e.id, child: Text(e.firstName != null ? "${e.firstName} ${e.lastName}" : e.email))).toList(),
+                            onChanged: (val) => setState(() => _selectedEmployeeId = val),
+                          )
+                        : const Center(child: CircularProgressIndicator()),
+                    ),
+                  ],
                   SizedBox(height: 32.h),
 
                   // 4. زر الحفظ
-                  _buildSubmitButton(isEdit, isLoading),
+                  _buildSubmitButton(isEdit, _isSubmitting),
                 ],
               ),
             ),
@@ -212,6 +240,8 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
 
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
+      setState(() => _isSubmitting = true);
+      
       List<String> phones = _phoneControllers.map((c) => c.text).where((t) => t.isNotEmpty).toList();
 
       final leadData = LeadModel(
@@ -224,8 +254,8 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
         descLeadNeed: _descController.text,
         comment: _commentController.text,
         source: _sourceController.text,
-        createdBy: widget.lead?.createdBy ?? widget.currentUserId,
-        assignedTo: widget.lead?.assignedTo ?? widget.currentUserId,
+        createdBy: widget.lead?.createdBy ?? widget.user.id,
+        assignedTo: _selectedEmployeeId ?? widget.user.id,
         createdAt: widget.lead?.createdAt ?? DateTime.now(),
       );
 

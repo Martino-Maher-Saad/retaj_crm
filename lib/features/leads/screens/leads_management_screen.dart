@@ -2,19 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:retaj_crm/data/services/lead_service.dart';
+
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../data/models/lead_model.dart';
 import '../../../data/models/profile_model.dart';
 import '../../../data/repositories/lead_repository.dart';
 import '../cubit/leads_cubit.dart';
 import '../cubit/leads_state.dart';
+import '../widgets/lead_card.dart';
 import '../widgets/list/lead_delete_dialog.dart';
 import '../widgets/list/lead_empty_state.dart';
 import '../widgets/list/lead_top_actions_bar.dart';
-import '../widgets/lead_card.dart';
-import 'lead_form_screen.dart';
 import 'lead_details_screen.dart';
+import 'lead_form_screen.dart';
 
 /// شاشة إدارة العملاء (Leads) — النقطة المركزية لعرض وفلترة وإدارة العملاء
 /// تستخدم BlocProvider مع AutomaticKeepAliveClientMixin للحفاظ على الحالة عند التنقل بين الـ tabs
@@ -31,10 +33,19 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
   late LeadCubit _cubit;
 
   // قائمة فلاتر الحالة — تُمرر للـ LeadTopActionsBar
-  final List<String> _filters = ['الكل', 'جديد', 'تم التواصل', 'تفاوض', 'تم التعاقد', 'مستبعد'];
+  final List<String> _filters = [
+    'الكل',
+    'جديد',
+    'تم التواصل',
+    'تفاوض',
+    'تم التعاقد',
+    'مستبعد',
+  ];
 
   // ScrollController لتفعيل Infinite Scroll
   final ScrollController _scrollController = ScrollController();
+
+  String? _selectedFilterEmployeeId;
 
   @override
   bool get wantKeepAlive => true;
@@ -43,17 +54,21 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
   void initState() {
     super.initState();
     // إنشاء الـ Cubit وجلب البيانات الأولية فور فتح الشاشة
-    _cubit = LeadCubit(
-      LeadRepository(LeadService()),
-    )..getAllLeads(role: widget.user.role, userId: widget.user.id);
+    _cubit = LeadCubit(LeadRepository(LeadService()))
+      ..getAllLeads(role: widget.user.role, userId: widget.user.id);
 
     _scrollController.addListener(_onScroll);
   }
 
   /// يراقب موضع الـ Scroll — عند الاقتراب من النهاية يجلب المزيد من البيانات
   void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
-      _cubit.loadMoreLeads(role: widget.user.role, userId: widget.user.id);
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      _cubit.loadMoreLeads(
+        role: widget.user.role,
+        userId: widget.user.id,
+        filterByEmployeeId: _selectedFilterEmployeeId,
+      );
     }
   }
 
@@ -78,16 +93,79 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
         ),
         body: Column(
           children: [
-            // ─── الشريط العلوي: زر إضافة + فلاتر الحالة ───
             BlocBuilder<LeadCubit, LeadState>(
               builder: (context, state) {
-                final String currentFilter =
-                    (state is LeadLoaded) ? state.currentFilter : 'الكل';
-                return LeadTopActionsBar(
-                  filters: _filters,
-                  currentFilter: currentFilter,
-                  onAddPressed: () => _openForm(context),
-                  onFilterSelected: (filter) => _cubit.filterLeads(filter),
+                final String currentFilter = (state is LeadLoaded)
+                    ? state.currentFilter
+                    : 'الكل';
+                final List<ProfileModel> employees = (state is LeadLoaded)
+                    ? state.employees
+                    : [];
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    LeadTopActionsBar(
+                      filters: _filters,
+                      currentFilter: currentFilter,
+                      onAddPressed: () => _openForm(context),
+                      onFilterSelected: (filter) => _cubit.filterLeads(filter),
+                    ),
+                    if ((widget.user.role == 'manager' ||
+                            widget.user.role == 'admin') &&
+                        employees.isNotEmpty) ...[
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: AppConstants.p16,
+                        ),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: 10.w),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10.r),
+                            border: Border.all(color: AppColors.borderSubtle),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String?>(
+                              isExpanded: true,
+                              hint: const Text('الموظف المكلف (للمدير)'),
+                              value:
+                                  employees.any(
+                                    (e) => e.id == _selectedFilterEmployeeId,
+                                  )
+                                  ? _selectedFilterEmployeeId
+                                  : null,
+                              items: [
+                                const DropdownMenuItem(
+                                  value: null,
+                                  child: Text("كل الموظفين (إلغاء الفلتر)"),
+                                ),
+                                ...employees.map(
+                                  (e) => DropdownMenuItem(
+                                    value: e.id,
+                                    child: Text(
+                                      e.firstName != null
+                                          ? "${e.firstName} ${e.lastName}"
+                                          : e.email,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              onChanged: (val) {
+                                setState(() => _selectedFilterEmployeeId = val);
+                                _cubit.getAllLeads(
+                                  role: widget.user.role,
+                                  userId: widget.user.id,
+                                  isRefresh: true,
+                                  filterByEmployeeId: val,
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 10.h),
+                    ],
+                  ],
                 );
               },
             ),
@@ -110,32 +188,40 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                   // ─── حالة التحميل الأولي ───
                   if (state is LeadLoading) {
                     return const Center(
-                      child: CircularProgressIndicator(color: AppColors.brandPrimary),
+                      child: CircularProgressIndicator(
+                        color: AppColors.brandPrimary,
+                      ),
                     );
                   }
 
                   // ─── حالة النجاح ───
                   if (state is LeadLoaded) {
-                    if (state.filteredLeads.isEmpty) return const LeadEmptyState();
+                    if (state.filteredLeads.isEmpty)
+                      return const LeadEmptyState();
 
                     return RefreshIndicator(
                       onRefresh: () => _cubit.getAllLeads(
                         role: widget.user.role,
                         userId: widget.user.id,
+                        filterByEmployeeId: _selectedFilterEmployeeId,
                         isRefresh: true,
                       ),
                       child: ListView.builder(
                         controller: _scrollController,
                         padding: EdgeInsets.only(bottom: 20.h, top: 10.h),
                         // +1 للـ Loading indicator في نهاية القائمة عند التحميل
-                        itemCount: state.filteredLeads.length + (state.isLoadingMore ? 1 : 0),
+                        itemCount:
+                            state.filteredLeads.length +
+                            (state.isLoadingMore ? 1 : 0),
                         itemBuilder: (context, index) {
                           // مؤشر التحميل عند نهاية القائمة
                           if (index >= state.filteredLeads.length) {
                             return const Center(
                               child: Padding(
                                 padding: EdgeInsets.all(8.0),
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               ),
                             );
                           }
@@ -176,7 +262,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
       MaterialPageRoute(
         builder: (_) => BlocProvider.value(
           value: _cubit,
-          child: LeadFormScreen(lead: lead, currentUserId: widget.user.id!),
+          child: LeadFormScreen(lead: lead, user: widget.user),
         ),
       ),
     );
