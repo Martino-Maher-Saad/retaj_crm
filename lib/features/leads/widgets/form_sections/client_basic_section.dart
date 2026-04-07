@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../properties/widgets/property_form_card.dart';
-import '../../widgets/lead_field_builders.dart';
-
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/widgets/neon_text_field.dart';
+import '../../../../core/widgets/retaj_shared_fields.dart';
 
 class ClientBasicSection extends StatelessWidget {
   final TextEditingController nameController;
@@ -21,65 +21,71 @@ class ClientBasicSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PropertyFormCard(
-      title: "المعلومات الأساسية",
+    return RetajSectionCard(
+      title: 'بيانات العميل الأساسية',
       icon: Icons.person_outline,
-      child: Column(
-        children: [
-          LeadFieldBuilders.buildTextField(
-            controller: nameController,
-            label: "اسم العميل بالكامل *",
-            icon: Icons.person_add_alt_1_outlined,
-            isRequired: true,
-          ),
-          SizedBox(height: 16.h),
-          const Divider(),
-          SizedBox(height: 8.h),
-          ..._buildPhoneFields(),
-        ],
-      ),
+      iconColor: const Color(0xFF2E3192),
+      children: [
+        // اسم العميل — صف كامل (نص مهم)
+        NeonTextField(
+          controller: nameController,
+          label: 'اسم العميل بالكامل',
+          prefixIcon: Icons.person_add_alt_1_outlined,
+          validator: (v) => (v == null || v.isEmpty) ? 'هذا الحقل مطلوب' : null,
+        ),
+
+        // ─── حقول الهاتف الديناميكية ───
+        ..._buildPhoneFields(context),
+      ],
     );
   }
 
-  List<Widget> _buildPhoneFields() {
+  List<Widget> _buildPhoneFields(BuildContext context) {
     return phoneControllers.asMap().entries.map((entry) {
-      int idx = entry.key;
-      return Padding(
-        padding: EdgeInsets.only(bottom: 12.h),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Expanded(
-              child: LeadFieldBuilders.buildTextField(
-                controller: entry.value,
-                label: idx == 0 ? "أرقام التواصل *" : "رقم إضافي",
-                icon: Icons.phone_android_rounded,
-                isRequired: idx == 0,
-                keyboardType: TextInputType.phone,
-              ),
+      final int idx = entry.key;
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: NeonTextField(
+              controller: entry.value,
+              label: idx == 0 ? 'رقم الهاتف الأساسي' : 'رقم إضافي ${idx + 1}',
+              prefixIcon: Icons.phone_android_rounded,
+              keyboardType: TextInputType.phone,
+              forceLtr: true,
+              validator: idx == 0
+                  ? (v) => (v == null || v.isEmpty) ? 'هذا الحقل مطلوب' : null
+                  : null,
             ),
-            SizedBox(width: 8.w),
-            if (idx == 0)
-              Padding(
-                padding: EdgeInsets.only(bottom: 4.h),
-                child: LeadFieldBuilders.buildCircularAction(
-                  Icons.add,
-                  AppColors.success,
-                  onAddPhone,
-                ),
-              )
-            else
-              Padding(
-                padding: EdgeInsets.only(bottom: 4.h),
-                child: LeadFieldBuilders.buildCircularAction(
-                  Icons.remove,
-                  AppColors.brandAccent,
-                  () => onRemovePhone(idx),
-                ),
-              ),
-          ],
-        ),
+          ),
+          SizedBox(width: 8.w),
+          _circularAction(
+            icon: idx == 0 ? Icons.add_rounded : Icons.remove_rounded,
+            color: idx == 0 ? AppColors.success : AppColors.brandAccent,
+            onTap: idx == 0 ? onAddPhone : () => onRemovePhone(idx),
+          ),
+        ],
       );
     }).toList();
+  }
+
+  Widget _circularAction({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppConstants.r8),
+      child: Container(
+        padding: EdgeInsets.all(10.r),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(AppConstants.r8),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
+        ),
+        child: Icon(icon, color: color, size: 18.sp),
+      ),
+    );
   }
 }

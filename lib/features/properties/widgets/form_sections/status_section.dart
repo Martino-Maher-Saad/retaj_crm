@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../../core/widgets/form_toggle_tile.dart';
+import '../../../../core/widgets/retaj_shared_fields.dart';
 import '../property_field_builders.dart';
 
-/// قسم حالة العقار في الفورم — يتحكم في:
-/// - هل العقار داخل كمبوند؟
-/// - حالة التشطيب (ready / off-plan)
-/// - تاريخ استلام متوقع (لو off-plan)
-/// - عمر المبنى (للعقارات العادية غير السكنية في الكمبوند)
+/// قسم حالة العقار في الفورم
 class StatusSection extends StatelessWidget {
   final Map<String, TextEditingController> controllers;
   final bool isCompound;
@@ -31,41 +28,42 @@ class StatusSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return RetajSectionCard(
+      title: 'حالة العقار',
+      icon: Icons.check_circle_outline,
+      iconColor: const Color(0xFF0F766E),
       children: [
         // ─── toggle: هل العقار داخل كمبوند؟ ───
         FormToggleTile(
           icon: Icons.villa_outlined,
-          title: "داخل كمبوند",
-          subtitle: "سيظهر ضمن عقارات الكمبوندات",
+          title: 'داخل كمبوند',
+          subtitle: 'سيظهر ضمن عقارات الكمبوندات',
           value: isCompound,
           onChanged: onCompoundChanged,
         ),
 
-        // ─── حقول الكمبوند (تظهر فقط لو isCompound = true) ───
         if (isCompound) ...[
+          // حالة التشطيب — صف كامل لوضوح الخيارات
           PropertyFieldBuilders.buildFixedDrop(
-            label: "حالة التشطيب",
-            items: ["ready", "off-plan"],
+            label: 'حالة التشطيب',
+            items: ['ready', 'off-plan'],
             val: selectedCompletionStatus,
             onChg: onCompletionStatusChanged,
           ),
-          // تاريخ الاستلام يظهر فقط لو off-plan
-          if (selectedCompletionStatus == "off-plan")
+          if (selectedCompletionStatus == 'off-plan')
             PropertyFieldBuilders.buildDatePicker(
               context: context,
-              label: "تاريخ الاستلام المتوقع",
+              label: 'تاريخ الاستلام المتوقع',
               selectedDate: selectedDeliveryDate,
               onDateSelected: onDeliveryDateSelected,
             ),
         ],
 
-        // ─── عمر المبنى (للعقارات خارج الكمبوند وليست أرض) ───
+        // عمر المبنى لو خارج كمبوند وليس أرض
         if (selectedPropertyTypeId != 'land' && !isCompound)
-          PropertyFieldBuilders.buildField(
-            controllers['buildingAge']!,
-            "عمر المبنى بالسنوات",
-            num: true,
+          RetajNumberStepper(
+            controller: controllers['buildingAge']!,
+            label: 'عمر المبنى (سنة)',
           ),
       ],
     );

@@ -143,6 +143,19 @@ class _LayoutScreenState extends State<LayoutScreen> {
     );
   }
 
+  String _resolveSidebarRole(String role) {
+    switch (role) {
+      case 'admin':
+        return 'مسؤول النظام';
+      case 'manager':
+        return 'مدير';
+      case 'sales':
+        return 'موظف مبيعات';
+      default:
+        return role;
+    }
+  }
+
   Widget _buildCustomSidebar(ProfileModel user) {
     return BlocBuilder<LayoutCubit, LayoutState>(
       builder: (context, state) {
@@ -156,7 +169,41 @@ class _LayoutScreenState extends State<LayoutScreen> {
             children: [
               const SideBarLogo(),
               const SizedBox(height: 10),
-              UserAvatar(user: widget.user),
+              // ─── بطاقة المستخدم في الـ Sidebar ───
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+                child: Row(
+                  children: [
+                    UserAvatar(user: widget.user),
+                    SizedBox(width: 8.w),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            "${widget.user.firstName ?? ''} ${widget.user.lastName ?? ''}".trim(),
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13.sp,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          SizedBox(height: 2.h),
+                          Text(
+                            _resolveSidebarRole(widget.user.role),
+                            style: TextStyle(
+                              color: Colors.white54,
+                              fontSize: 10.sp,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 15),
                 child: Divider(
@@ -167,12 +214,12 @@ class _LayoutScreenState extends State<LayoutScreen> {
                 child: ListView(
                   padding: EdgeInsets.symmetric(vertical: 10.h),
                   children: [
-                    _customNavItem(context, Icons.analytics_outlined, "Dashboard", 0, currentIndex),
-                    _customNavItem(context, Icons.home_work_outlined, "Properties", 1, currentIndex),
-                    _customNavItem(context, Icons.person_search_outlined, "Leads", 2, currentIndex),
-                    _customNavItem(context, Icons.format_paint_outlined, "Designs", 3, currentIndex),
+                    _CustomNavItem(icon: Icons.analytics_outlined, label: "Dashboard", index: 0, currentIndex: currentIndex),
+                    _CustomNavItem(icon: Icons.home_work_outlined, label: "Properties", index: 1, currentIndex: currentIndex),
+                    _CustomNavItem(icon: Icons.person_search_outlined, label: "Leads", index: 2, currentIndex: currentIndex),
+                    _CustomNavItem(icon: Icons.format_paint_outlined, label: "Designs", index: 3, currentIndex: currentIndex),
                     if (widget.user.role == 'admin')
-                      _customNavItem(context, Icons.admin_panel_settings_outlined, "Accounts", 4, currentIndex),
+                      _CustomNavItem(icon: Icons.admin_panel_settings_outlined, label: "Accounts", index: 4, currentIndex: currentIndex),
                   ],
                 ),
               ),
@@ -184,39 +231,96 @@ class _LayoutScreenState extends State<LayoutScreen> {
     );
   }
 
-  Widget _customNavItem(BuildContext context, IconData icon, String label, int index, int currentIndex) {
-    bool isSelected = index == currentIndex;
+}
+
+class _CustomNavItem extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final int index;
+  final int currentIndex;
+
+  const _CustomNavItem({required this.icon, required this.label, required this.index, required this.currentIndex});
+
+  @override
+  State<_CustomNavItem> createState() => _CustomNavItemState();
+}
+
+class _CustomNavItemState extends State<_CustomNavItem> {
+  bool _isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    bool isSelected = widget.index == widget.currentIndex;
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
       child: InkWell(
-        onTap: () => context.read<LayoutCubit>().changeNavigation(index),
-        borderRadius: BorderRadius.circular(8),
+        onTap: () => context.read<LayoutCubit>().changeNavigation(widget.index),
+        onHover: (hovering) {
+          setState(() => _isHovering = hovering);
+        },
+        borderRadius: BorderRadius.circular(8.r),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           height: 55.h,
+          transform: Matrix4.translationValues(_isHovering && !isSelected ? 4.w : 0, 0, 0),
           decoration: BoxDecoration(
-            color: isSelected ? AppColors.white.withOpacity(0.15) : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+            color: isSelected
+                ? AppColors.white.withValues(alpha: 0.12)
+                : _isHovering
+                    ? AppColors.white.withValues(alpha: 0.06)
+                    : Colors.transparent,
+            borderRadius: BorderRadius.circular(8.r),
+            border: isSelected
+                ? Border.all(
+                    color: AppColors.white.withValues(alpha: 0.15),
+                    width: 1,
+                  )
+                : null,
           ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 15),
-            child: Row(
-              children: [
-                Icon(icon, color: AppColors.white, size: 24.sp),
-                SizedBox(width: 16.w),
-                Text(
-                  label,
-                  style: AppTextStyles.blue18Medium.copyWith(
-                    color: AppColors.white,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          child: Row(
+            children: [
+              // Active Indicator Pillar — Neon Glow
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 3.w,
+                height: isSelected ? 36.h : 0,
+                decoration: BoxDecoration(
+                  color: AppColors.brandAccent,
+                  borderRadius: BorderRadius.horizontal(right: Radius.circular(3.r)),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppColors.brandAccent.withValues(alpha: 0.7),
+                            blurRadius: 8,
+                            spreadRadius: 1,
+                          ),
+                        ]
+                      : [],
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 15.w),
+                  child: Row(
+                    children: [
+                      Icon(widget.icon, color: AppColors.white, size: 24.sp),
+                      SizedBox(width: 16.w),
+                      Text(
+                        widget.label,
+                        style: AppTextStyles.blue18Medium.copyWith(
+                          color: AppColors.white,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
-}
+}

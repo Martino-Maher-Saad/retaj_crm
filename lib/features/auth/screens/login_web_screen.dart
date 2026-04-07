@@ -49,7 +49,7 @@ class LoginWebScreen extends StatelessWidget {
 
                   children: [
 
-                    const Text(
+                    Text(
                       AppStrings.login,
                       textAlign: TextAlign.center,
                       style: AppTextStyles.blue28Bold,

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
-import '../../../properties/widgets/property_form_card.dart';
-import '../../widgets/lead_field_builders.dart';
+import '../../../../core/widgets/neon_dropdown.dart';
+import '../../../../core/widgets/retaj_shared_fields.dart';
 
 class ClientAdminSection extends StatelessWidget {
   final String? selectedCity;
@@ -25,43 +24,41 @@ class ClientAdminSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PropertyFormCard(
-      title: "الإدارة والمتابعة",
+    return RetajSectionCard(
+      title: 'الإدارة والمتابعة',
       icon: Icons.admin_panel_settings_outlined,
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: LeadFieldBuilders.buildDropdown(
-                  value: selectedCity,
-                  label: "المدينة",
-                  items: cities,
-                  onChanged: onCityChanged,
-                  icon: Icons.location_on_outlined,
-                ),
-              ),
-              SizedBox(width: 16.w),
-              Expanded(
-                child: LeadFieldBuilders.buildDropdown(
-                  value: selectedStatus,
-                  label: "الحالة",
-                  items: statuses,
-                  onChanged: onStatusChanged,
-                  icon: Icons.star_outline,
-                ),
-              ),
-            ],
+      iconColor: const Color(0xFFB45309),
+      children: [
+        // المدينة + الحالة في صف واحد (dropdowns قصيرة)
+        RetajFieldRow(
+          first: NeonDropdown<String>(
+            value: cities.contains(selectedCity) ? selectedCity : null,
+            label: 'المدينة',
+            prefixIcon: Icons.location_on_outlined,
+            items: cities
+                .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                .toList(),
+            onChanged: onCityChanged,
           ),
-          SizedBox(height: 16.h),
-          LeadFieldBuilders.buildTextField(
-            controller: commentController,
-            label: "ملاحظات إضافية للموظف",
-            icon: Icons.note_alt_outlined,
-            maxLines: 2,
+          second: NeonDropdown<String>(
+            value: statuses.contains(selectedStatus) ? selectedStatus : null,
+            label: 'حالة العميل',
+            prefixIcon: Icons.star_outline,
+            items: statuses
+                .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                .toList(),
+            onChanged: onStatusChanged,
           ),
-        ],
-      ),
+        ),
+
+        // الملاحظات — حقل مطاطي
+        RetajTextArea(
+          controller: commentController,
+          label: 'ملاحظات إضافية للموظف',
+          minLines: 2,
+          prefixIcon: Icons.note_alt_outlined,
+        ),
+      ],
     );
   }
 }

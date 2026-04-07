@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:skeletonizer/skeletonizer.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
@@ -86,8 +88,44 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           if (state is AdminUsersInitial ||
               state is AdminUsersLoading &&
                   context.read<AdminUsersCubit>().state is! AdminUsersLoaded) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppColors.brandPrimary),
+            return Skeletonizer(
+              enabled: true,
+              child: ListView.separated(
+                padding: EdgeInsets.all(AppConstants.p16).copyWith(bottom: 80.h),
+                itemCount: 4,
+                separatorBuilder: (_, __) => SizedBox(height: AppConstants.p16),
+                itemBuilder: (context, index) {
+                  return Container(
+                    padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16.r),
+                      border: Border.all(color: AppColors.borderSubtle, width: 1.w),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(radius: 24.r, backgroundColor: AppColors.bgMain),
+                        SizedBox(width: 12.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('جاري التحميل...', style: AppTextStyles.h3),
+                              SizedBox(height: 4.h),
+                              Text('loading@example.com', style: AppTextStyles.blue32Bold.copyWith(fontSize: 12.sp)),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                          color: Colors.grey.withOpacity(0.1),
+                          child: const Text('ROL'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             );
           }
           final cubitState = context.read<AdminUsersCubit>().state;
@@ -104,11 +142,18 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 itemBuilder: (context, index) {
                   final user = users[index];
                   return Container(
-                    padding: EdgeInsets.all(12.w),
+                    padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(12.r),
-                      border: Border.all(color: AppColors.borderSubtle),
+                      borderRadius: BorderRadius.circular(16.r),
+                      border: Border.all(color: AppColors.borderSubtle, width: 1.w),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.02),
+                          blurRadius: 10.r,
+                          offset: const Offset(0, 4),
+                        )
+                      ],
                     ),
                     child: Row(
                       children: [
@@ -145,21 +190,16 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           ),
                         ),
                         Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 8.w,
-                            vertical: 4.h,
-                          ),
+                          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
                           decoration: BoxDecoration(
                             color: user.isAdmin
                                 ? AppColors.brandAccent.withOpacity(0.1)
                                 : AppColors.brandPrimary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8.r),
+                            borderRadius: BorderRadius.circular(20.r),
                           ),
                           child: Text(
                             user.role.toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 10.sp,
-                              fontWeight: FontWeight.bold,
+                            style: AppTextStyles.chipLabel.copyWith(
                               color: user.isAdmin
                                   ? AppColors.brandAccent
                                   : AppColors.brandPrimary,
@@ -175,7 +215,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         ),
                       ],
                     ),
-                  );
+                  ).animate().fade(duration: 300.ms).slideY(begin: 0.1, end: 0, duration: 300.ms, curve: Curves.easeOut);
                 },
               ),
             );

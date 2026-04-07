@@ -7,28 +7,28 @@ class StorageService {
 
   StorageService(this._client);
 
-  Future<String> uploadImage(Uint8List bytes, String folder, String fileName) async {
+  Future<String> uploadImage(Uint8List bytes, String folder, String fileName, {String bucket = _bucket}) async {
     final String path = '$folder/$fileName';
-    await _client.storage.from(_bucket).uploadBinary(
+    await _client.storage.from(bucket).uploadBinary(
       path,
       bytes,
       fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true),
     );
-    return _client.storage.from(_bucket).getPublicUrl(path);
+    return _client.storage.from(bucket).getPublicUrl(path);
   }
 
-  Future<void> deleteFolder(String folder) async {
-    final List<FileObject> files = await _client.storage.from(_bucket).list(path: folder);
+  Future<void> deleteFolder(String folder, {String bucket = _bucket}) async {
+    final List<FileObject> files = await _client.storage.from(bucket).list(path: folder);
     if (files.isNotEmpty) {
       final paths = files.map((f) => '$folder/${f.name}').toList();
-      await _client.storage.from(_bucket).remove(paths);
+      await _client.storage.from(bucket).remove(paths);
     }
   }
 
 
-  Future<void> deleteFile(String folder, String fileName) async {
+  Future<void> deleteFile(String folder, String fileName, {String bucket = _bucket}) async {
     final String path = '$folder/$fileName';
-    await _client.storage.from(_bucket).remove([path]);
+    await _client.storage.from(bucket).remove([path]);
   }
 
 }

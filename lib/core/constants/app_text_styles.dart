@@ -16,6 +16,7 @@ class AppTextStyles {
       fontWeight: fontWeight,
       color: color,
       height: height,
+      letterSpacing: 0.5, // إضافة مسافة الأحرف لتحسين قراءة الإنجليزية
       fontFamily: 'Cairo',
     );
   }
@@ -52,59 +53,68 @@ class AppTextStyles {
 
 
   // Headings
-  static const TextStyle blue32Bold = TextStyle(
-    fontSize: 32,
+  static TextStyle get blue32Bold => TextStyle(
+    fontSize: 32.sp,
     fontWeight: FontWeight.bold,
     color: AppColors.primaryBlueDark,
+    letterSpacing: 0.5,
   );
-  static const TextStyle blue28Bold = TextStyle(
-    fontSize: 28,
+  static TextStyle get blue28Bold => TextStyle(
+    fontSize: 28.sp,
     fontWeight: FontWeight.bold,
     color: AppColors.primaryBlueDark,
+    letterSpacing: 0.5,
   );
-  static const TextStyle blue24Bold = TextStyle(
-    fontSize: 24,
+  static TextStyle get blue24Bold => TextStyle(
+    fontSize: 24.sp,
     fontWeight: FontWeight.bold,
     color: AppColors.primaryBlueDark,
+    letterSpacing: 0.5,
   );
   // Body Text
-  static const TextStyle blue20Medium = TextStyle(
-    fontSize: 20,
+  static TextStyle get blue20Medium => TextStyle(
+    fontSize: 20.sp,
     fontWeight: FontWeight.w500,
     color: AppColors.black,
+    letterSpacing: 0.5,
   );
-  static const TextStyle blue18Medium = TextStyle(
-    fontSize: 18,
+  static TextStyle get blue18Medium => TextStyle(
+    fontSize: 18.sp,
     fontWeight: FontWeight.w500,
     color: AppColors.black,
+    letterSpacing: 0.5,
   );
-  static const TextStyle grey20Regular = TextStyle(
-    fontSize: 20,
+  static TextStyle get grey20Regular => TextStyle(
+    fontSize: 20.sp,
     fontWeight: FontWeight.normal,
     color: AppColors.greyDark,
+    letterSpacing: 0.5,
   );
   // Sidebar & Buttons
-  static const TextStyle white18SemiBold = TextStyle(
-    fontSize: 18,
+  static TextStyle get white18SemiBold => TextStyle(
+    fontSize: 18.sp,
     fontWeight: FontWeight.w600,
     color: AppColors.white,
+    letterSpacing: 0.5,
   );
-  static const TextStyle white16Bold = TextStyle(
-    fontSize: 16,
+  static TextStyle get white16Bold => TextStyle(
+    fontSize: 16.sp,
     fontWeight: FontWeight.bold,
     color: AppColors.white,
     letterSpacing: 1.1,
   );
   // Specialized Styles
-  static const TextStyle red16SemiBold = TextStyle(
-    fontSize: 16,
+  static TextStyle get red16SemiBold => TextStyle(
+    fontSize: 16.sp,
     fontWeight: FontWeight.w600,
     color: AppColors.primaryRed,
+    letterSpacing: 0.5,
   );
-  static const TextStyle blue16Bold = TextStyle(
-    fontSize: 16,
+  static TextStyle get blue16Bold => TextStyle(
+    fontSize: 16.sp,
     fontWeight: FontWeight.bold,
     color: AppColors.primaryBlueDark,
+    letterSpacing: 0.5,
   );
 
 }

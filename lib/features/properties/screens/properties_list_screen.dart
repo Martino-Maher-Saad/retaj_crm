@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/utils/responsive_debouncer_wrapper.dart';
@@ -201,7 +202,7 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
               property,
               () => _cubit.deleteFullProperty(property.id),
             ),
-          );
+          ).animate().fade(duration: 300.ms).slideX(begin: 0.1, end: 0, duration: 300.ms, curve: Curves.easeOut);
         },
       );
     }

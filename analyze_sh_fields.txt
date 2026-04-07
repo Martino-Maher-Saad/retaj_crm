@@ -1,0 +1,13 @@
+﻿Analyzing retaj_shared_fields.dart...
+
+  error - retaj_shared_fields.dart:168:28 - The method 'AdaptiveTextSelectionControls' isn't defined for the type '_RetajTextAreaState'. Try correcting the name to the name of an existing method, or defining a method named 'AdaptiveTextSelectionControls'. - undefined_method
+warning - retaj_shared_fields.dart:4:8 - Unused import: '../constants/app_colors.dart'. Try removing the import directive. - unused_import
+warning - retaj_shared_fields.dart:5:8 - Unused import: '../constants/app_text_styles.dart'. Try removing the import directive. - unused_import
+   info - retaj_shared_fields.dart:28:35 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - retaj_shared_fields.dart:374:50 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - retaj_shared_fields.dart:488:33 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - retaj_shared_fields.dart:501:28 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - retaj_shared_fields.dart:507:49 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - retaj_shared_fields.dart:515:34 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+
+9 issues found.

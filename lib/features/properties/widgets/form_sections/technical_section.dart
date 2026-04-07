@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../property_field_builders.dart';
+import '../../../../core/widgets/retaj_shared_fields.dart';
 
 class TechnicalSection extends StatelessWidget {
   final Map<String, TextEditingController> controllers;
@@ -20,104 +20,107 @@ class TechnicalSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    bool isLand = selectedPropertyTypeId == 'land';
-    // استخدام IDs الجديدة للتحقق من السكني
-    bool isResidential = selectedPropertyTypeId == 'apartment' ||
+    final bool isLand = selectedPropertyTypeId == 'land';
+    final bool isResidential = selectedPropertyTypeId == 'apartment' ||
         selectedPropertyTypeId == 'villa' ||
         selectedPropertyTypeId == 'chalet';
+    final bool isBuilding = selectedPropertyTypeId == 'building';
+    final bool isVillaOrBuilding =
+        selectedPropertyTypeId == 'villa' || isBuilding;
 
-    return Column(
+    return RetajSectionCard(
+      title: 'المواصفات الفنية',
+      icon: Icons.straighten_rounded,
+      iconColor: const Color(0xFF7C3AED),
       children: [
-        if (isLand)
-          PropertyFieldBuilders.buildField(
-            controllers['landArea']!,
-            "مساحة الأرض الكلية",
-            num: true,
-            req: true,
+        if (isLand) ...[
+          // أرض — مساحة فقط
+          RetajNumberStepper(
+            controller: controllers['landArea']!,
+            label: 'مساحة الأرض (م²)',
+            isRequired: true,
           ),
-        if (!isLand) ...[
-          PropertyFieldBuilders.buildField(
-            controllers['area']!,
-            "المساحة المبنية (BUA)",
-            num: true,
-            req: true,
+        ] else ...[
+          // ─── المساحة المبنية ───
+          RetajNumberStepper(
+            controller: controllers['area']!,
+            label: 'المساحة المبنية (م²)',
+            isRequired: true,
           ),
-          Row(
-            children: [
-              Expanded(
-                child: PropertyFieldBuilders.buildField(
-                  controllers['bedrooms']!,
-                  "الغرف",
-                  num: true,
-                  hasStepper: true,
-                ),
-              ),
-              SizedBox(width: 8.w),
-              Expanded(
-                child: PropertyFieldBuilders.buildField(
-                  controllers['bathrooms']!,
-                  "الحمامات",
-                  num: true,
-                  hasStepper: true,
-                ),
-              ),
-            ],
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: PropertyFieldBuilders.buildField(
-                  controllers['kitchens']!,
-                  "المطابخ",
-                  num: true,
-                ),
-              ),
-              SizedBox(width: 8.w),
-              Expanded(
-                child: PropertyFieldBuilders.buildField(
-                  controllers['balconies']!,
-                  "البلكونات",
-                  num: true,
-                ),
-              ),
-            ],
-          ),
-          if (showFloor)
-            PropertyFieldBuilders.buildField(
-              controllers['floor']!,
-              "رقم الدور",
-              num: true,
-              hasStepper: true,
+
+          // ─── الغرف + الحمامات في صف ───
+          RetajFieldRow(
+            first: RetajNumberStepper(
+              controller: controllers['bedrooms']!,
+              label: 'غرف النوم',
             ),
+            second: RetajNumberStepper(
+              controller: controllers['bathrooms']!,
+              label: 'الحمامات',
+            ),
+          ),
+
+          // ─── المطابخ + البلكونات في صف ───
+          RetajFieldRow(
+            first: RetajNumberStepper(
+              controller: controllers['kitchens']!,
+              label: 'المطابخ',
+            ),
+            second: RetajNumberStepper(
+              controller: controllers['balconies']!,
+              label: 'البلكونات',
+            ),
+          ),
+
+          // ─── رقم الدور (يظهر حسب النوع) ───
+          if (showFloor) ...[
+            RetajFieldRow(
+              first: RetajNumberStepper(
+                controller: controllers['floor']!,
+                label: 'رقم الدور',
+              ),
+              second: RetajNumberStepper(
+                controller: controllers['buildingAge']!,
+                label: 'عمر المبنى (سنة)',
+              ),
+            ),
+          ],
+
+          // ─── التشطيب / التأثيث ───
           if (isResidential)
             PropertyFieldBuilders.buildFixedDrop(
-              label: "مفروش؟",
-              items: ["yes", "no"],
+              label: 'حالة التأثيث',
+              items: ['yes', 'no', 'semi'],
               val: selectedFurnished,
               onChg: onFurnishedChanged,
             ),
-          if (selectedPropertyTypeId == 'villa' ||
-              selectedPropertyTypeId == 'building') ...[
-            PropertyFieldBuilders.buildField(
-              controllers['totalFloors']!,
-              "عدد الأدوار",
-              num: true,
-            ),
-            if (selectedPropertyTypeId == 'building')
-              PropertyFieldBuilders.buildField(
-                controllers['totalApartments']!,
-                "عدد الشقق",
-                num: true,
+
+          // ─── فيلا / عمارة — عدد الأدوار + الشقق + الحديقة ───
+          if (isVillaOrBuilding) ...[
+            RetajFieldRow(
+              first: RetajNumberStepper(
+                controller: controllers['totalFloors']!,
+                label: 'عدد الأدوار',
               ),
-            PropertyFieldBuilders.buildField(
-              controllers['gardenArea']!,
-              "مساحة الحديقة",
-              num: true,
+              second: isBuilding
+                  ? RetajNumberStepper(
+                      controller: controllers['totalApartments']!,
+                      label: 'عدد الشقق',
+                    )
+                  : RetajNumberStepper(
+                      controller: controllers['gardenArea']!,
+                      label: 'مساحة الحديقة (م²)',
+                    ),
             ),
-            PropertyFieldBuilders.buildField(
-              controllers['landArea']!,
-              "مساحة الأرض الكلية",
-              num: true,
+            RetajFieldRow(
+              first: RetajNumberStepper(
+                controller: controllers['gardenArea']!,
+                label: 'مساحة الحديقة (م²)',
+              ),
+              second: RetajNumberStepper(
+                controller: controllers['landArea']!,
+                label: 'مساحة الأرض الكلية (م²)',
+              ),
             ),
           ],
         ],

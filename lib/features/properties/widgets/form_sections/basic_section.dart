@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/utils/static_data_manager.dart';
+import '../../../../core/widgets/retaj_shared_fields.dart';
 import '../property_field_builders.dart';
 
 class BasicSection extends StatelessWidget {
@@ -22,31 +23,46 @@ class BasicSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return RetajSectionCard(
+      title: 'البيانات الأساسية',
+      icon: Icons.assignment_outlined,
       children: [
-        PropertyFieldBuilders.buildField(controllers['propertyCode']!, "كود العقار"),
-        PropertyFieldBuilders.buildJsonDrop(
-          label: "الفئة",
-          items: dataManager.listingTypes,
-          val: selectedListingTypeId,
-          onChg: onListingTypeChanged,
+        // كود العقار + الفئة في صف واحد (محتوى قليل)
+        RetajFieldRow(
+          first: PropertyFieldBuilders.buildField(
+            controllers['propertyCode']!,
+            'كود العقار',
+          ),
+          second: PropertyFieldBuilders.buildJsonDrop(
+            label: 'الفئة',
+            items: dataManager.listingTypes,
+            val: selectedListingTypeId,
+            onChg: onListingTypeChanged,
+          ),
         ),
+
+        // نوع العقار — يستحق صفاً كاملاً
         PropertyFieldBuilders.buildJsonDrop(
-          label: "نوع العقار",
+          label: 'نوع العقار',
           items: dataManager.propertyTypes,
           val: selectedPropertyTypeId,
           onChg: onPropertyTypeChanged,
         ),
+
+        // العنوان — صف كامل (نص متوسط)
         PropertyFieldBuilders.buildField(
           controllers['titleAr']!,
-          "العنوان بالعربي",
+          'العنوان بالعربي',
           req: true,
         ),
-        PropertyFieldBuilders.buildField(
-          controllers['descAr']!,
-          "الوصف بالعربي",
-          long: true,
-          req: true,
+
+        // الوصف — حقل نصي مطاطي
+        RetajTextArea(
+          controller: controllers['descAr']!,
+          label: 'الوصف بالعربي',
+          isRequired: true,
+          minLines: 4,
+          prefixIcon: Icons.description_outlined,
         ),
       ],
     );

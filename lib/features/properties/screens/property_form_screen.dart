@@ -44,9 +44,9 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
   String? selectedRentalFrequency;
   DateTime? selectedDeliveryDate;
 
-  List<Uint8List> _newImagesBytes = [];
+  final List<Uint8List> _newImagesBytes = [];
   List<PropertyImageModel> _existingImages = [];
-  List<PropertyImageModel> _imagesToDeleteObjects = [];
+  final List<PropertyImageModel> _imagesToDeleteObjects = [];
 
   late Map<String, TextEditingController> _controllers;
   bool status = true;
@@ -98,7 +98,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
       selectedFurnished = p.furnished;
       selectedRentalFrequency = p.rentalFrequency;
       selectedDeliveryDate = p.deliveryDate;
-      _existingImages = p.images != null ? List.from(p.images) : [];
+      _existingImages = List.from(p.images);
       isCompound = p.downPayment != null || p.completionStatus != null;
       _syncSelection(p);
       hasInstallment = p.downPayment != null || p.monthlyInstallation != null;
@@ -153,6 +153,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
               padding: EdgeInsets.all(16.w),
               child: Column(
                 children: [
+                  // ─── الصور — تحتفظ بـ PropertyFormCard الخاص بها ───
                   PropertyFormCard(
                     title: "الصور",
                     icon: Icons.photo_camera_outlined,
@@ -164,91 +165,74 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                         _imagesToDeleteObjects.add(img);
                         _existingImages.remove(img);
                       }),
-                      onRemoveNew: (index) => setState(() => _newImagesBytes.removeAt(index)),
+                      onRemoveNew: (index) =>
+                          setState(() => _newImagesBytes.removeAt(index)),
                       onAddPressed: _pick,
                     ),
                   ),
-                  PropertyFormCard(
-                    title: "المعلومات الأساسية",
-                    icon: Icons.assignment_outlined,
-                    stepNumber: 2,
-                    child: BasicSection(
-                      controllers: _controllers,
-                      dataManager: dataManager,
-                      selectedListingTypeId: selectedListingTypeId,
-                      selectedPropertyTypeId: selectedPropertyTypeId,
-                      onListingTypeChanged: (v) => setState(() => selectedListingTypeId = v),
-                      onPropertyTypeChanged: (v) => setState(() => selectedPropertyTypeId = v),
-                    ),
+
+                  // ─── باقي الـ sections تعرض نفسها مع RetajSectionCard الداخلي ───
+                  BasicSection(
+                    controllers: _controllers,
+                    dataManager: dataManager,
+                    selectedListingTypeId: selectedListingTypeId,
+                    selectedPropertyTypeId: selectedPropertyTypeId,
+                    onListingTypeChanged: (v) =>
+                        setState(() => selectedListingTypeId = v),
+                    onPropertyTypeChanged: (v) =>
+                        setState(() => selectedPropertyTypeId = v),
                   ),
-                  PropertyFormCard(
-                    title: "الموقع",
-                    icon: Icons.location_on_outlined,
-                    stepNumber: 3,
-                    child: LocationSection(
-                      controllers: _controllers,
-                      dataManager: dataManager,
-                      selectedGovId: selectedGovId,
-                      selectedCityId: selectedCityId,
-                      onGovChanged: (v) => setState(() {
-                        selectedGovId = v;
-                        selectedCityId = null;
-                      }),
-                      onCityChanged: (v) => setState(() => selectedCityId = v),
-                    ),
+                  LocationSection(
+                    controllers: _controllers,
+                    dataManager: dataManager,
+                    selectedGovId: selectedGovId,
+                    selectedCityId: selectedCityId,
+                    onGovChanged: (v) => setState(() {
+                      selectedGovId = v;
+                      selectedCityId = null;
+                    }),
+                    onCityChanged: (v) => setState(() => selectedCityId = v),
                   ),
-                  PropertyFormCard(
-                    title: "المواصفات الفنية",
-                    icon: Icons.straighten_rounded,
-                    stepNumber: 4,
-                    child: TechnicalSection(
-                      controllers: _controllers,
-                      selectedPropertyTypeId: selectedPropertyTypeId,
-                      selectedFurnished: selectedFurnished,
-                      showFloor: _shouldShowFloor(),
-                      onFurnishedChanged: (v) => setState(() => selectedFurnished = v),
-                    ),
+                  TechnicalSection(
+                    controllers: _controllers,
+                    selectedPropertyTypeId: selectedPropertyTypeId,
+                    selectedFurnished: selectedFurnished,
+                    showFloor: _shouldShowFloor(),
+                    onFurnishedChanged: (v) =>
+                        setState(() => selectedFurnished = v),
                   ),
-                  PropertyFormCard(
-                    title: "حالة العقار",
-                    icon: Icons.check_circle_outline,
-                    stepNumber: 5,
-                    child: StatusSection(
-                      controllers: _controllers,
-                      isCompound: isCompound,
-                      selectedPropertyTypeId: selectedPropertyTypeId,
-                      selectedCompletionStatus: selectedCompletionStatus,
-                      selectedDeliveryDate: selectedDeliveryDate,
-                      onCompoundChanged: (v) => setState(() => isCompound = v),
-                      onCompletionStatusChanged: (v) => setState(() => selectedCompletionStatus = v),
-                      onDeliveryDateSelected: (v) => setState(() => selectedDeliveryDate = v),
-                    ),
+                  StatusSection(
+                    controllers: _controllers,
+                    isCompound: isCompound,
+                    selectedPropertyTypeId: selectedPropertyTypeId,
+                    selectedCompletionStatus: selectedCompletionStatus,
+                    selectedDeliveryDate: selectedDeliveryDate,
+                    onCompoundChanged: (v) =>
+                        setState(() => isCompound = v),
+                    onCompletionStatusChanged: (v) =>
+                        setState(() => selectedCompletionStatus = v),
+                    onDeliveryDateSelected: (v) =>
+                        setState(() => selectedDeliveryDate = v),
                   ),
-                  PropertyFormCard(
-                    title: "بيانات السعر",
-                    icon: Icons.payments_outlined,
-                    stepNumber: 6,
-                    child: FinancialSection(
-                      controllers: _controllers,
-                      selectedListingTypeId: selectedListingTypeId,
-                      selectedRentalFrequency: selectedRentalFrequency,
-                      hasInstallment: hasInstallment,
-                      negotiable: negotiable,
-                      onRentalFrequencyChanged: (v) => setState(() => selectedRentalFrequency = v),
-                      onInstallmentChanged: (v) => setState(() => hasInstallment = v),
-                      onNegotiableChanged: (v) => setState(() => negotiable = v),
-                    ),
+                  FinancialSection(
+                    controllers: _controllers,
+                    selectedListingTypeId: selectedListingTypeId,
+                    selectedRentalFrequency: selectedRentalFrequency,
+                    hasInstallment: hasInstallment,
+                    negotiable: negotiable,
+                    onRentalFrequencyChanged: (v) =>
+                        setState(() => selectedRentalFrequency = v),
+                    onInstallmentChanged: (v) =>
+                        setState(() => hasInstallment = v),
+                    onNegotiableChanged: (v) =>
+                        setState(() => negotiable = v),
                   ),
-                  PropertyFormCard(
-                    title: "الإدارة والمالك",
-                    icon: Icons.admin_panel_settings_outlined,
-                    stepNumber: 7,
-                    child: AdminSection(
-                      controllers: _controllers,
-                      status: status,
-                      onStatusChanged: (v) => setState(() => status = v),
-                    ),
+                  AdminSection(
+                    controllers: _controllers,
+                    status: status,
+                    onStatusChanged: (v) => setState(() => status = v),
                   ),
+
                   SizedBox(height: 24.h),
                   _buildSubmitButton(),
                   SizedBox(height: 40.h),

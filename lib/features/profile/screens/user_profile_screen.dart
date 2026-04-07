@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/widgets/neon_text_field.dart';
 import '../../../data/models/profile_model.dart';
 import '../cubit/profile_cubit.dart';
 import '../cubit/profile_state.dart';
@@ -107,9 +108,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           }
         },
         builder: (context, state) {
-          final profile = state is ProfileLoaded
-              ? state.profile
-              : widget.currentUser;
+          final profile =
+              state is ProfileLoaded ? state.profile : widget.currentUser;
           final isLoading = state is ProfileLoading;
 
           return Form(
@@ -130,8 +130,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                   profile.imageUrl!.isNotEmpty
                               ? NetworkImage(profile.imageUrl!)
                               : null,
-                          child:
-                              (profile.imageUrl == null ||
+                          child: (profile.imageUrl == null ||
                                   profile.imageUrl!.isEmpty)
                               ? Icon(
                                   Icons.person,
@@ -166,19 +165,26 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             ),
                           ),
                         ),
-                        if (profile.imageUrl != null && profile.imageUrl!.isNotEmpty)
+                        if (profile.imageUrl != null &&
+                            profile.imageUrl!.isNotEmpty)
                           Positioned(
                             bottom: 0,
                             left: 0,
                             child: InkWell(
-                              onTap: isLoading ? null : () {
-                                context.read<ProfileCubit>().removeProfileImage(widget.currentUser.id);
-                              },
+                              onTap: isLoading
+                                  ? null
+                                  : () {
+                                      context
+                                          .read<ProfileCubit>()
+                                          .removeProfileImage(
+                                              widget.currentUser.id);
+                                    },
                               borderRadius: BorderRadius.circular(20.r),
                               child: CircleAvatar(
                                 radius: 18.r,
                                 backgroundColor: AppColors.brandAccent,
-                                child: Icon(Icons.delete_outline, size: 18.r, color: Colors.white),
+                                child: Icon(Icons.delete_outline,
+                                    size: 18.r, color: Colors.white),
                               ),
                             ),
                           ),
@@ -188,85 +194,44 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   SizedBox(height: AppConstants.p32),
 
                   // ─── حقول غير قابلة للتعديل ───
-                  TextFormField(
+                  NeonTextField(
                     initialValue: profile.email,
                     readOnly: true,
-                    style: AppTextStyles.blue32Bold.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: 'البريد الإلكتروني',
-                      prefixIcon: const Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppConstants.r12),
-                      ),
-                      fillColor: AppColors.borderSubtle.withOpacity(0.3),
-                      filled: true,
-                    ),
+                    label: 'البريد الإلكتروني',
+                    prefixIcon: Icons.email_outlined,
                   ),
                   SizedBox(height: AppConstants.p16),
 
-                  TextFormField(
+                  NeonTextField(
                     initialValue: profile.role,
                     readOnly: true,
-                    style: AppTextStyles.blue32Bold.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: 'الصلاحية (الرتبة)',
-                      prefixIcon: const Icon(Icons.security_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppConstants.r12),
-                      ),
-                      fillColor: AppColors.borderSubtle.withOpacity(0.3),
-                      filled: true,
-                    ),
+                    label: 'الصلاحية (الرتبة)',
+                    prefixIcon: Icons.security_outlined,
                   ),
                   SizedBox(height: AppConstants.p16),
 
                   // ─── حقول قابلة للتعديل ───
-                  TextFormField(
+                  NeonTextField(
                     controller: _firstNameController,
+                    label: 'الاسم الأول',
+                    prefixIcon: Icons.person_outline,
                     validator: (v) => v!.isEmpty ? 'هذا الحقل مطلوب' : null,
-                    decoration: InputDecoration(
-                      labelText: 'الاسم الأول',
-                      prefixIcon: const Icon(Icons.person_outline),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppConstants.r12),
-                      ),
-                      fillColor: Colors.white,
-                      filled: true,
-                    ),
                   ),
                   SizedBox(height: AppConstants.p16),
 
-                  TextFormField(
+                  NeonTextField(
                     controller: _lastNameController,
+                    label: 'الاسم الأخير',
+                    prefixIcon: Icons.person_pin_outlined,
                     validator: (v) => v!.isEmpty ? 'هذا الحقل مطلوب' : null,
-                    decoration: InputDecoration(
-                      labelText: 'الاسم الأخير',
-                      prefixIcon: const Icon(Icons.person_pin_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppConstants.r12),
-                      ),
-                      fillColor: Colors.white,
-                      filled: true,
-                    ),
                   ),
                   SizedBox(height: AppConstants.p16),
 
-                  TextFormField(
+                  NeonTextField(
                     controller: _phoneController,
+                    label: 'رقم الهاتف',
+                    prefixIcon: Icons.phone_outlined,
                     keyboardType: TextInputType.phone,
-                    decoration: InputDecoration(
-                      labelText: 'رقم الهاتف',
-                      prefixIcon: const Icon(Icons.phone_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppConstants.r12),
-                      ),
-                      fillColor: Colors.white,
-                      filled: true,
-                    ),
                   ),
                   SizedBox(height: AppConstants.p32),
 
@@ -279,7 +244,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.brandPrimary,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppConstants.r8),
+                          borderRadius:
+                              BorderRadius.circular(AppConstants.r8),
                         ),
                         elevation: 0,
                       ),

@@ -14,6 +14,7 @@ import '../cubit/leads_state.dart';
 import '../widgets/form_sections/client_basic_section.dart';
 import '../widgets/form_sections/client_requirements_section.dart';
 import '../widgets/form_sections/client_admin_section.dart';
+import '../../../core/widgets/neon_dropdown.dart';
 
 
 import '../../../data/models/profile_model.dart';
@@ -188,13 +189,14 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
                         border: Border.all(color: AppColors.borderSubtle),
                       ),
                       child: (state is LeadLoaded && state.employees.isNotEmpty)
-                        ? DropdownButtonFormField<String>(
-                            decoration: InputDecoration(
-                              labelText: 'تعيين الموظف المسؤول (خاص بالإدارة)',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
+                        ? NeonDropdown<String>(
+                            label: 'تعيين الموظف المسؤول (خاص بالإدارة)',
+                            prefixIcon: Icons.person_outline,
                             value: state.employees.any((e) => e.id == _selectedEmployeeId) ? _selectedEmployeeId : null,
-                            items: state.employees.map((e) => DropdownMenuItem(value: e.id, child: Text(e.firstName != null ? "${e.firstName} ${e.lastName}" : e.email))).toList(),
+                            items: state.employees.map((e) => DropdownMenuItem(
+                              value: e.id,
+                              child: Text(e.firstName != null ? "${e.firstName} ${e.lastName}" : e.email),
+                            )).toList(),
                             onChanged: (val) => setState(() => _selectedEmployeeId = val),
                           )
                         : const Center(child: CircularProgressIndicator()),

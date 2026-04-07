@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
-import '../../../properties/widgets/property_form_card.dart';
-import '../../widgets/lead_field_builders.dart';
-
+import '../../../../core/widgets/neon_dropdown.dart';
+import '../../../../core/widgets/neon_text_field.dart';
+import '../../../../core/widgets/retaj_shared_fields.dart';
 
 class ClientRequirementsSection extends StatelessWidget {
   final TextEditingController propertyCodeController;
@@ -24,39 +23,44 @@ class ClientRequirementsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PropertyFormCard(
-      title: "تفاصيل الطلب والاحتياج",
+    return RetajSectionCard(
+      title: 'تفاصيل الطلب',
       icon: Icons.assignment_outlined,
-      child: Column(
-        children: [
-          LeadFieldBuilders.buildTextField(
+      iconColor: const Color(0xFF0F766E),
+      children: [
+        // كود العقار + المصدر في صف واحد (قيم قصيرة)
+        RetajFieldRow(
+          first: NeonTextField(
             controller: propertyCodeController,
-            label: "كود العقار المهتم به",
-            icon: Icons.home_work_outlined,
+            label: 'كود العقار المهتم به',
+            prefixIcon: Icons.home_work_outlined,
           ),
-          SizedBox(height: 16.h),
-          LeadFieldBuilders.buildTextField(
+          second: NeonTextField(
             controller: sourceController,
-            label: "المصدر (المواقع/القناة)",
-            icon: Icons.campaign_outlined,
+            label: 'المصدر / القناة',
+            prefixIcon: Icons.campaign_outlined,
           ),
-          SizedBox(height: 16.h),
-          LeadFieldBuilders.buildDropdown(
-            value: selectedChannel,
-            label: "طريقة التواصل المفضلة",
-            items: channels,
-            onChanged: onChannelChanged,
-            icon: Icons.contact_mail_outlined,
-          ),
-          SizedBox(height: 16.h),
-          LeadFieldBuilders.buildTextField(
-            controller: descController,
-            label: "وصف دقيق لما يبحث عنه العميل",
-            icon: Icons.description_outlined,
-            maxLines: 3,
-          ),
-        ],
-      ),
+        ),
+
+        // طريقة التواصل — dropdown صف كامل
+        NeonDropdown<String>(
+          label: 'طريقة التواصل المفضلة',
+          prefixIcon: Icons.contact_mail_outlined,
+          value: selectedChannel,
+          items: channels
+              .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+              .toList(),
+          onChanged: onChannelChanged,
+        ),
+
+        // وصف الاحتياج — حقل مطاطي
+        RetajTextArea(
+          controller: descController,
+          label: 'وصف دقيق لما يبحث عنه العميل',
+          minLines: 3,
+          prefixIcon: Icons.description_outlined,
+        ),
+      ],
     );
   }
 }

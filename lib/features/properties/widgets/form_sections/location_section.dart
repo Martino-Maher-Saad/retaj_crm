@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../core/utils/static_data_manager.dart';
+import '../../../../core/widgets/retaj_shared_fields.dart';
 import '../property_field_builders.dart';
 
 class LocationSection extends StatelessWidget {
@@ -23,44 +23,47 @@ class LocationSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return RetajSectionCard(
+      title: 'بيانات الموقع',
+      icon: Icons.location_on_outlined,
+      iconColor: const Color(0xFF0F766E),
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: PropertyFieldBuilders.buildJsonDrop(
-                label: "المحافظة",
-                items: dataManager.governorates,
-                val: selectedGovId,
-                onChg: onGovChanged,
-              ),
-            ),
-            SizedBox(width: 8.w),
-            Expanded(
-              child: PropertyFieldBuilders.buildJsonDrop(
-                label: "المدينة",
-                items: selectedGovId != null
-                    ? dataManager.getCitiesByGov(selectedGovId!)
-                    : [],
-                val: selectedCityId,
-                onChg: onCityChanged,
-              ),
-            ),
-          ],
+        // المحافظة + المدينة في صف واحد (dropdowns قصيرة)
+        RetajFieldRow(
+          first: PropertyFieldBuilders.buildJsonDrop(
+            label: 'المحافظة',
+            items: dataManager.governorates,
+            val: selectedGovId,
+            onChg: onGovChanged,
+          ),
+          second: PropertyFieldBuilders.buildJsonDrop(
+            label: 'المدينة',
+            items: selectedGovId != null
+                ? dataManager.getCitiesByGov(selectedGovId!)
+                : [],
+            val: selectedCityId,
+            onChg: onCityChanged,
+          ),
         ),
+
+        // المنطقة — صف كامل
         PropertyFieldBuilders.buildField(
           controllers['regionAr']!,
-          "المنطقة بالعربي",
+          'المنطقة / الحي',
           req: true,
         ),
+
+        // العنوان التفصيلي — صف كامل
         PropertyFieldBuilders.buildField(
           controllers['locDetails']!,
-          "العنوان التفصيلي",
+          'العنوان التفصيلي',
           req: true,
         ),
+
+        // رابط الخريطة — صف كامل (قد يكون طويلاً)
         PropertyFieldBuilders.buildField(
           controllers['locMap']!,
-          "رابط جوجل ماب",
+          'رابط جوجل ماب',
         ),
       ],
     );

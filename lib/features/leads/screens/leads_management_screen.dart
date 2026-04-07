@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:skeletonizer/skeletonizer.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:retaj_crm/data/services/lead_service.dart';
 
 import '../../../core/constants/app_colors.dart';
@@ -187,9 +189,28 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                 builder: (context, state) {
                   // ─── حالة التحميل الأولي ───
                   if (state is LeadLoading) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.brandPrimary,
+                    return Skeletonizer(
+                      enabled: true,
+                      child: ListView.builder(
+                        padding: EdgeInsets.only(bottom: 20.h, top: 10.h),
+                        itemCount: 4,
+                        itemBuilder: (context, index) {
+                          return LeadCard(
+                            lead: LeadModel(
+                              id: 'dummy',
+                              propertyCode: 'PROP-XXXX',
+                              clientName: 'تحميل اسم العميل',
+                              city: 'مدينة افتراضية',
+                              leadStatus: 'جديد',
+                              clientPhone: const ['010000000'],
+                              createdBy: '',
+                              assignedTo: '',
+                            ),
+                            onTap: () {},
+                            onEdit: () {},
+                            onDelete: () {},
+                          );
+                        },
                       ),
                     );
                   }
@@ -236,7 +257,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                               lead,
                               () => _cubit.deleteLead(lead.id!),
                             ),
-                          );
+                          ).animate().fade(duration: 300.ms).slideY(begin: 0.1, end: 0, duration: 300.ms, curve: Curves.easeOut);
                         },
                       ),
                     );
