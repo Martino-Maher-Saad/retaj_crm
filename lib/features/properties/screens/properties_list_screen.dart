@@ -6,10 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/utils/responsive_debouncer_wrapper.dart';
 import '../../../data/models/property_model.dart';
-import '../../../data/repositories/property_repository.dart';
-import '../../../data/services/ai_service.dart';
-import '../../../data/services/property_service.dart';
-import '../../../data/services/storage_service.dart';
+import '../../../core/di/injection_container.dart' as di;
 import '../cubit/properties_cubit.dart';
 import '../cubit/properties_state.dart';
 import '../widgets/list/property_delete_dialog.dart';
@@ -46,13 +43,7 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
   @override
   void initState() {
     super.initState();
-    _cubit = PropertiesCubit(
-      PropertyRepository(
-        PropertyService(),
-        StorageService(Supabase.instance.client),
-        AiService(),
-      ),
-    )..fetchMyProperties(
+    _cubit = di.sl<PropertiesCubit>()..fetchMyProperties(
         userId: widget.userId, 
         role: widget.role, 
         isRefresh: true,
@@ -63,8 +54,20 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
 
   void _onScroll() {
     if (_cubit.state is PropertiesSuccess) {
-      if (_scrollController.position.pixels >=
-          _scrollController.position.maxScrollExtent - 200) {
+      final pos = _scrollController.position;
+      if (pos.pixels >= pos.maxScrollExtent * 0.7) {
+        final current = _cubit.state as PropertiesSuccess;
+
+        // البحث لا يدعم pagination حالياً
+        if (current.isSearching) return;
+
+        // أثناء الفلتر: لازم نكمّل filteredProperties فقط
+        if (current.isFiltering) {
+          _cubit.loadMoreFilteredProperties();
+          return;
+        }
+
+        // بدون فلتر: كمّل القائمة الأساسية
         _cubit.fetchMyProperties(userId: widget.userId, role: widget.role);
       }
     }
@@ -202,7 +205,7 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
               property,
               () => _cubit.deleteFullProperty(property.id),
             ),
-          ).animate().fade(duration: 300.ms).slideX(begin: 0.1, end: 0, duration: 300.ms, curve: Curves.easeOut);
+          );
         },
       );
     }

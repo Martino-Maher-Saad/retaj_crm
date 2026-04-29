@@ -11,6 +11,28 @@ class PropertiesCubit extends Cubit<PropertiesState> {
   final PropertyRepository _repo;
   PropertiesCubit(this._repo) : super(PropertiesInitial());
 
+  // ─────────────────────────────────────────────────────────────
+  // Pagination state for advanced filters (to avoid mixing lists)
+  // ─────────────────────────────────────────────────────────────
+  String? _filterAssignedTo;
+  String? _filterCity;
+  String? _filterType;
+  String? _filterGovernorate;
+  String? _filterListingType;
+  num? _filterMinPrice;
+  num? _filterMaxPrice;
+  DateTime? _filterFromDate;
+  DateTime? _filterToDate;
+
+  bool _isLoadingMoreFiltered = false;
+
+  @override
+  void emit(PropertiesState state) {
+    if (!isClosed) {
+      super.emit(state);
+    }
+  }
+
   // 1. جلب عقارات الموظف (أو المدير) (Infinite Scroll)
   Future<void> fetchMyProperties({
     bool isRefresh = false,
@@ -30,12 +52,12 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     try {
       if (isRefresh) emit(PropertiesLoading());
 
-      final isManager = role == 'manager';
-      final count = isManager 
+      final isManagerOrAdmin = role == 'manager' || role == 'admin';
+      final count = isManagerOrAdmin 
           ? await _repo.fetchFilterCount() 
           : await _repo.fetchMyCount(userId);
           
-      final newItems = isManager
+      final newItems = isManagerOrAdmin
           ? await _repo.filterProperties(
               isRefresh ? 0 : current.myProperties.length,
               (isRefresh ? 0 : current.myProperties.length) + 14,
@@ -48,13 +70,17 @@ class PropertiesCubit extends Cubit<PropertiesState> {
 
       emit(
         current.copyWith(
-          myProps: isRefresh
+          myProperties: isRefresh
               ? newItems
               : [...current.myProperties, ...newItems],
-          myCount: count,
+          myTotalCount: count,
         ),
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('=== ERROR IN PROPERTIES CUBIT (fetchMyProperties) ===');
+      print(e);
+      print(stackTrace);
+      print('=====================================================');
       emit(PropertiesError("فشل تحميل العقارات: $e"));
     }
   }
@@ -68,6 +94,8 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     num? minPrice,
     num? maxPrice,
     String? selectedEmployee, // للمدير فقط
+    DateTime? fromDate,
+    DateTime? toDate,
     required String role,
     required String currentUserId,
   }) async {
@@ -76,8 +104,20 @@ class PropertiesCubit extends Cubit<PropertiesState> {
         : PropertiesSuccess();
     emit(PropertiesLoading());
     try {
-      // تفريق الفلترة بين الموظف والمدير
-      final filterUserId = role == 'manager' ? selectedEmployee : currentUserId;
+      // تفريق الفلترة بين الموظف والمدير/الأدمن
+      final filterUserId =
+          (role == 'manager' || role == 'admin') ? selectedEmployee : currentUserId;
+
+      // تخزين شروط الفلتر علشان loadMore يكمل بنفس الشروط
+      _filterCity = city;
+      _filterType = type;
+      _filterGovernorate = governorate;
+      _filterListingType = listingType;
+      _filterMinPrice = minPrice;
+      _filterMaxPrice = maxPrice;
+      _filterFromDate = fromDate;
+      _filterToDate = toDate;
+      _filterAssignedTo = filterUserId;
 
       final count = await _repo.fetchFilterCount(
         c: city, 
@@ -87,6 +127,8 @@ class PropertiesCubit extends Cubit<PropertiesState> {
         minPrice: minPrice,
         maxPrice: maxPrice,
         assignedTo: filterUserId,
+        fromDate: fromDate,
+        toDate: toDate,
       );
       final newItems = await _repo.filterProperties(
         0, 14, 
@@ -97,11 +139,66 @@ class PropertiesCubit extends Cubit<PropertiesState> {
         minPrice: minPrice,
         maxPrice: maxPrice,
         assignedTo: filterUserId,
+        fromDate: fromDate,
+        toDate: toDate,
       );
-      // استخدام filterProps بدلاً من مسح القائمة الأساسية وتفعيل وضع الفلتر
-      emit(current.copyWith(filterProps: newItems, fCount: count, isFiltering: true));
+      // استخدام filteredProperties بدلاً من مسح القائمة الأساسية وتفعيل وضع الفلتر
+      emit(
+        current.copyWith(
+          myProperties: current.myProperties, // keep current base list
+          searchedProperties: const [],
+          isSearching: false,
+          filteredProperties: newItems,
+          filteredTotalCount: count,
+          isFiltering: true,
+        ),
+      );
     } catch (e) {
       emit(PropertiesError("فشل الفلترة: $e"));
+    }
+  }
+
+  /// Infinite-scroll for `filteredProperties` while `isFiltering == true`.
+  Future<void> loadMoreFilteredProperties() async {
+    final current = state is PropertiesSuccess
+        ? state as PropertiesSuccess
+        : PropertiesSuccess();
+
+    if (_isLoadingMoreFiltered) return;
+
+    // إذا خلصنا كل العناصر المطلوبة، لا نكرر الطلب
+    if (current.filteredProperties.length >= current.filteredTotalCount &&
+        current.filteredTotalCount != 0) return;
+
+    _isLoadingMoreFiltered = true;
+    try {
+      final from = current.filteredProperties.length;
+      final to = from + 14; // 15 items/page (range inclusive)
+
+      final newItems = await _repo.filterProperties(
+        from,
+        to,
+        c: _filterCity,
+        ty: _filterType,
+        governorate: _filterGovernorate,
+        listingType: _filterListingType,
+        minPrice: _filterMinPrice,
+        maxPrice: _filterMaxPrice,
+        assignedTo: _filterAssignedTo,
+        fromDate: _filterFromDate,
+        toDate: _filterToDate,
+      );
+
+      emit(
+        current.copyWith(
+          filteredProperties: [...current.filteredProperties, ...newItems],
+        ),
+      );
+    } catch (e) {
+      // نرجع الـ UI بدون ما نكسر التجربة
+      emit(PropertiesError("فشل تحميل المزيد للـ فلتر: $e"));
+    } finally {
+      _isLoadingMoreFiltered = false;
     }
   }
 
@@ -111,12 +208,12 @@ class PropertiesCubit extends Cubit<PropertiesState> {
         ? state as PropertiesSuccess
         : PropertiesSuccess();
     if (term.isEmpty) {
-      emit(current.copyWith(searchProps: []));
+      emit(current.copyWith(searchedProperties: []));
       return;
     }
     try {
       final results = await _repo.searchProperties(term);
-      emit(current.copyWith(myProps: results, myCount: results.length));
+      emit(current.copyWith(myProperties: results, myTotalCount: results.length));
     } catch (e) {
       emit(PropertiesError("فشل البحث: $e"));
     }
@@ -136,7 +233,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
 
     try {
       final results = await _repo.searchWithAi(query);
-      emit(current.copyWith(searchProps: results, isSearching: true));
+      emit(current.copyWith(searchedProperties: results, isSearching: true));
     } catch (e) {
       emit(PropertiesError(e.toString()));
       emit(current);
@@ -147,14 +244,14 @@ class PropertiesCubit extends Cubit<PropertiesState> {
   void clearSearch() {
     if (state is PropertiesSuccess) {
       final current = state as PropertiesSuccess;
-      emit(current.copyWith(isSearching: false, searchProps: []));
+      emit(current.copyWith(isSearching: false, searchedProperties: []));
     }
   }
 
   void clearFilter() {
     if (state is PropertiesSuccess) {
       final current = state as PropertiesSuccess;
-      emit(current.copyWith(isFiltering: false, filterProps: []));
+      emit(current.copyWith(isFiltering: false, filteredProperties: []));
     }
   }
 
@@ -170,8 +267,8 @@ class PropertiesCubit extends Cubit<PropertiesState> {
       final newProp = await _repo.createFullProperty(p, imgs);
       emit(
         current.copyWith(
-          myProps: [newProp, ...current.myProperties],
-          myCount: current.myTotalCount + 1,
+          myProperties: [newProp, ...current.myProperties],
+          myTotalCount: current.myTotalCount + 1,
         ),
       );
     } catch (e) {
@@ -196,8 +293,8 @@ class PropertiesCubit extends Cubit<PropertiesState> {
           .toList();
       emit(
         current.copyWith(
-          myProps: updatedList,
-          myCount: current.myTotalCount - 1,
+          myProperties: updatedList,
+          myTotalCount: current.myTotalCount - 1,
         ),
       );
     } catch (e) {
@@ -234,7 +331,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
         return p.id == updatedProp.id ? updatedProp : p;
       }).toList();
 
-      emit(current.copyWith(myProps: updatedList));
+      emit(current.copyWith(myProperties: updatedList));
     } catch (e) {
       emit(PropertiesError("فشل تحديث العقار: $e"));
       emit(current);

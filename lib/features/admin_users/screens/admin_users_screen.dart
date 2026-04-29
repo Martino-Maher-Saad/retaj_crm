@@ -7,6 +7,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/widgets/retaj_shared_fields.dart';
 import '../../../data/models/profile_model.dart';
 import '../cubit/admin_users_cubit.dart';
 import '../cubit/admin_users_state.dart';
@@ -112,7 +113,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                             children: [
                               Text('جاري التحميل...', style: AppTextStyles.h3),
                               SizedBox(height: 4.h),
-                              Text('loading@example.com', style: AppTextStyles.blue32Bold.copyWith(fontSize: 12.sp)),
+                              Text('loading@example.com', style: AppTextStyles.h1.copyWith(fontSize: 12.sp)),
                             ],
                           ),
                         ),
@@ -181,7 +182,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                               SizedBox(height: 4.h),
                               Text(
                                 user.email,
-                                style: AppTextStyles.blue32Bold.copyWith(
+                                style: AppTextStyles.h1.copyWith(
                                   color: AppColors.textSecondary,
                                   fontSize: 12.sp,
                                 ),
@@ -309,22 +310,19 @@ class _AddUserFormState extends State<_AddUserForm> {
                 validator: (v) => v!.length < 6 ? 'قصير جداً' : null,
               ),
               SizedBox(height: 12.h),
-              DropdownButtonFormField<String>(
+              RetajDropdown<String>(
+                label: 'الصلاحية',
                 value: _selectedRole,
-                decoration: const InputDecoration(
-                  labelText: 'الصلاحية',
-                  filled: true,
-                ),
                 items: const [
-                  DropdownMenuItem(
+                  DropdownMenuItem<String>(
                     value: 'sales',
                     child: Text('Sales (موظف مبيعات)'),
                   ),
-                  DropdownMenuItem(
+                  DropdownMenuItem<String>(
                     value: 'manager',
                     child: Text('Manager (مدير القسم)'),
                   ),
-                  DropdownMenuItem(
+                  DropdownMenuItem<String>(
                     value: 'admin',
                     child: Text('Admin (إدارة كاملة)'),
                   ),
@@ -426,14 +424,26 @@ class _EditUserDialogState extends State<_EditUserDialog> {
               ),
             ),
             SizedBox(height: 10.h),
-            DropdownButtonFormField<String>(
+            RetajDropdown<String>(
+              label: 'تغيير الصلاحية',
               value: _selectedRole,
-              decoration: const InputDecoration(labelText: 'تغيير الصلاحية'),
               items: const [
-                DropdownMenuItem(value: 'user', child: Text('User (عام)')),
-                DropdownMenuItem(value: 'sales', child: Text('Sales')),
-                DropdownMenuItem(value: 'manager', child: Text('Manager')),
-                DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                DropdownMenuItem<String>(
+                  value: 'user',
+                  child: Text('User (عام)'),
+                ),
+                DropdownMenuItem<String>(
+                  value: 'sales',
+                  child: Text('Sales'),
+                ),
+                DropdownMenuItem<String>(
+                  value: 'manager',
+                  child: Text('Manager'),
+                ),
+                DropdownMenuItem<String>(
+                  value: 'admin',
+                  child: Text('Admin'),
+                ),
               ],
               onChanged: (v) => setState(() => _selectedRole = v!),
             ),

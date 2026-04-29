@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-
+import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
 // ══════════════════════════════════════════════════════════════
 //  RETAJ SHARED FIELDS — Neon-Minimalist Field Library
 //  ⚠️ لا تعدّل أي منطق أعمال (controllers / onChanged / validators)
@@ -9,12 +10,12 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 // ══════════════════════════════════════════════════════════════
 
 // ─── ألوان الـ Neon Glow ───────────────────────────────────────
-const Color _kNeonBlue = Color(0xFF2E3192);
-const Color _kBorderDefault = Color(0xFFE2E8F0);
-const Color _kBorderFocused = Color(0xFF2E3192);
-const Color _kFillColor = Colors.white;
-const Color _kLabelColor = Color(0xFF64748B);
-const Color _kTextColor = Color(0xFF1A1A2E);
+const Color _kNeonBlue = AppColors.brandPrimary;
+const Color _kBorderDefault = AppColors.borderSubtle;
+const Color _kBorderFocused = AppColors.brandPrimary;
+const Color _kFillColor = AppColors.bgSurface;
+const Color _kLabelColor = AppColors.textSecondary;
+const Color _kTextColor = AppColors.textPrimary;
 const double _kRadius = 12;
 
 // ─── BoxShadow عند التركيز (Neon Glow) ────────────────────────
@@ -338,6 +339,19 @@ class RetajCopyableDisplay extends StatelessWidget {
     this.iconColor,
   });
 
+  TextDirection _detectDirection(String text) {
+    if (isNumeric) return TextDirection.ltr;
+    final trimmed = text.trimLeft();
+    if (trimmed.isEmpty) return TextDirection.rtl;
+    final codeUnit = trimmed.codeUnitAt(0);
+    if (codeUnit >= 0x0030 && codeUnit <= 0x0039) return TextDirection.ltr;
+    final isArabic = (codeUnit >= 0x0600 && codeUnit <= 0x06FF) ||
+        (codeUnit >= 0x0750 && codeUnit <= 0x077F) ||
+        (codeUnit >= 0xFB50 && codeUnit <= 0xFDFF) ||
+        (codeUnit >= 0xFE70 && codeUnit <= 0xFEFF);
+    return isArabic ? TextDirection.rtl : TextDirection.ltr;
+  }
+
   void _copy(BuildContext ctx) {
     Clipboard.setData(ClipboardData(text: value));
     ScaffoldMessenger.of(ctx).showSnackBar(
@@ -392,24 +406,27 @@ class RetajCopyableDisplay extends StatelessWidget {
                   label,
                   style: TextStyle(
                     fontFamily: 'Cairo',
-                    fontSize: 10.sp,
+                    fontSize: 13.sp,
                     color: _kLabelColor,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 SizedBox(height: 2.h),
                 Directionality(
-                  textDirection: isNumeric
-                      ? TextDirection.ltr
-                      : TextDirection.rtl,
-                  child: SelectableText(
-                    value.isEmpty ? '—' : value,
-                    style: TextStyle(
-                      fontFamily: 'Cairo',
-                      fontSize: 14.sp,
-                      color: value.isEmpty ? _kLabelColor : _kTextColor,
-                      fontWeight: FontWeight.w600,
-                      height: 1.4,
+                  textDirection: _detectDirection(value),
+                  child: Container(
+                    width: double.infinity, // لضمان أخذ العرض بالكامل لتطبيق الـ alignment الصحيح
+                    alignment: _detectDirection(value) == TextDirection.rtl ? Alignment.centerRight : Alignment.centerLeft,
+                    child: SelectableText(
+                      value.isEmpty ? '—' : value,
+                      textAlign: _detectDirection(value) == TextDirection.rtl ? TextAlign.right : TextAlign.left,
+                      style: TextStyle(
+                        fontFamily: 'Cairo',
+                        fontSize: 16.sp,
+                        color: value.isEmpty ? _kLabelColor : _kTextColor,
+                        fontWeight: FontWeight.w700,
+                        height: 1.5,
+                      ),
                     ),
                   ),
                 ),
@@ -557,5 +574,405 @@ class RetajSectionCard extends StatelessWidget {
       if (i < widgets.length - 1) result.add(SizedBox(height: 12.h));
     }
     return result;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  6. RetajTextField — حقل نص ذكي بديل لـ NeonTextField
+// ══════════════════════════════════════════════════════════════
+class RetajTextField extends StatefulWidget {
+  final TextEditingController? controller;
+  final String? label;
+  final String? hint;
+  final bool obscureText;
+  final TextInputType? keyboardType;
+  final String? Function(String?)? validator;
+  final IconData? prefixIcon;
+  final Widget? suffix;
+  final bool readOnly;
+  final bool filled;
+  final Color? fillColor;
+  final int? maxLines;  
+  final int minLines;
+  final List<TextInputFormatter>? inputFormatters;
+  final void Function(String)? onChanged;
+  final void Function(String)? onSubmitted;
+  final String? initialValue;
+  final bool autofocus;
+  final FocusNode? focusNode;
+  final TextInputAction? textInputAction;
+  final bool forceLtr;
+
+  const RetajTextField({
+    super.key,
+    this.controller,
+    this.label,
+    this.hint,
+    this.obscureText = false,
+    this.keyboardType,
+    this.validator,
+    this.prefixIcon,
+    this.suffix,
+    this.readOnly = false,
+    this.filled = true,
+    this.fillColor,
+    this.maxLines = 1,
+    this.minLines = 1,
+    this.inputFormatters,
+    this.onChanged,
+    this.onSubmitted,
+    this.initialValue,
+    this.autofocus = false,
+    this.focusNode,
+    this.textInputAction,
+    this.forceLtr = false,
+  });
+
+  @override
+  State<RetajTextField> createState() => _RetajTextFieldState();
+}
+
+class _RetajTextFieldState extends State<RetajTextField> {
+  late FocusNode _focusNode;
+  bool _isFocused = false;
+  TextDirection _textDirection = TextDirection.rtl;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = widget.focusNode ?? FocusNode();
+    _focusNode.addListener(_onFocusChange);
+
+    if (widget.forceLtr) {
+      _textDirection = TextDirection.ltr;
+    } else {
+      final initial = widget.controller?.text ?? widget.initialValue ?? '';
+      if (initial.isNotEmpty) {
+        _textDirection = _detectDirection(initial);
+      }
+    }
+  }
+
+  void _onFocusChange() {
+    if (mounted) setState(() => _isFocused = _focusNode.hasFocus);
+  }
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(_onFocusChange);
+    if (widget.focusNode == null) _focusNode.dispose();
+    super.dispose();
+  }
+
+  TextDirection _detectDirection(String text) {
+    if (widget.forceLtr) return TextDirection.ltr;
+    final trimmed = text.trimLeft();
+    if (trimmed.isEmpty) return TextDirection.rtl;
+    final codeUnit = trimmed.codeUnitAt(0);
+    if (codeUnit >= 0x0030 && codeUnit <= 0x0039) return TextDirection.ltr;
+    final isArabic = (codeUnit >= 0x0600 && codeUnit <= 0x06FF) ||
+        (codeUnit >= 0x0750 && codeUnit <= 0x077F) ||
+        (codeUnit >= 0xFB50 && codeUnit <= 0xFDFF) ||
+        (codeUnit >= 0xFE70 && codeUnit <= 0xFEFF);
+    return isArabic ? TextDirection.rtl : TextDirection.ltr;
+  }
+
+  TextAlign get _textAlign =>
+      _textDirection == TextDirection.rtl ? TextAlign.right : TextAlign.left;
+
+  TextInputType get _resolvedKeyboardType {
+    if (widget.obscureText) return TextInputType.visiblePassword;
+    if (widget.keyboardType != null) return widget.keyboardType!;
+    if (widget.maxLines == null || (widget.maxLines ?? 1) > 1) {
+      return TextInputType.multiline;
+    }
+    return TextInputType.text;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8.r),
+        boxShadow: _isFocused
+            ? [
+                BoxShadow(
+                  color: AppColors.brandPrimary.withValues(alpha: 0.18),
+                  blurRadius: 12,
+                  spreadRadius: 2,
+                ),
+              ]
+            : [],
+      ),
+      child: TextFormField(
+        controller: widget.controller,
+        initialValue: widget.controller == null ? widget.initialValue : null,
+        focusNode: _focusNode,
+        obscureText: widget.obscureText,
+        keyboardType: _resolvedKeyboardType,
+        maxLines: widget.obscureText ? 1 : widget.maxLines,
+        minLines: widget.obscureText ? 1 : widget.minLines,
+        readOnly: widget.readOnly,
+        autofocus: widget.autofocus,
+        textInputAction: widget.textInputAction ??
+            (widget.maxLines == null ? TextInputAction.newline : TextInputAction.done),
+        textAlign: _textAlign,
+        textAlignVertical: TextAlignVertical.top,
+        textDirection: _textDirection,
+        inputFormatters: widget.inputFormatters,
+        style: AppTextStyles.inputText,
+        validator: widget.validator,
+        enableInteractiveSelection: true,
+        selectionControls: MaterialTextSelectionControls(),
+        onChanged: (value) {
+          if (!widget.forceLtr) {
+            final newDir = _detectDirection(value);
+            if (newDir != _textDirection) {
+              setState(() => _textDirection = newDir);
+            }
+          }
+          widget.onChanged?.call(value);
+        },
+        onFieldSubmitted: widget.onSubmitted,
+        decoration: InputDecoration(
+          labelText: widget.label,
+          hintText: widget.hint,
+          hintStyle: AppTextStyles.tableCellSub.copyWith(
+            color: AppColors.textDisabled,
+          ),
+          hintTextDirection: TextDirection.rtl,
+          labelStyle: AppTextStyles.inputLabel.copyWith(
+            color: _isFocused ? AppColors.brandPrimary : AppColors.textSecondary,
+          ),
+          floatingLabelStyle: AppTextStyles.inputLabel.copyWith(
+            color: AppColors.brandPrimary,
+            fontSize: 12.sp,
+          ),
+          filled: widget.filled,
+          fillColor: widget.fillColor ?? Colors.white,
+          prefixIcon: widget.prefixIcon != null
+              ? Icon(
+                  widget.prefixIcon,
+                  size: 20.sp,
+                  color: _isFocused ? AppColors.brandPrimary : AppColors.textSecondary,
+                )
+              : null,
+          suffix: widget.suffix,
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: 16.w,
+            vertical: widget.maxLines == null || (widget.maxLines ?? 1) > 1 ? 16.h : 14.h,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8.r),
+            borderSide: const BorderSide(color: AppColors.borderSubtle),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8.r),
+            borderSide: const BorderSide(color: AppColors.borderSubtle),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8.r),
+            borderSide: BorderSide(color: AppColors.brandPrimary, width: 2.w),
+          ),
+          disabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8.r),
+            borderSide: const BorderSide(color: AppColors.borderSubtle),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8.r),
+            borderSide: const BorderSide(color: AppColors.brandAccent, width: 1),
+          ),
+          focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8.r),
+            borderSide: const BorderSide(color: AppColors.brandAccent, width: 2),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  7. RetajDropdown — قائمة منسدلة
+// ══════════════════════════════════════════════════════════════
+class RetajDropdown<T> extends StatefulWidget {
+  final T? value;
+  final List<DropdownMenuItem<T>> items;
+  final void Function(T?)? onChanged;
+  final String? label;
+  final String? hint;
+  final IconData? prefixIcon;
+  final String? Function(T?)? validator;
+  final bool isExpanded;
+
+  const RetajDropdown({
+    super.key,
+    required this.items,
+    required this.onChanged,
+    this.value,
+    this.label,
+    this.hint,
+    this.prefixIcon,
+    this.validator,
+    this.isExpanded = true,
+  });
+
+  @override
+  State<RetajDropdown<T>> createState() => _RetajDropdownState<T>();
+}
+
+class _RetajDropdownState<T> extends State<RetajDropdown<T>> {
+  bool _isFocused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    // توحيد شكل النص داخل خيارات الـ dropdown (القيم داخل القائمة)
+    final themedItems = widget.items
+        .map(
+          (item) => DropdownMenuItem<T>(
+            value: item.value,
+            enabled: item.enabled,
+            // DefaultTextStyle لضمان font/weight موحّد عبر المشروع
+            child: DefaultTextStyle.merge(
+              style: AppTextStyles.inputText,
+              child: item.child,
+            ),
+          ),
+        )
+        .toList();
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8.r),
+        boxShadow: _isFocused
+            ? [
+                BoxShadow(
+                  color: AppColors.brandPrimary.withValues(alpha: 0.2),
+                  blurRadius: 10,
+                  spreadRadius: 2,
+                ),
+              ]
+            : [],
+      ),
+      child: Focus(
+        onFocusChange: (focused) => setState(() => _isFocused = focused),
+        child: DropdownButtonFormField<T>(
+          value: widget.value,
+          isExpanded: widget.isExpanded,
+          validator: widget.validator,
+          onChanged: widget.onChanged,
+          style: AppTextStyles.inputText,
+          icon: Icon(
+            Icons.keyboard_arrow_down_rounded,
+            color: _isFocused ? AppColors.brandPrimary : AppColors.textSecondary,
+            size: 22.sp,
+          ),
+          dropdownColor: Colors.white,
+          menuMaxHeight: 300.h,
+          items: themedItems,
+          decoration: InputDecoration(
+            labelText: widget.label,
+            hintText: widget.hint,
+            hintStyle: AppTextStyles.tableCellSub,
+            labelStyle: AppTextStyles.inputLabel.copyWith(
+              color: _isFocused ? AppColors.brandPrimary : AppColors.textSecondary,
+            ),
+            floatingLabelStyle: AppTextStyles.inputLabel.copyWith(
+              color: AppColors.brandPrimary,
+              fontSize: 12.sp,
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            prefixIcon: widget.prefixIcon != null
+                ? Icon(
+                    widget.prefixIcon,
+                    size: 20.sp,
+                    color: _isFocused ? AppColors.brandPrimary : AppColors.textSecondary,
+                  )
+                : null,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 16.w,
+              vertical: 14.h,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8.r),
+              borderSide: const BorderSide(color: AppColors.borderSubtle),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8.r),
+              borderSide: BorderSide(color: AppColors.borderSubtle, width: 1.w),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8.r),
+              borderSide: BorderSide(color: AppColors.brandPrimary, width: 2.w),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8.r),
+              borderSide: const BorderSide(color: AppColors.brandAccent, width: 1),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8.r),
+              borderSide: const BorderSide(color: AppColors.brandAccent, width: 2),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  8. RetajDatePicker — منتقي التاريخ
+// ══════════════════════════════════════════════════════════════
+class RetajDatePicker extends StatelessWidget {
+  final BuildContext context;
+  final String label;
+  final DateTime? selectedDate;
+  final Function(DateTime) onDateSelected;
+
+  const RetajDatePicker({
+    super.key,
+    required this.context,
+    required this.label,
+    required this.selectedDate,
+    required this.onDateSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: AppColors.borderSubtle),
+      ),
+      child: ListTile(
+        contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 0),
+        leading: Icon(
+          Icons.calendar_today_outlined,
+          color: AppColors.brandPrimary,
+          size: 20.sp,
+        ),
+        title: Text(
+          selectedDate == null
+              ? label
+              : "${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}",
+          style: selectedDate == null
+              ? AppTextStyles.tableCellSub
+              : AppTextStyles.inputText,
+        ),
+        onTap: () async {
+          final d = await showDatePicker(
+            context: context,
+            initialDate: DateTime.now(),
+            firstDate: DateTime(2020),
+            lastDate: DateTime(2040),
+          );
+          if (d != null) onDateSelected(d);
+        },
+      ),
+    );
   }
 }
