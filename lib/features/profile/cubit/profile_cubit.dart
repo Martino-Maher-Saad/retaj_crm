@@ -9,6 +9,13 @@ class ProfileCubit extends Cubit<ProfileState> {
   
   ProfileCubit(this._profileService) : super(ProfileInitial());
 
+  @override
+  void emit(ProfileState state) {
+    if (!isClosed) {
+      super.emit(state);
+    }
+  }
+
   // تعيين البروفايل المحلي (عند تسجيل الدخول أو التنقل)
   void setProfile(ProfileModel profile) {
     emit(ProfileLoaded(profile));

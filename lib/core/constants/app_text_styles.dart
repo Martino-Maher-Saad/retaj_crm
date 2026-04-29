@@ -9,14 +9,17 @@ class AppTextStyles {
     required double fontSize,
     required FontWeight fontWeight,
     required Color color,
-    double height = 1.4, // مثالي للعربي والإنجليزي معاً في Cairo
+    double height = 1.4,
   }) {
+    // زيادة حجم الخطوط بنسبة 35% تقريباً ليكون أوضح
+    final double scaledSize = fontSize * 1.35; 
+    
     return TextStyle(
-      fontSize: fontSize.sp, // يجعل الخط responsive
+      fontSize: scaledSize.sp,
       fontWeight: fontWeight,
       color: color,
       height: height,
-      letterSpacing: 0.5, // إضافة مسافة الأحرف لتحسين قراءة الإنجليزية
+      letterSpacing: 0.5,
       fontFamily: 'Cairo',
     );
   }
@@ -49,72 +52,9 @@ class AppTextStyles {
   static TextStyle get buttonLarge => _baseStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white);
   static TextStyle get chipLabel => _baseStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white, height: 1.1);
 
-
-
-
-  // Headings
-  static TextStyle get blue32Bold => TextStyle(
-    fontSize: 32.sp,
-    fontWeight: FontWeight.bold,
-    color: AppColors.primaryBlueDark,
-    letterSpacing: 0.5,
-  );
-  static TextStyle get blue28Bold => TextStyle(
-    fontSize: 28.sp,
-    fontWeight: FontWeight.bold,
-    color: AppColors.primaryBlueDark,
-    letterSpacing: 0.5,
-  );
-  static TextStyle get blue24Bold => TextStyle(
-    fontSize: 24.sp,
-    fontWeight: FontWeight.bold,
-    color: AppColors.primaryBlueDark,
-    letterSpacing: 0.5,
-  );
-  // Body Text
-  static TextStyle get blue20Medium => TextStyle(
-    fontSize: 20.sp,
-    fontWeight: FontWeight.w500,
-    color: AppColors.black,
-    letterSpacing: 0.5,
-  );
-  static TextStyle get blue18Medium => TextStyle(
-    fontSize: 18.sp,
-    fontWeight: FontWeight.w500,
-    color: AppColors.black,
-    letterSpacing: 0.5,
-  );
-  static TextStyle get grey20Regular => TextStyle(
-    fontSize: 20.sp,
-    fontWeight: FontWeight.normal,
-    color: AppColors.greyDark,
-    letterSpacing: 0.5,
-  );
-  // Sidebar & Buttons
-  static TextStyle get white18SemiBold => TextStyle(
-    fontSize: 18.sp,
-    fontWeight: FontWeight.w600,
-    color: AppColors.white,
-    letterSpacing: 0.5,
-  );
-  static TextStyle get white16Bold => TextStyle(
-    fontSize: 16.sp,
-    fontWeight: FontWeight.bold,
-    color: AppColors.white,
-    letterSpacing: 1.1,
-  );
-  // Specialized Styles
-  static TextStyle get red16SemiBold => TextStyle(
-    fontSize: 16.sp,
-    fontWeight: FontWeight.w600,
-    color: AppColors.primaryRed,
-    letterSpacing: 0.5,
-  );
-  static TextStyle get blue16Bold => TextStyle(
-    fontSize: 16.sp,
-    fontWeight: FontWeight.bold,
-    color: AppColors.primaryBlueDark,
-    letterSpacing: 0.5,
-  );
+  // --- [ 7. BODY TEXT ] ---
+  static TextStyle get bodyMain => _baseStyle(fontSize: 16, fontWeight: FontWeight.normal, color: AppColors.textPrimary);
+  static TextStyle get bodySmall => _baseStyle(fontSize: 14, fontWeight: FontWeight.normal, color: AppColors.textSecondary);
+  static TextStyle get subtitle => _baseStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textSecondary);
 
 }

@@ -30,7 +30,7 @@ class PropertyListHeader extends StatelessWidget {
             children: [
               Text(
                 "مخزون العقارات",
-                style: AppTextStyles.blue16Bold.copyWith(fontSize: 22.sp, color: Colors.black),
+                style: AppTextStyles.h3.copyWith(fontSize: 22.sp, color: Colors.black),
               ),
               SizedBox(height: 4.h),
               Text(
@@ -46,7 +46,7 @@ class PropertyListHeader extends StatelessWidget {
             icon: const Icon(Icons.add, color: Colors.white),
             label: const Text("إضافة وحدة"),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryBlue,
+              backgroundColor: AppColors.brandPrimary,
               foregroundColor: Colors.white,
               padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),

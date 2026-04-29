@@ -7,6 +7,13 @@ class AdminUsersCubit extends Cubit<AdminUsersState> {
 
   AdminUsersCubit(this._adminUserService) : super(AdminUsersInitial());
 
+  @override
+  void emit(AdminUsersState state) {
+    if (!isClosed) {
+      super.emit(state);
+    }
+  }
+
   Future<void> fetchAllUsers() async {
     emit(AdminUsersLoading());
     try {

@@ -3,11 +3,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class PropertyService {
   final _client = Supabase.instance.client;
 
+  // SELECT مع JOIN على profiles لجلب اسم الموظف
+  static const _select =
+      '*, property_images(*), creator:profiles!properties_created_by_fk(first_name, last_name)';
+
   Future<Map<String, dynamic>> getPropertyById(String id) async {
     final response = await _client
-        .from("properties")
-        .select('*, property_images(*)')
-        .eq("id", id)
+        .from('properties')
+        .select(_select)
+        .eq('id', id)
         .single();
     return response;
   }
@@ -19,7 +23,7 @@ class PropertyService {
   }) async {
     final response = await _client
         .from('properties')
-        .select('*, property_images(*)')
+        .select(_select)
         .eq('created_by', userId)
         .order('created_at', ascending: false)
         .range(from, to);
@@ -36,16 +40,34 @@ class PropertyService {
     num? minPrice,
     num? maxPrice,
     String? assignedTo,
+    DateTime? fromDate,
+    DateTime? toDate,
   }) async {
-    var query = _client.from('properties').select('*, property_images(*)');
-    
-    if (assignedTo != null && assignedTo.isNotEmpty) query = query.eq('created_by', assignedTo);
-    if (governorate != null && governorate.isNotEmpty) query = query.eq('governorate_ar', governorate);
-    if (city != null && city.isNotEmpty) query = query.eq('city_ar', city);
-    if (type != null && type.isNotEmpty) query = query.eq('property_type_ar', type);
-    if (listingType != null && listingType.isNotEmpty) query = query.eq('listing_type_ar', listingType);
+    var query = _client.from('properties').select(_select);
+
+    if (assignedTo != null && assignedTo.isNotEmpty) {
+      query = query.eq('created_by', assignedTo);
+    }
+    if (governorate != null && governorate.isNotEmpty) {
+      query = query.eq('governorate_ar', governorate);
+    }
+    if (city != null && city.isNotEmpty) {
+      query = query.eq('city_ar', city);
+    }
+    if (type != null && type.isNotEmpty) {
+      query = query.eq('property_type_ar', type);
+    }
+    if (listingType != null && listingType.isNotEmpty) {
+      query = query.eq('listing_type_ar', listingType);
+    }
     if (minPrice != null) query = query.gte('price', minPrice);
     if (maxPrice != null) query = query.lte('price', maxPrice);
+    if (fromDate != null) {
+      query = query.gte('created_at', fromDate.toIso8601String());
+    }
+    if (toDate != null) {
+      query = query.lte('created_at', toDate.toIso8601String());
+    }
 
     final response = await query
         .order('created_at', ascending: false)
@@ -56,9 +78,9 @@ class PropertyService {
   Future<List<Map<String, dynamic>>> searchProperties(String term) async {
     final response = await _client
         .from('properties')
-        .select('*, property_images(*)')
+        .select(_select)
         .textSearch('search_vector', term)
-        .limit(30);
+        .limit(10);
     return List<Map<String, dynamic>>.from(response);
   }
 
@@ -73,22 +95,41 @@ class PropertyService {
   }
 
   Future<int> getFilterCount({
-    String? city, 
+    String? city,
     String? type,
     String? governorate,
     String? listingType,
     num? minPrice,
     num? maxPrice,
     String? assignedTo,
+    DateTime? fromDate,
+    DateTime? toDate,
   }) async {
     var query = _client.from('properties').select('*');
-    if (assignedTo != null && assignedTo.isNotEmpty) query = query.eq('created_by', assignedTo);
-    if (governorate != null && governorate.isNotEmpty) query = query.eq('governorate_ar', governorate);
-    if (city != null && city.isNotEmpty) query = query.eq('city_ar', city);
-    if (type != null && type.isNotEmpty) query = query.eq('property_type_ar', type);
-    if (listingType != null && listingType.isNotEmpty) query = query.eq('listing_type_ar', listingType);
+
+    if (assignedTo != null && assignedTo.isNotEmpty) {
+      query = query.eq('created_by', assignedTo);
+    }
+    if (governorate != null && governorate.isNotEmpty) {
+      query = query.eq('governorate_ar', governorate);
+    }
+    if (city != null && city.isNotEmpty) {
+      query = query.eq('city_ar', city);
+    }
+    if (type != null && type.isNotEmpty) {
+      query = query.eq('property_type_ar', type);
+    }
+    if (listingType != null && listingType.isNotEmpty) {
+      query = query.eq('listing_type_ar', listingType);
+    }
     if (minPrice != null) query = query.gte('price', minPrice);
     if (maxPrice != null) query = query.lte('price', maxPrice);
+    if (fromDate != null) {
+      query = query.gte('created_at', fromDate.toIso8601String());
+    }
+    if (toDate != null) {
+      query = query.lte('created_at', toDate.toIso8601String());
+    }
 
     final res = await query.limit(0).count(CountOption.exact);
     return res.count ?? 0;
@@ -107,22 +148,17 @@ class PropertyService {
   Future<void> deletePropertyRecord(String id) async =>
       await _client.from('properties').delete().eq('id', id);
 
-  // تحديث بيانات العقار الأساسية
   Future<Map<String, dynamic>> updateProperty(
     String id,
     Map<String, dynamic> data,
-  ) async => await _client
-      .from('properties')
-      .update(data)
-      .eq('id', id)
-      .select()
-      .single();
+  ) async =>
+      await _client
+          .from('properties')
+          .update(data)
+          .eq('id', id)
+          .select()
+          .single();
 
-  /*// حذف سجلات صور محددة بناءً على الرابط
-  Future<void> deleteImageRecords(String propId, List<String> urls) async =>
-      await _client.from('property_images').delete().eq('property_id', propId).inFilter('image_url', urls);*/
-
-  // حذف السجلات من الداتا بيز باستخدام الـ IDs (أسرع وأدق)
   Future<void> deleteImageRecordsByIds(List<String> ids) async =>
       await _client.from('property_images').delete().inFilter('id', ids);
 
@@ -133,10 +169,10 @@ class PropertyService {
       'match_properties',
       params: {
         'query_embedding': vector,
-        'match_threshold': 0.75, // تم رفع الدقة الافتراضية هنا
-        'match_count': 1, // عرض أقرب عقار فقط للإختبار بناء على طلبك
+        'match_threshold': 0.75,
+        'match_count': 10,
       },
-    ).select('*, property_images(*)'); // نحتاج لدمج الصور
+    ).select(_select);
     return List<Map<String, dynamic>>.from(response);
   }
 }

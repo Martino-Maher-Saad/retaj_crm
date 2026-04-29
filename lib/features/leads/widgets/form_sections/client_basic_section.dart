@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
-import '../../../../core/widgets/neon_text_field.dart';
 import '../../../../core/widgets/retaj_shared_fields.dart';
 
 class ClientBasicSection extends StatelessWidget {
@@ -27,7 +26,7 @@ class ClientBasicSection extends StatelessWidget {
       iconColor: const Color(0xFF2E3192),
       children: [
         // اسم العميل — صف كامل (نص مهم)
-        NeonTextField(
+        RetajTextField(
           controller: nameController,
           label: 'اسم العميل بالكامل',
           prefixIcon: Icons.person_add_alt_1_outlined,
@@ -47,7 +46,7 @@ class ClientBasicSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
-            child: NeonTextField(
+            child: RetajTextField(
               controller: entry.value,
               label: idx == 0 ? 'رقم الهاتف الأساسي' : 'رقم إضافي ${idx + 1}',
               prefixIcon: Icons.phone_android_rounded,

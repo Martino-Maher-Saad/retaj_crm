@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/widgets/form_toggle_tile.dart';
 import '../../../../core/widgets/retaj_shared_fields.dart';
-import '../property_field_builders.dart';
-
 /// قسم حالة العقار في الفورم
 class StatusSection extends StatelessWidget {
   final Map<String, TextEditingController> controllers;
@@ -44,14 +42,16 @@ class StatusSection extends StatelessWidget {
 
         if (isCompound) ...[
           // حالة التشطيب — صف كامل لوضوح الخيارات
-          PropertyFieldBuilders.buildFixedDrop(
+          RetajDropdown<String>(
             label: 'حالة التشطيب',
-            items: ['ready', 'off-plan'],
-            val: selectedCompletionStatus,
-            onChg: onCompletionStatusChanged,
+            value: selectedCompletionStatus,
+            items: ['ready', 'off-plan']
+                .map((i) => DropdownMenuItem(value: i, child: Text(i)))
+                .toList(),
+            onChanged: onCompletionStatusChanged,
           ),
           if (selectedCompletionStatus == 'off-plan')
-            PropertyFieldBuilders.buildDatePicker(
+            RetajDatePicker(
               context: context,
               label: 'تاريخ الاستلام المتوقع',
               selectedDate: selectedDeliveryDate,

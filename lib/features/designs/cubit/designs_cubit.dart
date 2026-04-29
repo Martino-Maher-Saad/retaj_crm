@@ -17,6 +17,13 @@ class DesignsCubit extends Cubit<DesignsState> {
 
   DesignsCubit(this._repository) : super(DesignsInitial());
 
+  @override
+  void emit(DesignsState state) {
+    if (!isClosed) {
+      super.emit(state);
+    }
+  }
+
   Future<void> fetchDesigns({bool isRefresh = false}) async {
     if (_isFetching) return;
     

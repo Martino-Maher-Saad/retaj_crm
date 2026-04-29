@@ -28,7 +28,7 @@ class PropertyFormCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color resolvedColor = accentColor ?? AppColors.primaryBlue;
+    final Color resolvedColor = accentColor ?? AppColors.brandPrimary;
 
     return Container(
       margin: EdgeInsets.only(bottom: 16.h),
@@ -39,8 +39,8 @@ class PropertyFormCard extends StatelessWidget {
         border: Border.all(color: Colors.grey.shade100),
         boxShadow: [
           BoxShadow(
-            color: resolvedColor.withOpacity(0.04),
-            blurRadius: 12,
+            color: AppColors.brandPrimary.withValues(alpha: 0.05),
+            blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
@@ -53,13 +53,13 @@ class PropertyFormCard extends StatelessWidget {
             padding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w, 14.h),
             decoration: BoxDecoration(
               // خلفية فاتحة جداً تميز الـ header عن المحتوى
-              color: resolvedColor.withOpacity(0.04),
+              color: AppColors.brandPrimary.withValues(alpha: 0.04),
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(14.r),
                 topRight: Radius.circular(14.r),
               ),
               border: Border(
-                bottom: BorderSide(color: resolvedColor.withOpacity(0.1)),
+                bottom: BorderSide(color: resolvedColor.withValues(alpha: 0.1)),
               ),
             ),
             child: Row(
@@ -94,7 +94,7 @@ class PropertyFormCard extends StatelessWidget {
                 // ─── عنوان الـ section ───
                 Text(
                   title,
-                  style: AppTextStyles.blue16Bold.copyWith(color: resolvedColor),
+                  style: AppTextStyles.h3.copyWith(color: resolvedColor),
                 ),
               ],
             ),

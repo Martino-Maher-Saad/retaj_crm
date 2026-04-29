@@ -105,7 +105,7 @@ class _DesignCardState extends State<DesignCard> {
                           Expanded(
                             child: Text(
                               widget.design.descAr ?? "بدون وصف",
-                              style: AppTextStyles.blue18Medium.copyWith(fontSize: 16.sp),
+                              style: AppTextStyles.h3.copyWith(fontSize: 16.sp),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),

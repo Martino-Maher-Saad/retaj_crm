@@ -27,7 +27,7 @@ class LogoutButton extends StatelessWidget {
             ),
             child: Icon(
               Icons.logout_rounded,
-              color: AppColors.primaryRed,
+              color: AppColors.brandAccent,
               size: 32.sp, // استخدام .sp ليكون حجم الأيقونة متناسقاً مع الخطوط
             ),
           ),

@@ -12,19 +12,15 @@ class AppException implements Exception {
 
 
 class NetworkException extends AppException {
-  NetworkException([String message = "No internet connection. Please check your network."])
-      : super(message, "Connection Error");
+  NetworkException([String message = "لا يوجد اتصال بالإنترنت. يرجى التحقق من الشبكة."])
+      : super(message, "خطأ في الاتصال");
 }
-
-
 
 class ServerException extends AppException {
-  ServerException([String message = "Server error occurred. Please try again later."])
-      : super(message, "Server Error");
+  ServerException([String message = "حدث خطأ في الخادم. يرجى المحاولة لاحقاً."])
+      : super(message, "خطأ في الخادم");
 }
 
-
-
 class AuthCustomException extends AppException {
-  AuthCustomException(String message) : super(message, "Authentication Failed");
+  AuthCustomException(String message) : super(message, "فشل المصادقة");
 }

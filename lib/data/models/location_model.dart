@@ -1,29 +1,32 @@
+/// موديل المحافظة - يُقرأ من جدول governorates في الداتابيز
 class Governorate {
-  final String id;
-  final String nameAr;
-  final String nameEn;
+  final int id;
+  final String name; // اسم المحافظة بالعربي
 
-  Governorate({required this.id, required this.nameAr, required this.nameEn});
+  const Governorate({required this.id, required this.name});
 
   factory Governorate.fromJson(Map<String, dynamic> json) => Governorate(
-    id: json['id'],
-    nameAr: json['name_ar'],
-    nameEn: json['name_en'],
+    id: json['id'] as int,
+    name: json['name']?.toString() ?? '',
   );
 }
 
+/// موديل المدينة - يُقرأ من جدول cities في الداتابيز
+/// كل مدينة مرتبطة بمحافظة عن طريق governorateId
 class City {
-  final String id;
-  final String govId;
-  final String nameAr;
-  final String nameEn;
+  final int id;
+  final int governorateId;
+  final String name; // اسم المدينة بالعربي
 
-  City({required this.id, required this.govId, required this.nameAr, required this.nameEn});
+  const City({
+    required this.id,
+    required this.governorateId,
+    required this.name,
+  });
 
   factory City.fromJson(Map<String, dynamic> json) => City(
-    id: json['id'],
-    govId: json['gov_id'],
-    nameAr: json['name_ar'],
-    nameEn: json['name_en'],
+    id: json['id'] as int,
+    governorateId: json['governorate_id'] as int,
+    name: json['name']?.toString() ?? '',
   );
-}
+}

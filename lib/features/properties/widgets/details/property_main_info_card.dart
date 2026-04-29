@@ -23,7 +23,7 @@ class PropertyMainInfoCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16.r),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryBlue.withOpacity(0.08),
+            color: AppColors.brandPrimary.withValues(alpha: 0.08),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -39,8 +39,8 @@ class PropertyMainInfoCard extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  AppColors.primaryBlue,
-                  AppColors.primaryBlue.withOpacity(0.75),
+                  AppColors.brandPrimary,
+                  AppColors.brandPrimary.withValues(alpha: 0.75),
                 ],
                 begin: Alignment.topRight,
                 end: Alignment.bottomLeft,
@@ -57,9 +57,9 @@ class PropertyMainInfoCard extends StatelessWidget {
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 5.h),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(20.r),
-                    border: Border.all(color: Colors.white.withOpacity(0.4)),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
                   ),
                   child: Text(
                     "${property.listingTypeAr} · ${property.propertyTypeAr}",
@@ -76,8 +76,8 @@ class PropertyMainInfoCard extends StatelessWidget {
                   padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
                   decoration: BoxDecoration(
                     color: isActive
-                        ? Colors.green.withOpacity(0.2)
-                        : Colors.grey.withOpacity(0.2),
+                        ? Colors.green.withValues(alpha: 0.2)
+                        : Colors.grey.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(20.r),
                     border: Border.all(
                       color: isActive ? Colors.green : Colors.grey,
@@ -115,32 +115,13 @@ class PropertyMainInfoCard extends StatelessWidget {
               children: [
                 // السعر بخط ضخم بارز
                 Text(
-                  "${property.price?.toStringAsFixed(0) ?? '---'} EGP",
+                  "${property.price.toStringAsFixed(0)} EGP",
                   style: TextStyle(
                     fontSize: 26.sp,
                     fontWeight: FontWeight.w900,
-                    color: AppColors.primaryBlue,
+                    color: AppColors.brandPrimary,
                   ),
                 ),
-
-                // دورية الإيجار تحت السعر مباشرة
-                if (isRent && property.rentalFrequency != null) ...[
-                  SizedBox(height: 4.h),
-                  Row(
-                    children: [
-                      Icon(Icons.repeat, size: 14.sp, color: Colors.orange),
-                      SizedBox(width: 4.w),
-                      Text(
-                        "دورية الدفع: ${property.rentalFrequency}",
-                        style: TextStyle(
-                          color: Colors.orange,
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
 
                 SizedBox(height: 12.h),
 
@@ -151,8 +132,8 @@ class PropertyMainInfoCard extends StatelessWidget {
 
                 // عنوان العقار
                 Text(
-                  property.titleAr ?? '',
-                  style: AppTextStyles.blue16Bold.copyWith(
+                  property.titleAr,
+                  style: AppTextStyles.h3.copyWith(
                     color: Colors.black87,
                     fontSize: 15.sp,
                   ),

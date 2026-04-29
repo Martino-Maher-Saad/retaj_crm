@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/property_cache_manager.dart';
 import '../../../data/models/property_model.dart';
 
-/// كارت عقار — Neon-Minimalist Wide Card
-/// يدعم Hover Scale + Neon Border لتجربة ويب احترافية
 class PropertyCard extends StatefulWidget {
   final PropertyModel property;
   final String currentUserId;
@@ -41,14 +40,14 @@ class _PropertyCardState extends State<PropertyCard> {
     final String displayUrl = firstImageUrl ??
         "https://upload.wikimedia.org/wikipedia/commons/a/a3/Image-not-found.png";
 
-    final bool isRent =
-        widget.property.listingTypeAr.toLowerCase() == 'إيجار';
-    final String priceSuffix =
-        isRent ? " / ${widget.property.rentalFrequency ?? 'M'}" : "";
-
     final bool isMine = widget.property.createdBy == widget.currentUserId;
-    final bool isManager = widget.role == 'manager';
+    final bool isManagerOrAdmin = widget.role == 'manager' || widget.role == 'admin';
     final bool shouldMask = widget.role == 'sales' && !isMine;
+
+    // تنسيق التاريخ
+    final String formattedDate = widget.property.createdAt != null
+        ? DateFormat('dd/MM/yyyy HH:mm', 'en').format(widget.property.createdAt!)
+        : 'غير محدد';
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
@@ -56,34 +55,34 @@ class _PropertyCardState extends State<PropertyCard> {
       cursor: SystemMouseCursors.click,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+        margin: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h), // 30% Scale up
         transform: _isHovering
-            ? (Matrix4.identity()..scale(1.005))
+            ? (Matrix4.identity()..scale(1.01))
             : Matrix4.identity(),
         transformAlignment: Alignment.center,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16.r),
+          borderRadius: BorderRadius.circular(22.r), // 30% Scale up
           border: Border.all(
             color: _isHovering
                 ? AppColors.brandPrimary.withValues(alpha: 0.3)
                 : AppColors.borderSubtle,
-            width: _isHovering ? 1.5 : 1,
+            width: _isHovering ? 2.0 : 1.5,
           ),
           boxShadow: _isHovering
               ? [
                   BoxShadow(
                     color: AppColors.brandPrimary.withValues(alpha: 0.1),
-                    blurRadius: 20,
-                    spreadRadius: 1,
-                    offset: const Offset(0, 6),
+                    blurRadius: 24,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 8),
                   ),
                 ]
               : [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
                   ),
                 ],
         ),
@@ -91,19 +90,19 @@ class _PropertyCardState extends State<PropertyCard> {
           color: Colors.transparent,
           child: InkWell(
             onTap: widget.onTap,
-            borderRadius: BorderRadius.circular(16.r),
+            borderRadius: BorderRadius.circular(22.r),
             child: Column(
               children: [
                 // ─── Banner تحذير للمبيعات ───
                 if (shouldMask)
                   Container(
                     width: double.infinity,
-                    padding: EdgeInsets.symmetric(vertical: 6.h),
+                    padding: EdgeInsets.symmetric(vertical: 8.h),
                     decoration: BoxDecoration(
                       color: AppColors.brandAccent.withValues(alpha: 0.06),
                       borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(16.r),
-                        topRight: Radius.circular(16.r),
+                        topLeft: Radius.circular(22.r),
+                        topRight: Radius.circular(22.r),
                       ),
                     ),
                     child: Center(
@@ -111,14 +110,14 @@ class _PropertyCardState extends State<PropertyCard> {
                         "هذا العقار يخص زميل مبيعات آخر",
                         style: AppTextStyles.tableCellSub.copyWith(
                           color: AppColors.brandAccent,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
                   ),
 
                 Padding(
-                  padding: EdgeInsets.all(14.w),
+                  padding: EdgeInsets.all(20.w), // 30% Scale up
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -126,43 +125,44 @@ class _PropertyCardState extends State<PropertyCard> {
                       Stack(
                         children: [
                           ClipRRect(
-                            borderRadius: BorderRadius.circular(10.r),
+                            borderRadius: BorderRadius.circular(14.r), // 30% Scale up
                             child: CachedNetworkImage(
                               cacheManager: PropertyCacheManager.instance,
                               fadeInDuration: Duration.zero,
                               fadeOutDuration: Duration.zero,
                               useOldImageOnUrlChange: true,
                               imageUrl: displayUrl,
-                              width: 290.w,
-                              height: 195.h,
-                              memCacheWidth: 400,
+                              width: 370.w, // 30% Scale up (was 290)
+                              height: 250.h, // 30% Scale up (was 195)
+                              memCacheWidth: 500,
                               fit: BoxFit.cover,
                               placeholder: (context, url) => Container(
                                 color: AppColors.bgMain,
                                 child: const Center(
                                   child: CircularProgressIndicator(
-                                    strokeWidth: 2,
+                                    strokeWidth: 3,
                                     color: AppColors.brandPrimary,
                                   ),
                                 ),
                               ),
                               errorWidget: (context, url, error) => Container(
                                 color: AppColors.bgMain,
-                                child: const Icon(
+                                child: Icon(
                                   Icons.broken_image_outlined,
                                   color: AppColors.textDisabled,
+                                  size: 40.sp,
                                 ),
                               ),
                             ),
                           ),
                           Positioned(
-                            top: 8.h,
-                            right: 8.w,
+                            top: 12.h,
+                            right: 12.w,
                             child: _buildStatusBadge(),
                           ),
                         ],
                       ),
-                      SizedBox(width: 16.w),
+                      SizedBox(width: 20.w),
 
                       // ─── البيانات الأساسية ───
                       Expanded(
@@ -174,47 +174,50 @@ class _PropertyCardState extends State<PropertyCard> {
                               children: [
                                 Container(
                                   padding: EdgeInsets.symmetric(
-                                      horizontal: 10.w, vertical: 4.h),
+                                      horizontal: 14.w, vertical: 6.h),
                                   decoration: BoxDecoration(
                                     color: AppColors.brandPrimary
                                         .withValues(alpha: 0.08),
-                                    borderRadius: BorderRadius.circular(6.r),
+                                    borderRadius: BorderRadius.circular(8.r),
                                   ),
                                   child: Text(
                                     "${widget.property.listingTypeAr} — ${widget.property.propertyTypeAr}",
                                     style: AppTextStyles.tableCellSub.copyWith(
                                       color: AppColors.brandPrimary,
-                                      fontWeight: FontWeight.w700,
+                                      fontWeight: FontWeight.w800,
                                     ),
                                   ),
                                 ),
                                 Text(
-                                  "#${widget.property.id.length > 4 ? widget.property.id.substring(widget.property.id.length - 4) : widget.property.id}",
-                                  style: AppTextStyles.tableCellSub,
+                                  "#${widget.property.propertyCode ?? '---'}",
+                                  style: AppTextStyles.tableCellSub.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ],
                             ),
-                            SizedBox(height: 10.h),
+                            SizedBox(height: 14.h),
                             Text(
-                              "${widget.property.price?.toStringAsFixed(0) ?? '0'} EGP$priceSuffix",
-                              style: AppTextStyles.blue20Medium.copyWith(
-                                fontSize: 20.sp,
-                                fontWeight: FontWeight.w800,
+                              "${widget.property.price.toStringAsFixed(0)} ج.م",
+                              style: AppTextStyles.h2.copyWith(
+                                fontSize: 26.sp, // 30% Scale up
+                                fontWeight: FontWeight.w900,
                                 color: const Color(0xFF10B981),
                               ),
                             ),
-                            SizedBox(height: 8.h),
+                            SizedBox(height: 12.h),
                             Row(
                               children: [
                                 Icon(Icons.location_on_outlined,
-                                    size: 14.sp, color: AppColors.brandAccent),
-                                SizedBox(width: 4.w),
+                                    size: 20.sp, color: AppColors.brandAccent),
+                                SizedBox(width: 6.w),
                                 Expanded(
                                   child: Text(
-                                    "${widget.property.cityAr} — ${widget.property.regionAr}",
+                                    "${widget.property.governorateAr} — ${widget.property.cityAr}",
                                     style: AppTextStyles.tableCellSub.copyWith(
-                                      fontSize: 13.sp,
+                                      fontSize: 16.sp,
                                       color: AppColors.textPrimary,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -223,14 +226,46 @@ class _PropertyCardState extends State<PropertyCard> {
                               ],
                             ),
                             SizedBox(height: 12.h),
-                            _buildFeaturesRow(),
+                            Row(
+                              children: [
+                                Icon(Icons.access_time,
+                                    size: 20.sp, color: AppColors.textSecondary),
+                                SizedBox(width: 6.w),
+                                Text(
+                                  formattedDate,
+                                  style: AppTextStyles.tableCellSub.copyWith(
+                                    fontSize: 15.sp,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            
+                            if (isManagerOrAdmin || shouldMask) ...[
+                              SizedBox(height: 12.h),
+                              Row(
+                                children: [
+                                  Icon(Icons.person_outline,
+                                      size: 20.sp, color: AppColors.info),
+                                  SizedBox(width: 6.w),
+                                  Text(
+                                    "بواسطة: ${widget.property.createdByName ?? '---'}",
+                                    style: AppTextStyles.tableCellSub.copyWith(
+                                      fontSize: 15.sp,
+                                      color: AppColors.info,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ],
                         ),
                       ),
 
                       // ─── أزرار التحكم ───
-                      if (isMine || isManager) ...[
-                        SizedBox(width: 10.w),
+                      if (isMine || isManagerOrAdmin) ...[
+                        SizedBox(width: 14.w),
                         Column(
                           mainAxisAlignment: MainAxisAlignment.start,
                           children: [
@@ -239,7 +274,7 @@ class _PropertyCardState extends State<PropertyCard> {
                               AppColors.info,
                               widget.onEdit,
                             ),
-                            SizedBox(height: 10.h),
+                            SizedBox(height: 14.h),
                             _actionButton(
                               Icons.delete_outline_rounded,
                               AppColors.brandAccent,
@@ -262,15 +297,15 @@ class _PropertyCardState extends State<PropertyCard> {
   Widget _actionButton(IconData icon, Color color, VoidCallback onPressed) {
     return InkWell(
       onTap: onPressed,
-      borderRadius: BorderRadius.circular(8.r),
+      borderRadius: BorderRadius.circular(12.r),
       child: Container(
-        padding: EdgeInsets.all(8.w),
+        padding: EdgeInsets.all(12.w),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(8.r),
+          borderRadius: BorderRadius.circular(12.r),
           border: Border.all(color: color.withValues(alpha: 0.15)),
         ),
-        child: Icon(icon, color: color, size: 22.sp),
+        child: Icon(icon, color: color, size: 28.sp), // 30% Scale up
       ),
     );
   }
@@ -278,55 +313,20 @@ class _PropertyCardState extends State<PropertyCard> {
   Widget _buildStatusBadge() {
     final bool available = widget.property.status;
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
       decoration: BoxDecoration(
         color: available
             ? const Color(0xFF2D6A4F).withValues(alpha: 0.88)
             : AppColors.brandAccent.withValues(alpha: 0.88),
-        borderRadius: BorderRadius.circular(6.r),
+        borderRadius: BorderRadius.circular(8.r),
       ),
       child: Text(
         available ? "نشط" : "مغلق",
         style: TextStyle(
           color: Colors.white,
-          fontSize: 10.sp,
+          fontSize: 14.sp,
           fontWeight: FontWeight.bold,
         ),
-      ),
-    );
-  }
-
-  Widget _buildFeaturesRow() {
-    return Row(
-      children: [
-        _featureChip(Icons.king_bed_outlined, "${widget.property.bedrooms ?? 0}"),
-        SizedBox(width: 8.w),
-        _featureChip(Icons.bathtub_outlined, "${widget.property.bathrooms ?? 0}"),
-        SizedBox(width: 8.w),
-        _featureChip(Icons.straighten_rounded,
-            "${widget.property.builtArea ?? 0}م²"),
-      ],
-    );
-  }
-
-  Widget _featureChip(IconData icon, String label) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 5.h),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: AppColors.borderSubtle),
-        borderRadius: BorderRadius.circular(8.r),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13.sp, color: AppColors.textSecondary),
-          SizedBox(width: 4.w),
-          Text(
-            label,
-            style: AppTextStyles.tableCellSub.copyWith(fontWeight: FontWeight.w700),
-          ),
-        ],
       ),
     );
   }

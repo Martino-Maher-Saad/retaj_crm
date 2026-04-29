@@ -10,11 +10,7 @@ import 'design_details_screen.dart';
 import 'edit_design_screen.dart';
 import '../widgets/design_card.dart';
 
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../data/repositories/design_repository.dart';
-import '../../../data/services/design_service.dart';
-import '../../../data/services/storage_service.dart';
-import '../../../data/services/ai_service.dart';
+import '../../../core/di/injection_container.dart' as di;
 
 class DesignsListScreen extends StatefulWidget {
   const DesignsListScreen({super.key});
@@ -23,21 +19,19 @@ class DesignsListScreen extends StatefulWidget {
   State<DesignsListScreen> createState() => _DesignsListScreenState();
 }
 
-class _DesignsListScreenState extends State<DesignsListScreen> {
+class _DesignsListScreenState extends State<DesignsListScreen>
+    with AutomaticKeepAliveClientMixin {
   late DesignsCubit _cubit;
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   void initState() {
     super.initState();
-    _cubit = DesignsCubit(
-      DesignRepository(
-        DesignService(),
-        StorageService(Supabase.instance.client),
-        AiService(),
-      ),
-    );
+    _cubit = di.sl<DesignsCubit>();
     _scrollController.addListener(_onScroll);
     _cubit.fetchDesigns(isRefresh: true);
   }
@@ -62,12 +56,13 @@ class _DesignsListScreenState extends State<DesignsListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return BlocProvider.value(
       value: _cubit,
       child: Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: Text("قائمة التصميمات", style: AppTextStyles.blue16Bold),
+        title: Text("قائمة التصميمات", style: AppTextStyles.h3),
         backgroundColor: Colors.white,
         elevation: 0.5,
         iconTheme: const IconThemeData(color: Colors.black),

@@ -7,7 +7,7 @@ import '../../../core/utils/property_cache_manager.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../profile/screens/user_profile_screen.dart';
 import '../../profile/cubit/profile_cubit.dart';
-import '../../../data/services/profile_service.dart';
+import '../../../core/di/injection_container.dart' as di;
 
 /// الأفاتار الدائري يُستخدم في الـ TopHeader — حجم ثابت بدون Expanded
 /// لأنه داخل Row غير محدود العرض.
@@ -24,7 +24,7 @@ class UserAvatar extends StatelessWidget {
           context,
           MaterialPageRoute(
             builder: (context) => BlocProvider(
-              create: (_) => ProfileCubit(ProfileService()),
+              create: (_) => di.sl<ProfileCubit>(),
               child: UserProfileScreen(currentUser: user),
             ),
           ),
@@ -34,13 +34,13 @@ class UserAvatar extends StatelessWidget {
         padding: EdgeInsets.all(6.r),
         child: CircleAvatar(
           radius: 18.r,
-          backgroundColor: AppColors.primaryBlue,
+          backgroundColor: AppColors.brandPrimary,
           child: ClipOval(
             child: user.imageUrl == null || user.imageUrl!.isEmpty
                 ? Text(
                     user.firstName?[0].toUpperCase() ?? 'U',
                     style: TextStyle(
-                      color: AppColors.white,
+                      color: Colors.white,
                       fontSize: 14.sp,
                       fontWeight: FontWeight.bold,
                     ),
@@ -57,12 +57,12 @@ class UserAvatar extends StatelessWidget {
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         valueColor:
-                            AlwaysStoppedAnimation<Color>(AppColors.white),
+                            AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     ),
                     errorWidget: (context, url, error) => Icon(
                       Icons.person,
-                      color: AppColors.white,
+                      color: Colors.white,
                       size: 18.sp,
                     ),
                   ),

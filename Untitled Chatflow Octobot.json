@@ -1,0 +1,171 @@
+{
+  "nodes": [
+    {
+      "id": "OctobotWapp_0",
+      "position": {
+        "x": 383,
+        "y": 188
+      },
+      "type": "customNode",
+      "data": {
+        "id": "OctobotWapp_0",
+        "label": "OctobotWapp DODGE",
+        "version": 1,
+        "name": "OctobotWapp",
+        "type": "OctobotWapp",
+        "baseClasses": [
+          "OctobotWapp",
+          "Tool",
+          "StructuredTool",
+          "Runnable"
+        ],
+        "category": "Tools",
+        "description": "Send WhatsApp messages or create groups via OctobotWapp API",
+        "inputParams": [
+          {
+            "label": "Connect Credential",
+            "name": "credential",
+            "type": "credential",
+            "credentialNames": [
+              "octobotWappApi"
+            ],
+            "description": "Select OctobotWapp credentials",
+            "id": "OctobotWapp_0-input-credential-credential",
+            "display": true
+          },
+          {
+            "label": "Tool Name",
+            "name": "toolName",
+            "type": "string",
+            "description": "Specify the name of the tool",
+            "default": "OctobotWappTool",
+            "id": "OctobotWapp_0-input-toolName-string",
+            "display": true
+          },
+          {
+            "label": "Tool Description",
+            "name": "toolDesc",
+            "type": "string",
+            "rows": 4,
+            "description": "Specify the description of the tool",
+            "default": "Send WhatsApp messages or create groups via OctobotWapp API.\nInput parameters:\n- recipients: For messages: comma-separated numbers or group IDs. For group creation: comma-separated participant numbers\n- text_message: For messages: the text to send. For group creation: the group name/subject\n- group_picture_url (optional): URL of the group picture when creating groups",
+            "id": "OctobotWapp_0-input-toolDesc-string",
+            "display": true
+          },
+          {
+            "label": "Message Type",
+            "name": "type_message",
+            "type": "options",
+            "options": [
+              {
+                "label": "Text Message",
+                "name": "text"
+              },
+              {
+                "label": "Image Message",
+                "name": "image"
+              },
+              {
+                "label": "Video Message",
+                "name": "video"
+              },
+              {
+                "label": "Document Message",
+                "name": "doc"
+              },
+              {
+                "label": "Create Group",
+                "name": "create_group"
+              }
+            ],
+            "default": "text",
+            "description": "Type of message to send or create group",
+            "id": "OctobotWapp_0-input-type_message-options",
+            "display": true
+          },
+          {
+            "label": "Recipient Type",
+            "name": "type_contact",
+            "type": "options",
+            "options": [
+              {
+                "label": "Phone Numbers",
+                "name": "numbers"
+              },
+              {
+                "label": "Group IDs",
+                "name": "group"
+              }
+            ],
+            "default": "numbers",
+            "description": "Type of recipients",
+            "id": "OctobotWapp_0-input-type_contact-options",
+            "display": true
+          },
+          {
+            "label": "Media File Path",
+            "name": "media_path",
+            "type": "string",
+            "description": "Full path to media file (required for image/video/document messages)",
+            "placeholder": "/path/to/file.jpg",
+            "optional": true,
+            "additionalParams": true,
+            "id": "OctobotWapp_0-input-media_path-string",
+            "display": true
+          },
+          {
+            "label": "Schedule Time",
+            "name": "time_to_send",
+            "type": "string",
+            "description": "Schedule time in format: YYYY-MM-DD HH:mm:ss (leave empty for immediate sending)",
+            "placeholder": "e.g., 2025-05-20 11:33:00",
+            "optional": true,
+            "additionalParams": true,
+            "id": "OctobotWapp_0-input-time_to_send-string",
+            "display": true
+          },
+          {
+            "label": "Timezone",
+            "name": "timezone",
+            "type": "string",
+            "description": "Timezone for scheduled message (required if time_to_send is set)",
+            "placeholder": "e.g., Asia/Riyadh",
+            "optional": true,
+            "additionalParams": true,
+            "id": "OctobotWapp_0-input-timezone-string",
+            "display": true
+          }
+        ],
+        "inputAnchors": [],
+        "inputs": {
+          "toolName": "OctobotWappTool",
+          "toolDesc": "Send WhatsApp messages or create groups via OctobotWapp API.\nInput parameters:\n- recipients: For messages: comma-separated numbers or group IDs. For group creation: comma-separated participant numbers\n- text_message: For messages: the text to send. For group creation: the group name/subject\n- group_picture_url (optional): URL of the group picture when creating groups",
+          "type_message": "text",
+          "type_contact": "numbers",
+          "media_path": "",
+          "time_to_send": "",
+          "timezone": ""
+        },
+        "outputAnchors": [
+          {
+            "id": "OctobotWapp_0-output-OctobotWapp-OctobotWapp|Tool|StructuredTool|Runnable",
+            "name": "OctobotWapp",
+            "label": "OctobotWapp",
+            "description": "Send WhatsApp messages or create groups via OctobotWapp API",
+            "type": "OctobotWapp | Tool | StructuredTool | Runnable"
+          }
+        ],
+        "outputs": {},
+        "selected": false
+      },
+      "width": 314,
+      "height": 802,
+      "positionAbsolute": {
+        "x": 383,
+        "y": 188
+      },
+      "selected": false
+    }
+  ],
+  "edges": []
+}

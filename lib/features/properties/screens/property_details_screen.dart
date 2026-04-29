@@ -6,7 +6,6 @@ import '../widgets/details/property_copyable_field.dart';
 import '../widgets/details/property_image_header.dart';
 import '../widgets/details/property_main_info_card.dart';
 import '../widgets/details/property_section_card.dart';
-import '../widgets/details/property_specs_grid.dart';
 
 class PropertyDetailsScreen extends StatelessWidget {
   final PropertyModel property;
@@ -20,14 +19,16 @@ class PropertyDetailsScreen extends StatelessWidget {
     required this.role,
   });
 
-  bool get shouldMask => role == 'sales' && property.createdBy != currentUserId;
+  bool get isOwner => property.createdBy == currentUserId;
+  bool get isManagerOrAdmin => role == 'manager' || role == 'admin';
+  bool get shouldMask => role == 'sales' && !isOwner;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: Text(property.titleAr ?? "تفاصيل العقار", style: AppTextStyles.blue16Bold),
+        title: Text(property.titleAr, style: AppTextStyles.h3),
         backgroundColor: Colors.white,
         elevation: 0.5,
         leading: IconButton(
@@ -43,30 +44,22 @@ class PropertyDetailsScreen extends StatelessWidget {
             PropertyImageHeader(images: property.images),
 
             Padding(
-              padding: EdgeInsets.all(16.w),
+              padding: EdgeInsets.all(20.w), // 30% Scale up
               child: Column(
                 children: [
                   // 2. بطاقة المعلومات الأساسية والسعر
                   PropertyMainInfoCard(property: property),
-                  SizedBox(height: 16.h),
+                  SizedBox(height: 20.h), // 30% Scale up
 
-                  // 3. المواصفات الفنية
-                  PropertySectionCard(
-                    title: "المواصفات الفنية",
-                    icon: Icons.straighten,
-                    content: PropertySpecsGrid(property: property),
-                  ),
-                  SizedBox(height: 16.h),
-
-                  // 4. الموقع
+                  // 3. الموقع
                   PropertySectionCard(
                     title: "الموقع",
                     icon: Icons.location_on,
                     content: _buildLocationContent(),
                   ),
-                  SizedBox(height: 16.h),
+                  SizedBox(height: 20.h),
 
-                  // 5. الوصف
+                  // 4. الوصف
                   PropertySectionCard(
                     title: "الوصف",
                     icon: Icons.description,
@@ -76,15 +69,15 @@ class PropertyDetailsScreen extends StatelessWidget {
                       isLong: true,
                     ),
                   ),
-                  SizedBox(height: 16.h),
+                  SizedBox(height: 20.h),
 
-                  // 6. بيانات المالك والملاحظات
+                  // 5. بيانات المالك والملاحظات
                   PropertySectionCard(
                     title: "بيانات الإدارة والمالك",
                     icon: Icons.admin_panel_settings,
                     content: _buildOwnerContent(),
                   ),
-                  SizedBox(height: 40.h),
+                  SizedBox(height: 50.h),
                 ],
               ),
             ),
@@ -99,8 +92,9 @@ class PropertyDetailsScreen extends StatelessWidget {
       children: [
         PropertyCopyableField(label: "المحافظة", value: property.governorateAr),
         PropertyCopyableField(label: "المدينة", value: property.cityAr),
-        PropertyCopyableField(label: "المنطقة", value: property.regionAr),
-        if (!shouldMask)
+        if (!shouldMask && property.regionAr != null && property.regionAr!.isNotEmpty)
+          PropertyCopyableField(label: "المنطقة", value: property.regionAr),
+        if (!shouldMask && property.locationInDetails != null && property.locationInDetails!.isNotEmpty)
           PropertyCopyableField(label: "العنوان التفصيلي", value: property.locationInDetails),
       ],
     );
@@ -109,20 +103,34 @@ class PropertyDetailsScreen extends StatelessWidget {
   Widget _buildOwnerContent() {
     if (shouldMask) {
       return Padding(
-        padding: EdgeInsets.symmetric(vertical: 10.h),
-        child: Text(
-          "غير مصرح لك برؤية تفاصيل المالك لأن العقار يخص زميل مبيعات آخر.",
-          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-          textAlign: TextAlign.center,
+        padding: EdgeInsets.symmetric(vertical: 14.h),
+        child: Column(
+          children: [
+            Text(
+              "غير مصرح لك برؤية تفاصيل المالك لأن العقار يخص زميل مبيعات آخر.",
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16.sp),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 10.h),
+            Text(
+              "العقار مسجل بواسطة: ${property.createdByName ?? '---'}",
+              style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 16.sp),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       );
     }
     return Column(
       children: [
-        PropertyCopyableField(label: "اسم المالك", value: property.ownerName),
-        PropertyCopyableField(label: "رقم الهاتف", value: property.ownerPhone),
-        const Divider(),
-        PropertyCopyableField(label: "ملاحظات الموظفين", value: property.internalNotes),
+        if (property.ownerName != null && property.ownerName!.isNotEmpty)
+          PropertyCopyableField(label: "اسم المالك", value: property.ownerName),
+        if (property.ownerPhone != null && property.ownerPhone!.isNotEmpty)
+          PropertyCopyableField(label: "رقم الهاتف", value: property.ownerPhone),
+        if (property.internalNotes != null && property.internalNotes!.isNotEmpty) ...[
+          const Divider(),
+          PropertyCopyableField(label: "ملاحظات الموظفين", value: property.internalNotes, isLong: true),
+        ]
       ],
     );
   }

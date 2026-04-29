@@ -80,7 +80,7 @@ class _AddDesignScreenState extends State<AddDesignScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: Text("إضافة تصميم جديد", style: AppTextStyles.blue16Bold),
+        title: Text("إضافة تصميم جديد", style: AppTextStyles.h3),
         backgroundColor: Colors.white,
         elevation: 0.5,
       ),
@@ -189,7 +189,7 @@ class _AddDesignScreenState extends State<AddDesignScreen> {
                       ),
                       child: _isSubmitting || state is DesignsLoading
                           ? const CircularProgressIndicator(color: Colors.white)
-                          : Text("حفظ التصميم", style: AppTextStyles.blue18Medium.copyWith(color: Colors.white)),
+                          : Text("حفظ التصميم", style: AppTextStyles.h3.copyWith(color: Colors.white)),
                     ),
                   )
                 ],

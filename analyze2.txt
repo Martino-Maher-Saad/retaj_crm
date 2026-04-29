@@ -1,5 +1,0 @@
-﻿Analyzing neon_text_field.dart, neon_dropdown.dart, custom_button.dart, lead_card.dart, property_card.dart, property_field_builders.dart, client_basic_section.dart, client_requirements_section.dart, client_admin_section.dart, user_profile_screen.dart...
-
-warning - lib\features\properties\widgets\property_field_builders.dart:9:8 - Unused import: '../../../core/utils/number_formatter.dart'. Try removing the import directive. - unused_import
-
-1 issue found.

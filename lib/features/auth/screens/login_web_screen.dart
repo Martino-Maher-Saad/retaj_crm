@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:retaj_crm/core/constants/app_colors.dart';
 import 'package:retaj_crm/core/constants/app_strings.dart';
 import 'package:retaj_crm/core/widgets/custom_button.dart';
-import 'package:retaj_crm/core/widgets/custom_text_form_field.dart';
+import 'package:retaj_crm/core/widgets/retaj_shared_fields.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/services/auth_service.dart';
@@ -52,38 +52,29 @@ class LoginWebScreen extends StatelessWidget {
                     Text(
                       AppStrings.login,
                       textAlign: TextAlign.center,
-                      style: AppTextStyles.blue28Bold,
+                      style: AppTextStyles.h1,
                     ),
 
                     const SizedBox(height: 32),
 
-                    CustomTextFormField(
-                      labelText: AppStrings.email,
+                    RetajTextField(
+                      label: AppStrings.email,
                       controller: emailController,
                       obscureText: false,
                       validator: (value) => (value == null || value.length < 6) ? "Must be 6+ characters" : null,
-                      enabledBorderColor: AppColors.primaryBlueDark,
-                      focusedBorderColor: AppColors.greyLight,
                       prefixIcon: Icons.email,
-                      prefixIconSize: 20,
-                      prefixIconColor: AppColors.primaryBlueDark,
+                      forceLtr: true,
                     ),
 
                     const SizedBox(height: 20),
 
-                    CustomTextFormField(
-                      labelText: AppStrings.password,
+                    RetajTextField(
+                      label: AppStrings.password,
                       controller: passwordController,
                       obscureText: true,
                       validator: (value) => (value == null || value.length < 6) ? "Must be 6+ characters" : null,
-                      enabledBorderColor: AppColors.primaryBlueDark,
-                      focusedBorderColor: AppColors.greyLight,
                       prefixIcon: Icons.lock_outline,
-                      prefixIconSize: 20,
-                      prefixIconColor: AppColors.primaryBlueDark,
-                      suffixIcon: Icons.remove_red_eye,
-                      suffixIconSize: 20,
-                      suffixIconColor: AppColors.primaryBlueDark,
+                      forceLtr: true,
                     ),
 
                     const SizedBox(height: 30),
@@ -108,8 +99,8 @@ class LoginWebScreen extends StatelessWidget {
                               authCubit.login(emailController.text.trim(), passwordController.text.trim());
                             }
                           },
-                          buttonColor: AppColors.primaryBlueDark,
-                          titleColor: AppColors.white,
+                          buttonColor: AppColors.brandPrimaryDark,
+                          titleColor: Colors.white,
                           titleSize: 22,
                           titleWeight: FontWeight.bold,
                         );

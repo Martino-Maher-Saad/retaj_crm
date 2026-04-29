@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../core/widgets/retaj_shared_fields.dart';
-import '../property_field_builders.dart';
-
 class AdminSection extends StatelessWidget {
   final Map<String, TextEditingController> controllers;
   final bool status;
@@ -24,13 +22,15 @@ class AdminSection extends StatelessWidget {
       children: [
         // اسم المالك + رقمه في صف واحد
         RetajFieldRow(
-          first: PropertyFieldBuilders.buildField(
-            controllers['ownerName']!,
-            'اسم المالك',
+          first: RetajTextField(
+            controller: controllers['ownerName'],
+            label: 'اسم المالك',
           ),
-          second: PropertyFieldBuilders.buildField(
-            controllers['ownerPhone']!,
-            'رقم المالك',
+          second: RetajTextField(
+            controller: controllers['ownerPhone'],
+            label: 'رقم المالك',
+            keyboardType: TextInputType.phone,
+            forceLtr: true,
           ),
         ),
 

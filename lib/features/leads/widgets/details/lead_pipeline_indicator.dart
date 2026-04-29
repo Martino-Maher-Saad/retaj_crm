@@ -36,7 +36,7 @@ class LeadPipelineIndicator extends StatelessWidget {
         border: Border.all(color: Colors.grey.shade100),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -94,7 +94,7 @@ class LeadPipelineIndicator extends StatelessWidget {
                                     )
                                   : null,
                               boxShadow: isCurrent
-                                  ? [BoxShadow(color: AppColors.brandPrimary.withOpacity(0.3), blurRadius: 8, spreadRadius: 1)]
+                                  ? [BoxShadow(color: AppColors.brandPrimary.withValues(alpha: 0.3), blurRadius: 8, spreadRadius: 1)]
                                   : null,
                             ),
                             child: Center(
@@ -154,9 +154,9 @@ class LeadPipelineIndicator extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
       margin: EdgeInsets.only(bottom: 16.h),
       decoration: BoxDecoration(
-        color: AppColors.brandAccent.withOpacity(0.06),
+        color: AppColors.brandAccent.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppColors.brandAccent.withOpacity(0.3)),
+        border: Border.all(color: AppColors.brandAccent.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [

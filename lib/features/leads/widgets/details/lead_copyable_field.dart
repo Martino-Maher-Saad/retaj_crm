@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../core/widgets/neon_text_field.dart';
+import '../../../../core/widgets/retaj_shared_fields.dart';
 
 /// حقل عرض بيانات قابل للنسخ والتحديد (Read-Only)
 /// يستخدم نفس مكونات الـ NeonTextField ليطابق تصميم الإدخال بالكامل
@@ -23,14 +23,10 @@ class LeadCopyableField extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: NeonTextField(
+      child: RetajCopyableDisplay(
         label: label,
-        initialValue: displayText,
-        readOnly: true,
-        // تمدد تلقائي في كل الأحوال لتسهيل العرض
-        maxLines: null,
-        minLines: isLong ? 3 : 1,
-        prefixIcon: icon,
+        value: displayText,
+        leadingIcon: icon,
       ),
     );
   }

@@ -2,26 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:skeletonizer/skeletonizer.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:retaj_crm/data/services/lead_service.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../data/models/lead_model.dart';
 import '../../../data/models/profile_model.dart';
-import '../../../data/repositories/lead_repository.dart';
+import '../../../core/di/injection_container.dart' as di;
 import '../cubit/leads_cubit.dart';
 import '../cubit/leads_state.dart';
 import '../widgets/lead_card.dart';
 import '../widgets/list/lead_delete_dialog.dart';
 import '../widgets/list/lead_empty_state.dart';
 import '../widgets/list/lead_top_actions_bar.dart';
+import '../widgets/list/lead_filter_dialog.dart';
 import 'lead_details_screen.dart';
 import 'lead_form_screen.dart';
 
-/// شاشة إدارة العملاء (Leads) — النقطة المركزية لعرض وفلترة وإدارة العملاء
-/// تستخدم BlocProvider مع AutomaticKeepAliveClientMixin للحفاظ على الحالة عند التنقل بين الـ tabs
+/// شاشة إدارة العملاء (Leads)
 class LeadsManagementScreen extends StatefulWidget {
   final ProfileModel user;
   const LeadsManagementScreen({super.key, required this.user});
@@ -33,8 +31,8 @@ class LeadsManagementScreen extends StatefulWidget {
 class _LeadsManagementScreenState extends State<LeadsManagementScreen>
     with AutomaticKeepAliveClientMixin {
   late LeadCubit _cubit;
+  bool _isFiltering = false;
 
-  // قائمة فلاتر الحالة — تُمرر للـ LeadTopActionsBar
   final List<String> _filters = [
     'الكل',
     'جديد',
@@ -44,10 +42,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
     'مستبعد',
   ];
 
-  // ScrollController لتفعيل Infinite Scroll
   final ScrollController _scrollController = ScrollController();
-
-  String? _selectedFilterEmployeeId;
 
   @override
   bool get wantKeepAlive => true;
@@ -55,21 +50,17 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
   @override
   void initState() {
     super.initState();
-    // إنشاء الـ Cubit وجلب البيانات الأولية فور فتح الشاشة
-    _cubit = LeadCubit(LeadRepository(LeadService()))
+    _cubit = di.sl<LeadCubit>()
       ..getAllLeads(role: widget.user.role, userId: widget.user.id);
-
     _scrollController.addListener(_onScroll);
   }
 
-  /// يراقب موضع الـ Scroll — عند الاقتراب من النهاية يجلب المزيد من البيانات
   void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
+    final pos = _scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent * 0.7) {
       _cubit.loadMoreLeads(
         role: widget.user.role,
         userId: widget.user.id,
-        filterByEmployeeId: _selectedFilterEmployeeId,
       );
     }
   }
@@ -80,6 +71,22 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
     super.dispose();
   }
 
+  void _openFilterDialog(BuildContext ctx) {
+    showDialog(
+      context: ctx,
+      builder: (_) => BlocProvider.value(
+        value: _cubit,
+        child: LeadFilterDialog(
+          role: widget.user.role,
+          currentUserId: widget.user.id,
+        ),
+      ),
+    ).then((_) {
+      // تحقق إذا الكيوبيت غيّر حالته بفلاتر جديدة
+      setState(() => _isFiltering = true);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -87,96 +94,137 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
       value: _cubit,
       child: Scaffold(
         backgroundColor: AppColors.bgMain,
-        appBar: AppBar(
-          title: Text('إدارة العملاء', style: AppTextStyles.h2),
-          backgroundColor: AppColors.bgSurface,
-          elevation: 0,
-          centerTitle: true,
-        ),
         body: Column(
           children: [
+            // ─── Header bar ───
             BlocBuilder<LeadCubit, LeadState>(
               builder: (context, state) {
-                final String currentFilter = (state is LeadLoaded)
-                    ? state.currentFilter
-                    : 'الكل';
-                final List<ProfileModel> employees = (state is LeadLoaded)
-                    ? state.employees
-                    : [];
+                final String currentFilter =
+                    (state is LeadLoaded) ? state.currentFilter : 'الكل';
+                final int total = (state is LeadLoaded) ? state.totalCount : 0;
+
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // AppBar بديل يحتوي على عداد + زر الفلتر
+                    Container(
+                      color: AppColors.bgSurface,
+                      padding: EdgeInsets.symmetric(
+                          horizontal: AppConstants.p16, vertical: 12.h),
+                      child: Row(
+                        children: [
+                          Text('إدارة العملاء', style: AppTextStyles.h2),
+                          SizedBox(width: 8.w),
+                          if (total > 0)
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 8.w, vertical: 2.h),
+                              decoration: BoxDecoration(
+                                color: AppColors.brandPrimary.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(20.r),
+                              ),
+                              child: Text(
+                                '$total',
+                                style: TextStyle(
+                                  color: AppColors.brandPrimary,
+                                  fontSize: 12.sp,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          const Spacer(),
+                          // زر الفلاتر المتقدمة
+                          OutlinedButton.icon(
+                            onPressed: () => _openFilterDialog(context),
+                            icon: Icon(Icons.filter_list_rounded,
+                                size: 18.sp, color: AppColors.brandPrimary),
+                            label: Text('فلاتر',
+                                style: TextStyle(
+                                    fontSize: 13.sp,
+                                    color: AppColors.brandPrimary)),
+                            style: OutlinedButton.styleFrom(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 14.w, vertical: 8.h),
+                              side: BorderSide(
+                                  color: AppColors.brandPrimary, width: 1.5),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10.r)),
+                            ),
+                          ),
+                          SizedBox(width: 10.w),
+                          // زر الإضافة
+                          ElevatedButton.icon(
+                            onPressed: () => _openForm(context),
+                            icon: Icon(Icons.add, size: 18.sp),
+                            label: Text('إضافة',
+                                style: TextStyle(fontSize: 13.sp)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.brandPrimary,
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 14.w, vertical: 8.h),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10.r)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // شريط فلاتر الحالة
                     LeadTopActionsBar(
                       filters: _filters,
                       currentFilter: currentFilter,
                       onAddPressed: () => _openForm(context),
-                      onFilterSelected: (filter) => _cubit.filterLeads(filter),
+                      onFilterSelected: (filter) {
+                        setState(() => _isFiltering = false);
+                        _cubit.getAllLeads(
+                          role: widget.user.role,
+                          userId: widget.user.id,
+                          isRefresh: true,
+                          leadStatus: filter == 'الكل' ? null : filter,
+                        );
+                      },
                     ),
-                    if ((widget.user.role == 'manager' ||
-                            widget.user.role == 'admin') &&
-                        employees.isNotEmpty) ...[
-                      Padding(
+
+                    // شريط "فلاتر نشطة"
+                    if (_isFiltering)
+                      Container(
                         padding: EdgeInsets.symmetric(
-                          horizontal: AppConstants.p16,
-                        ),
-                        child: Container(
-                          padding: EdgeInsets.symmetric(horizontal: 10.w),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10.r),
-                            border: Border.all(color: AppColors.borderSubtle),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String?>(
-                              isExpanded: true,
-                              hint: const Text('الموظف المكلف (للمدير)'),
-                              value:
-                                  employees.any(
-                                    (e) => e.id == _selectedFilterEmployeeId,
-                                  )
-                                  ? _selectedFilterEmployeeId
-                                  : null,
-                              items: [
-                                const DropdownMenuItem(
-                                  value: null,
-                                  child: Text("كل الموظفين (إلغاء الفلتر)"),
-                                ),
-                                ...employees.map(
-                                  (e) => DropdownMenuItem(
-                                    value: e.id,
-                                    child: Text(
-                                      e.firstName != null
-                                          ? "${e.firstName} ${e.lastName}"
-                                          : e.email,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                              onChanged: (val) {
-                                setState(() => _selectedFilterEmployeeId = val);
+                            horizontal: AppConstants.p16, vertical: 4.h),
+                        color: Colors.orange.shade50,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('نتائج الفلاتر المتقدمة 🎯',
+                                style: TextStyle(
+                                    color: Colors.orange.shade800,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13.sp)),
+                            TextButton(
+                              onPressed: () {
+                                setState(() => _isFiltering = false);
                                 _cubit.getAllLeads(
                                   role: widget.user.role,
                                   userId: widget.user.id,
                                   isRefresh: true,
-                                  filterByEmployeeId: val,
                                 );
                               },
+                              child: const Text('إلغاء الفلاتر',
+                                  style: TextStyle(color: Colors.red)),
                             ),
-                          ),
+                          ],
                         ),
                       ),
-                      SizedBox(height: 10.h),
-                    ],
                   ],
                 );
               },
             ),
 
-            // ─── قائمة العملاء + Loading States ───
+            // ─── قائمة العملاء ───
             Expanded(
               child: BlocConsumer<LeadCubit, LeadState>(
                 listener: (context, state) {
-                  // إظهار الخطأ كـ SnackBar للمستخدم
                   if (state is LeadError) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -187,7 +235,6 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                   }
                 },
                 builder: (context, state) {
-                  // ─── حالة التحميل الأولي ───
                   if (state is LeadLoading) {
                     return Skeletonizer(
                       enabled: true,
@@ -206,6 +253,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                               createdBy: '',
                               assignedTo: '',
                             ),
+                            role: widget.user.role,
                             onTap: () {},
                             onEdit: () {},
                             onDelete: () {},
@@ -215,49 +263,45 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                     );
                   }
 
-                  // ─── حالة النجاح ───
                   if (state is LeadLoaded) {
-                    if (state.filteredLeads.isEmpty)
+                    if (state.filteredLeads.isEmpty) {
                       return const LeadEmptyState();
+                    }
 
                     return RefreshIndicator(
                       onRefresh: () => _cubit.getAllLeads(
                         role: widget.user.role,
                         userId: widget.user.id,
-                        filterByEmployeeId: _selectedFilterEmployeeId,
                         isRefresh: true,
                       ),
                       child: ListView.builder(
                         controller: _scrollController,
                         padding: EdgeInsets.only(bottom: 20.h, top: 10.h),
-                        // +1 للـ Loading indicator في نهاية القائمة عند التحميل
-                        itemCount:
-                            state.filteredLeads.length +
+                        itemCount: state.filteredLeads.length +
                             (state.isLoadingMore ? 1 : 0),
                         itemBuilder: (context, index) {
-                          // مؤشر التحميل عند نهاية القائمة
                           if (index >= state.filteredLeads.length) {
                             return const Center(
                               child: Padding(
                                 padding: EdgeInsets.all(8.0),
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
+                                child: CircularProgressIndicator(strokeWidth: 2),
                               ),
                             );
                           }
 
                           final lead = state.filteredLeads[index];
                           return LeadCard(
+                            key: ValueKey(lead.id),
                             lead: lead,
+                            role: widget.user.role,
                             onTap: () => _openDetails(context, lead),
                             onEdit: () => _openForm(context, lead: lead),
                             onDelete: () => LeadDeleteDialog.show(
                               context,
                               lead,
-                              () => _cubit.deleteLead(lead.id!),
+                              () => _cubit.deleteLead(lead.id!, widget.user.role),
                             ),
-                          ).animate().fade(duration: 300.ms).slideY(begin: 0.1, end: 0, duration: 300.ms, curve: Curves.easeOut);
+                          );
                         },
                       ),
                     );
@@ -272,11 +316,6 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
     );
   }
 
-  // ═══════════════════════════════
-  // ─── Navigation Helpers ───
-  // ═══════════════════════════════
-
-  /// يفتح فورم الإضافة/التعديل — يمرر الـ lead للتعديل أو null للإضافة
   void _openForm(BuildContext context, {LeadModel? lead}) {
     Navigator.push(
       context,
@@ -289,7 +328,6 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
     );
   }
 
-  /// يفتح صفحة تفاصيل العميل
   void _openDetails(BuildContext context, LeadModel lead) {
     Navigator.push(
       context,

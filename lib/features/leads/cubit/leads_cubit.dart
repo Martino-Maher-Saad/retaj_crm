@@ -10,31 +10,84 @@ class LeadCubit extends Cubit<LeadState> {
 
   LeadCubit(this._repository) : super(LeadInitial());
 
-  // 1. جلب البيانات مع دعم ترقيم الصفحات (Pagination)
+  @override
+  void emit(LeadState state) {
+    if (!isClosed) {
+      super.emit(state);
+    }
+  }
+
+  // تخزين الفلاتر الحالية لكي نقوم باستخدامها في الـ pagination
+  String? _currentPlatform;
+  String? _currentLeadStatus;
+  String? _currentPropertyType;
+  String? _currentListingType;
+  String? _currentGovernorate;
+  String? _currentCity;
+  DateTime? _currentFromDate;
+  DateTime? _currentToDate;
+  String? _currentFilterByEmployeeId;
+
+  // 1. جلب البيانات (مع فلاتر)
   Future<void> getAllLeads({
     required String role,
     required String userId,
     bool isRefresh = false,
     String? filterByEmployeeId,
+    String? platform,
+    String? leadStatus,
+    String? propertyType,
+    String? listingType,
+    String? governorate,
+    String? city,
+    DateTime? fromDate,
+    DateTime? toDate,
   }) async {
     final currentState = state is LeadLoaded ? state as LeadLoaded : null;
 
-    if (isRefresh) {
+    if (isRefresh || currentState == null) {
       emit(LeadLoading());
     }
+
+    // حفظ الفلاتر
+    _currentFilterByEmployeeId = filterByEmployeeId;
+    _currentPlatform = platform;
+    _currentLeadStatus = leadStatus;
+    _currentPropertyType = propertyType;
+    _currentListingType = listingType;
+    _currentGovernorate = governorate;
+    _currentCity = city;
+    _currentFromDate = fromDate;
+    _currentToDate = toDate;
 
     try {
       final totalCount = await _repository.getLeadsCount(
         role: role,
         userId: userId,
         filterByEmployeeId: filterByEmployeeId,
+        platform: platform,
+        leadStatus: leadStatus,
+        propertyType: propertyType,
+        listingType: listingType,
+        governorate: governorate,
+        city: city,
+        fromDate: fromDate,
+        toDate: toDate,
       );
       final leads = await _repository.getAllLeads(
         role: role,
         userId: userId,
         from: 0,
-        to: 14,
+        to: 24, // 25 elements per page as requested
         filterByEmployeeId: filterByEmployeeId,
+        platform: platform,
+        leadStatus: leadStatus,
+        propertyType: propertyType,
+        listingType: listingType,
+        governorate: governorate,
+        city: city,
+        fromDate: fromDate,
+        toDate: toDate,
       );
 
       final employees = (role == 'manager' || role == 'admin')
@@ -44,30 +97,31 @@ class LeadCubit extends Cubit<LeadState> {
       emit(
         LeadLoaded(
           allLeads: leads,
-          filteredLeads: leads,
+          filteredLeads: leads, // لم نعد نستخدم الـ local filter، بل الفلتر بالسيرفر
           totalCount: totalCount,
           currentFilter: 'الكل',
-          employees: employees,
+          employees: employees.isNotEmpty ? employees : (currentState?.employees ?? []),
         ),
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('=== ERROR IN LEADS CUBIT (getAllLeads) ===');
+      print(e);
+      print(stackTrace);
+      print('==========================================');
       emit(LeadError(e.toString()));
     }
   }
 
-  // جلب المزيد من البيانات
+  // جلب المزيد
   Future<void> loadMoreLeads({
     required String role,
     required String userId,
-    String? filterByEmployeeId,
   }) async {
     if (state is LeadLoaded) {
       final currentState = state as LeadLoaded;
 
-      // توقف إذا كنا نحمل بالفعل أو وصلنا للنهاية
       if (currentState.isLoadingMore ||
-          currentState.allLeads.length >= currentState.totalCount)
-        return;
+          currentState.allLeads.length >= currentState.totalCount) return;
 
       emit(currentState.copyWith(isLoadingMore: true));
 
@@ -76,8 +130,16 @@ class LeadCubit extends Cubit<LeadState> {
           role: role,
           userId: userId,
           from: currentState.allLeads.length,
-          to: currentState.allLeads.length + 14,
-          filterByEmployeeId: filterByEmployeeId,
+          to: currentState.allLeads.length + 24,
+          filterByEmployeeId: _currentFilterByEmployeeId,
+          platform: _currentPlatform,
+          leadStatus: _currentLeadStatus,
+          propertyType: _currentPropertyType,
+          listingType: _currentListingType,
+          governorate: _currentGovernorate,
+          city: _currentCity,
+          fromDate: _currentFromDate,
+          toDate: _currentToDate,
         );
 
         final updatedAll = [...currentState.allLeads, ...nextLeads];
@@ -85,11 +147,7 @@ class LeadCubit extends Cubit<LeadState> {
         emit(
           currentState.copyWith(
             allLeads: updatedAll,
-            filteredLeads: currentState.currentFilter == 'الكل'
-                ? updatedAll
-                : updatedAll
-                      .where((l) => l.leadStatus == currentState.currentFilter)
-                      .toList(),
+            filteredLeads: updatedAll,
             isLoadingMore: false,
           ),
         );
@@ -99,27 +157,7 @@ class LeadCubit extends Cubit<LeadState> {
     }
   }
 
-  // 2. الفلترة المحلية (Local Filtering) باللغة العربية
-  void filterLeads(String filter) {
-    if (state is LeadLoaded) {
-      final currentState = state as LeadLoaded;
-      List<LeadModel> filtered;
-
-      if (filter == 'الكل') {
-        filtered = currentState.allLeads;
-      } else {
-        filtered = currentState.allLeads
-            .where((l) => l.leadStatus == filter)
-            .toList();
-      }
-
-      emit(
-        currentState.copyWith(filteredLeads: filtered, currentFilter: filter),
-      );
-    }
-  }
-
-  // 3. إضافة عميل (تحديث جراحي)
+  // 3. إضافة عميل
   Future<void> addLead(LeadModel newLead) async {
     if (state is LeadLoaded) {
       final currentState = state as LeadLoaded;
@@ -131,7 +169,6 @@ class LeadCubit extends Cubit<LeadState> {
           currentState.copyWith(
             allLeads: updatedAll,
             filteredLeads: updatedAll,
-            currentFilter: 'الكل',
             totalCount: currentState.totalCount + 1,
           ),
         );
@@ -142,25 +179,21 @@ class LeadCubit extends Cubit<LeadState> {
     }
   }
 
-  // 4. تحديث عميل (تغيير حالة)
+  // 4. تحديث حالة
   Future<void> updateLeadStatus(String id, String newStatus) async {
     if (state is LeadLoaded) {
       final currentState = state as LeadLoaded;
       try {
-        await _repository.updateLeadData(id, {'lead_status': newStatus});
+        final updatedLead = await _repository.updateLeadData(id, {'lead_status': newStatus});
 
         final updatedAll = currentState.allLeads.map((l) {
-          return l.id == id ? l.copyWith(leadStatus: newStatus) : l;
+          return l.id == id ? updatedLead : l;
         }).toList();
 
         emit(
           currentState.copyWith(
             allLeads: updatedAll,
-            filteredLeads: currentState.currentFilter == 'الكل'
-                ? updatedAll
-                : updatedAll
-                      .where((l) => l.leadStatus == currentState.currentFilter)
-                      .toList(),
+            filteredLeads: updatedAll,
           ),
         );
       } catch (e) {
@@ -170,25 +203,20 @@ class LeadCubit extends Cubit<LeadState> {
     }
   }
 
-  // تحديث عميل (تحديث شامل لكل الحقول)
   Future<void> updateFullLead(LeadModel updatedLead) async {
     if (state is LeadLoaded) {
       final currentState = state as LeadLoaded;
       try {
-        await _repository.updateLeadData(updatedLead.id!, updatedLead.toJson());
+        final newLead = await _repository.updateLeadData(updatedLead.id!, updatedLead.toJson(isUpdate: true));
 
         final updatedAll = currentState.allLeads.map((l) {
-          return l.id == updatedLead.id ? updatedLead : l;
+          return l.id == updatedLead.id ? newLead : l;
         }).toList();
 
         emit(
           currentState.copyWith(
             allLeads: updatedAll,
-            filteredLeads: currentState.currentFilter == 'الكل'
-                ? updatedAll
-                : updatedAll
-                      .where((l) => l.leadStatus == currentState.currentFilter)
-                      .toList(),
+            filteredLeads: updatedAll,
           ),
         );
       } catch (e) {
@@ -198,8 +226,33 @@ class LeadCubit extends Cubit<LeadState> {
     }
   }
 
-  // 5. حذف عميل
-  Future<void> deleteLead(String id) async {
+  // 5. إضافة تعليق
+  Future<void> addComment(String id, String comment) async {
+    if (state is LeadLoaded) {
+      final currentState = state as LeadLoaded;
+      try {
+        final updatedLead = await _repository.appendComment(id, comment);
+        
+        final updatedAll = currentState.allLeads.map((l) {
+          return l.id == id ? updatedLead : l;
+        }).toList();
+
+        emit(
+          currentState.copyWith(
+            allLeads: updatedAll,
+            filteredLeads: updatedAll,
+          ),
+        );
+      } catch (e) {
+        emit(LeadError(e.toString()));
+        emit(currentState);
+      }
+    }
+  }
+
+  // 6. حذف عميل
+  Future<void> deleteLead(String id, String role) async {
+    if (role != 'manager' && role != 'admin') return; // حماية إضافية في الكيوبيت
     if (state is LeadLoaded) {
       final currentState = state as LeadLoaded;
       try {
@@ -211,11 +264,7 @@ class LeadCubit extends Cubit<LeadState> {
         emit(
           currentState.copyWith(
             allLeads: updatedAll,
-            filteredLeads: currentState.currentFilter == 'الكل'
-                ? updatedAll
-                : updatedAll
-                      .where((l) => l.leadStatus == currentState.currentFilter)
-                      .toList(),
+            filteredLeads: updatedAll,
             totalCount: currentState.totalCount - 1,
           ),
         );

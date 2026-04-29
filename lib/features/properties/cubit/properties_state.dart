@@ -24,20 +24,20 @@ class PropertiesSuccess extends PropertiesState {
   });
 
   PropertiesSuccess copyWith({
-    List<PropertyModel>? myProps,
-    List<PropertyModel>? filterProps,
-    List<PropertyModel>? searchProps,
-    int? myCount,
-    int? fCount,
+    List<PropertyModel>? myProperties,
+    List<PropertyModel>? filteredProperties,
+    List<PropertyModel>? searchedProperties,
+    int? myTotalCount,
+    int? filteredTotalCount,
     bool? isSearching,
     bool? isFiltering,
   }) {
     return PropertiesSuccess(
-      myProperties: myProps ?? this.myProperties,
-      filteredProperties: filterProps ?? this.filteredProperties,
-      searchedProperties: searchProps ?? this.searchedProperties,
-      myTotalCount: myCount ?? this.myTotalCount,
-      filteredTotalCount: fCount ?? this.filteredTotalCount,
+      myProperties: myProperties ?? this.myProperties,
+      filteredProperties: filteredProperties ?? this.filteredProperties,
+      searchedProperties: searchedProperties ?? this.searchedProperties,
+      myTotalCount: myTotalCount ?? this.myTotalCount,
+      filteredTotalCount: filteredTotalCount ?? this.filteredTotalCount,
       isSearching: isSearching ?? this.isSearching,
       isFiltering: isFiltering ?? this.isFiltering,
     );

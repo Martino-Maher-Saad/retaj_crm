@@ -5,101 +5,69 @@ class PropertyModel {
   final String id;
   final String? propertyCode;
   final String? createdBy;
+  final String? createdByName; // اسم الموظف - يأتي من JOIN على جدول profiles
   final DateTime? createdAt;
-  final bool status; // تم استبدال isAvailable بـ status (Required)
-  final bool? negotiable;
+  final bool status;
 
-  // 2. النصوص والعناوين (Localization)
+  // 2. بيانات العقار الأساسية
   final String titleAr;
   final String descAr;
   final String listingTypeAr;
   final String propertyTypeAr;
   final String governorateAr;
   final String cityAr;
-  final String regionAr;
-  final String locationInDetails;
+
+  // 3. الأعمدة الاختيارية
+  final String? regionAr;
+  final String? locationInDetails;
   final String? locationMap;
+  final String? internalNotes;
 
-  // 3. المواصفات الفنية (smallint في DB -> int في Dart)
-  final int? floor;
-  final int? builtArea;
-  final int? bedrooms;
-  final int? bathrooms;
-  final int? totalFloors;
-  final int? totalApartments;
-  final int? kitchens;
-  final int? balconies;
-  final int? landArea;
-  final int? gardenArea;
-  final int? buildingAge;
+  // 4. السعر (إجباري)
+  final num price;
 
-  // 4. الحقول المالية (integer في DB -> num في Dart)
-  final num? price;
-  final num? downPayment;
-  final num? monthlyInstallation;
-  final num? insurance;
-  final int? monthsInstallations;
-  final String? rentalFrequency;
-
-  // 5. الحالة والمواعيد والملاحظات
-  final String? completionStatus;
-  final String? furnished;
-  final DateTime? deliveryDate;
+  // 5. بيانات المالك (تظهر فقط للمالك أو المدير)
   final String? ownerName;
   final String? ownerPhone;
-  final String? internalNotes;
 
   // 6. قائمة الصور
   final List<PropertyImageModel> images;
 
+  // 7. الـ Embedding للبحث بالذكاء الاصطناعي
   final List<double>? embedding;
 
-  PropertyModel({
+  const PropertyModel({
     this.embedding,
     required this.id,
     this.propertyCode,
     this.createdBy,
+    this.createdByName,
     this.createdAt,
     required this.status,
-    this.negotiable,
     required this.titleAr,
     required this.descAr,
     required this.listingTypeAr,
     required this.propertyTypeAr,
     required this.governorateAr,
     required this.cityAr,
-    required this.regionAr,
-    required this.locationInDetails,
+    this.regionAr,
+    this.locationInDetails,
     this.locationMap,
-    this.floor,
-    this.builtArea,
-    this.bedrooms,
-    this.bathrooms,
-    this.totalFloors,
-    this.totalApartments,
-    this.kitchens,
-    this.balconies,
-    this.landArea,
-    this.gardenArea,
-    this.buildingAge,
-    this.price,
-    this.downPayment,
-    this.monthlyInstallation,
-    this.insurance,
-    this.monthsInstallations,
-    this.rentalFrequency,
-    this.completionStatus,
-    this.furnished,
-    this.deliveryDate,
+    this.internalNotes,
+    required this.price,
     this.ownerName,
     this.ownerPhone,
-    this.internalNotes,
     this.images = const [],
   });
 
   factory PropertyModel.fromJson(Map<String, dynamic> json) {
-    var imagesList =
-        (json['property_images'] as List?)
+    // جلب اسم الموظف من الـ JOIN
+    final creator = json['creator'] as Map<String, dynamic>?;
+    final createdByName = creator != null
+        ? '${creator['first_name'] ?? ''} ${creator['last_name'] ?? ''}'.trim()
+        : null;
+
+    final imagesList = (json['property_images'] as List?)
             ?.map((e) => PropertyImageModel.fromJson(e))
             .take(10)
             .toList() ??
@@ -109,45 +77,24 @@ class PropertyModel {
       id: json['id']?.toString() ?? '',
       propertyCode: json['property_code'],
       createdBy: json['created_by'],
+      createdByName: createdByName?.isNotEmpty == true ? createdByName : null,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at']).toLocal()
           : null,
       status: json['status'] ?? false,
-      negotiable: json['negotiable'],
       titleAr: json['title_ar'] ?? '',
       descAr: json['desc_ar'] ?? '',
       listingTypeAr: json['listing_type_ar'] ?? '',
       propertyTypeAr: json['property_type_ar'] ?? '',
       governorateAr: json['governorate_ar'] ?? '',
       cityAr: json['city_ar'] ?? '',
-      regionAr: json['region_ar'] ?? '',
-      locationInDetails: json['location_in_details'] ?? '',
+      regionAr: json['region_ar'],
+      locationInDetails: json['location_in_details'],
       locationMap: json['location_map'],
-      floor: _toInt(json['floor']),
-      builtArea: _toInt(json['built_area']),
-      bedrooms: _toInt(json['bedrooms']),
-      bathrooms: _toInt(json['bathrooms']),
-      totalFloors: _toInt(json['total_floors']),
-      totalApartments: _toInt(json['total_apartments']),
-      kitchens: _toInt(json['kitchens']),
-      balconies: _toInt(json['balconies']),
-      landArea: _toInt(json['land_area']),
-      gardenArea: _toInt(json['garden_area']),
-      buildingAge: _toInt(json['building_age']),
-      price: json['price'] as num?,
-      downPayment: json['down_payment'] as num?,
-      monthlyInstallation: json['monthly_installation'] as num?,
-      insurance: json['insurance'] as num?,
-      monthsInstallations: _toInt(json['months_installations']),
-      rentalFrequency: json['rental_frequency'],
-      completionStatus: json['completion_status'],
-      furnished: json['furnished'],
-      deliveryDate: json['delivery_date'] != null
-          ? DateTime.parse(json['delivery_date'])
-          : null,
+      internalNotes: json['internal_notes'],
+      price: (json['price'] as num?) ?? 0,
       ownerName: json['owner_name'],
       ownerPhone: json['owner_phone'],
-      internalNotes: json['internal_notes'],
       images: imagesList,
     );
   }
@@ -158,7 +105,6 @@ class PropertyModel {
       'property_code': propertyCode,
       'created_by': createdBy,
       'status': status,
-      'negotiable': negotiable,
       'title_ar': titleAr,
       'desc_ar': descAr,
       'listing_type_ar': listingTypeAr,
@@ -168,37 +114,11 @@ class PropertyModel {
       'region_ar': regionAr,
       'location_in_details': locationInDetails,
       'location_map': locationMap,
-      'floor': floor,
-      'built_area': builtArea,
-      'bedrooms': bedrooms,
-      'bathrooms': bathrooms,
-      'total_floors': totalFloors,
-      'total_apartments': totalApartments,
-      'kitchens': kitchens,
-      'balconies': balconies,
-      'land_area': landArea,
-      'garden_area': gardenArea,
-      'building_age': buildingAge,
+      'internal_notes': internalNotes,
       'price': price,
-      'down_payment': downPayment,
-      'monthly_installation': monthlyInstallation,
-      'insurance': insurance,
-      'months_installations': monthsInstallations,
-      'rental_frequency': rentalFrequency,
-      'completion_status': completionStatus,
-      'furnished': furnished,
-      'delivery_date': deliveryDate?.toIso8601String(),
       'owner_name': ownerName,
       'owner_phone': ownerPhone,
-      'internal_notes': internalNotes,
     };
-  }
-
-  // دالة مساعدة خاصة للتحويل الرقمي الآمن داخل الـ Factory
-  static int? _toInt(dynamic value) {
-    if (value is int) return value;
-    if (value == null) return null;
-    return int.tryParse(value.toString());
   }
 
   PropertyModel copyWith({
@@ -206,9 +126,9 @@ class PropertyModel {
     String? id,
     String? propertyCode,
     String? createdBy,
+    String? createdByName,
     DateTime? createdAt,
     bool? status,
-    bool? negotiable,
     String? titleAr,
     String? descAr,
     String? listingTypeAr,
@@ -218,29 +138,10 @@ class PropertyModel {
     String? regionAr,
     String? locationInDetails,
     String? locationMap,
-    int? floor,
-    int? builtArea,
-    int? bedrooms,
-    int? bathrooms,
-    int? totalFloors,
-    int? totalApartments,
-    int? kitchens,
-    int? balconies,
-    int? landArea,
-    int? gardenArea,
-    int? buildingAge,
+    String? internalNotes,
     num? price,
-    num? downPayment,
-    num? monthlyInstallation,
-    num? insurance,
-    int? monthsInstallations,
-    String? rentalFrequency,
-    String? completionStatus,
-    String? furnished,
-    DateTime? deliveryDate,
     String? ownerName,
     String? ownerPhone,
-    String? internalNotes,
     List<PropertyImageModel>? images,
   }) {
     return PropertyModel(
@@ -248,9 +149,9 @@ class PropertyModel {
       id: id ?? this.id,
       propertyCode: propertyCode ?? this.propertyCode,
       createdBy: createdBy ?? this.createdBy,
+      createdByName: createdByName ?? this.createdByName,
       createdAt: createdAt ?? this.createdAt,
       status: status ?? this.status,
-      negotiable: negotiable ?? this.negotiable,
       titleAr: titleAr ?? this.titleAr,
       descAr: descAr ?? this.descAr,
       listingTypeAr: listingTypeAr ?? this.listingTypeAr,
@@ -260,29 +161,10 @@ class PropertyModel {
       regionAr: regionAr ?? this.regionAr,
       locationInDetails: locationInDetails ?? this.locationInDetails,
       locationMap: locationMap ?? this.locationMap,
-      floor: floor ?? this.floor,
-      builtArea: builtArea ?? this.builtArea,
-      bedrooms: bedrooms ?? this.bedrooms,
-      bathrooms: bathrooms ?? this.bathrooms,
-      totalFloors: totalFloors ?? this.totalFloors,
-      totalApartments: totalApartments ?? this.totalApartments,
-      kitchens: kitchens ?? this.kitchens,
-      balconies: balconies ?? this.balconies,
-      landArea: landArea ?? this.landArea,
-      gardenArea: gardenArea ?? this.gardenArea,
-      buildingAge: buildingAge ?? this.buildingAge,
+      internalNotes: internalNotes ?? this.internalNotes,
       price: price ?? this.price,
-      downPayment: downPayment ?? this.downPayment,
-      monthlyInstallation: monthlyInstallation ?? this.monthlyInstallation,
-      insurance: insurance ?? this.insurance,
-      monthsInstallations: monthsInstallations ?? this.monthsInstallations,
-      rentalFrequency: rentalFrequency ?? this.rentalFrequency,
-      completionStatus: completionStatus ?? this.completionStatus,
-      furnished: furnished ?? this.furnished,
-      deliveryDate: deliveryDate ?? this.deliveryDate,
       ownerName: ownerName ?? this.ownerName,
       ownerPhone: ownerPhone ?? this.ownerPhone,
-      internalNotes: internalNotes ?? this.internalNotes,
       images: images ?? this.images,
     );
   }

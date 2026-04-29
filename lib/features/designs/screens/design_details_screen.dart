@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../core/widgets/neon_text_field.dart';
+
 import '../../../core/widgets/retaj_shared_fields.dart';
 import '../../../data/models/design_model.dart';
 
@@ -18,7 +18,7 @@ class DesignDetailsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: Text("تفاصيل التصميم", style: AppTextStyles.blue16Bold),
+        title: Text("تفاصيل التصميم", style: AppTextStyles.h3),
         backgroundColor: Colors.white,
         elevation: 0.5,
         leading: IconButton(
@@ -62,12 +62,12 @@ class DesignDetailsScreen extends StatelessWidget {
                     icon: Icons.info_outline,
                     children: [
                       RetajFieldRow(
-                        first: NeonTextField(
+                        first: RetajTextField(
                           label: "نوع الغرفة",
                           initialValue: design.roomType ?? '---',
                           readOnly: true,
                         ),
-                        second: NeonTextField(
+                        second: RetajTextField(
                           label: "الطراز (Style)",
                           initialValue: design.style ?? '---',
                           readOnly: true,
@@ -88,12 +88,12 @@ class DesignDetailsScreen extends StatelessWidget {
                     icon: Icons.person_pin,
                     children: [
                       RetajFieldRow(
-                        first: NeonTextField(
+                        first: RetajTextField(
                           label: "تاريخ الإضافة",
                           initialValue: "${design.createdAt.year}-${design.createdAt.month.toString().padLeft(2, '0')}-${design.createdAt.day.toString().padLeft(2, '0')}",
                           readOnly: true,
                         ),
-                        second: NeonTextField(
+                        second: RetajTextField(
                           label: "تمت الإضافة بواسطة",
                           initialValue: design.profile != null ? "${design.profile!.firstName} ${design.profile!.lastName}" : '---',
                           readOnly: true,

@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../../core/widgets/neon_dropdown.dart';
-import '../../../../core/widgets/neon_text_field.dart';
 import '../../../../core/widgets/retaj_shared_fields.dart';
 
 class ClientRequirementsSection extends StatelessWidget {
@@ -30,12 +28,12 @@ class ClientRequirementsSection extends StatelessWidget {
       children: [
         // كود العقار + المصدر في صف واحد (قيم قصيرة)
         RetajFieldRow(
-          first: NeonTextField(
+          first: RetajTextField(
             controller: propertyCodeController,
             label: 'كود العقار المهتم به',
             prefixIcon: Icons.home_work_outlined,
           ),
-          second: NeonTextField(
+          second: RetajTextField(
             controller: sourceController,
             label: 'المصدر / القناة',
             prefixIcon: Icons.campaign_outlined,
@@ -43,7 +41,7 @@ class ClientRequirementsSection extends StatelessWidget {
         ),
 
         // طريقة التواصل — dropdown صف كامل
-        NeonDropdown<String>(
+        RetajDropdown<String>(
           label: 'طريقة التواصل المفضلة',
           prefixIcon: Icons.contact_mail_outlined,
           value: selectedChannel,

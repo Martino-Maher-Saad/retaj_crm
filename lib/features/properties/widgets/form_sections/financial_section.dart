@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/widgets/form_toggle_tile.dart';
+import 'package:pattern_formatter/pattern_formatter.dart';
 import '../../../../core/widgets/retaj_shared_fields.dart';
-import '../property_field_builders.dart';
 
 /// قسم التفاصيل المالية للعقار
 class FinancialSection extends StatelessWidget {
@@ -37,28 +37,32 @@ class FinancialSection extends StatelessWidget {
       iconColor: const Color(0xFF059669),
       children: [
         // ─── السعر الأساسي (صف كامل — رقم مهم) ───
-        PropertyFieldBuilders.buildField(
-          controllers['price']!,
-          'السعر (جنيه)',
-          num: true,
-          isPrice: true,
-          req: true,
+        RetajTextField(
+          controller: controllers['price'],
+          label: 'السعر (جنيه)',
+          keyboardType: TextInputType.number,
+          forceLtr: true,
+          validator: (v) => (v == null || v.isEmpty) ? 'حقل مطلوب' : null,
+          inputFormatters: [ThousandsFormatter()],
         ),
 
         // ─── حقول الإيجار ───
         if (isRent) ...[
           RetajFieldRow(
-            first: PropertyFieldBuilders.buildFixedDrop(
+            first: RetajDropdown<String>(
               label: 'دورية الدفع',
-              items: ['daily', 'weekly', 'monthly', 'yearly'],
-              val: selectedRentalFrequency,
-              onChg: onRentalFrequencyChanged,
+              value: selectedRentalFrequency,
+              items: ['daily', 'weekly', 'monthly', 'yearly']
+                  .map((i) => DropdownMenuItem(value: i, child: Text(i)))
+                  .toList(),
+              onChanged: onRentalFrequencyChanged,
             ),
-            second: PropertyFieldBuilders.buildField(
-              controllers['insurance']!,
-              'قيمة التأمين',
-              num: true,
-              isPrice: true,
+            second: RetajTextField(
+              controller: controllers['insurance'],
+              label: 'قيمة التأمين',
+              keyboardType: TextInputType.number,
+              forceLtr: true,
+              inputFormatters: [ThousandsFormatter()],
             ),
           ),
         ],
@@ -76,17 +80,19 @@ class FinancialSection extends StatelessWidget {
           if (hasInstallment) ...[
             // الدفعة المقدمة + القسط الشهري في صف واحد
             RetajFieldRow(
-              first: PropertyFieldBuilders.buildField(
-                controllers['downPayment']!,
-                'الدفعة المقدمة',
-                num: true,
-                isPrice: true,
+              first: RetajTextField(
+                controller: controllers['downPayment'],
+                label: 'الدفعة المقدمة',
+                keyboardType: TextInputType.number,
+                forceLtr: true,
+                inputFormatters: [ThousandsFormatter()],
               ),
-              second: PropertyFieldBuilders.buildField(
-                controllers['monthlyInstall']!,
-                'القسط الشهري',
-                num: true,
-                isPrice: true,
+              second: RetajTextField(
+                controller: controllers['monthlyInstall'],
+                label: 'القسط الشهري',
+                keyboardType: TextInputType.number,
+                forceLtr: true,
+                inputFormatters: [ThousandsFormatter()],
               ),
             ),
             // مدة التقسيط — عدد شهور (stepper)

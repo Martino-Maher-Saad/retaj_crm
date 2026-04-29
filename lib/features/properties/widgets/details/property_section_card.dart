@@ -31,7 +31,7 @@ class PropertySectionCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12.r),
         // حد خفيف جداً يعطي إحساساً بالعمق
-        border: Border.all(color: Colors.black12.withOpacity(0.05)),
+        border: Border.all(color: Colors.black12.withValues(alpha: 0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -39,9 +39,9 @@ class PropertySectionCard extends StatelessWidget {
           // ─── رأس الـ section: أيقونة + عنوان ───
           Row(
             children: [
-              Icon(icon, color: AppColors.primaryBlue, size: 20.sp),
+              Icon(icon, color: AppColors.brandPrimary, size: 20.sp),
               SizedBox(width: 8.w),
-              Text(title, style: AppTextStyles.blue16Bold),
+              Text(title, style: AppTextStyles.h3),
             ],
           ),
 

@@ -12,9 +12,10 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/constants/app_constants.dart';
 
+import '../../../core/di/injection_container.dart' as di;
 import '../../admin_users/screens/admin_users_screen.dart';
+import '../../admin_users/screens/dropdown_management_screen.dart';
 import '../../admin_users/cubit/admin_users_cubit.dart';
-import '../../../data/services/admin_user_service.dart';
 import '../../dashboard/screens/dashboard_screen.dart';
 import '../../designs/screens/designs_list_screen.dart';
 import '../../leads/screens/leads_management_screen.dart';
@@ -42,9 +43,11 @@ class _LayoutScreenState extends State<LayoutScreen> {
       if (user.role == 'admin')
         BlocProvider(
           key: const PageStorageKey('accounts_page'),
-          create: (_) => AdminUsersCubit(AdminUserService()),
+          create: (_) => di.sl<AdminUsersCubit>(),
           child: const AdminUsersScreen(),
         ),
+      if (user.role == 'manager' || user.role == 'admin')
+        const DropdownManagementScreen(key: PageStorageKey('dropdown_page')),
     ];
   }
 
@@ -63,9 +66,9 @@ class _LayoutScreenState extends State<LayoutScreen> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => LayoutCubit(),
+      create: (context) => di.sl<LayoutCubit>(),
       child: Scaffold(
-        backgroundColor: AppColors.white,
+        backgroundColor: Colors.white,
         body: BlocListener<LayoutCubit, LayoutState>(
           listener: (context, state) {
             if (state is LayoutNavigationChanged) {
@@ -78,62 +81,42 @@ class _LayoutScreenState extends State<LayoutScreen> {
           },
           // 1. المحرك الذي يمنع الـ Lag أثناء تغيير الحجم
           child: ResponsiveDebouncerWrapper(
-            // 2. السكرول الرأسي (فوق وتحت)
+            // 2. السكرول الأفقي (يمين وشمال) في حالة الشاشات الصغيرة فقط
             child: SingleChildScrollView(
-              scrollDirection: Axis.vertical,
-              child: SingleChildScrollView(
-                // 3. السكرول الأفقي (يمين وشمال)
-                scrollDirection: Axis.horizontal,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    // نحدد هنا "أقل" أبعاد مسموح بها للتطبيق قبل أن يظهر السكرول
-                    minWidth: AppConstants.minDesktopWidth, // 1100
-                    minHeight: 750, // حد أدنى للطول لضمان عدم اختفاء الـ Sidebar أو الأزرار
-
-                    // نترك الحد الأقصى مرناً ليأخذ مساحة الشاشة كاملة إذا كانت أكبر
-                    maxWidth: MediaQuery.of(context).size.width > AppConstants.minDesktopWidth
-                        ? MediaQuery.of(context).size.width
-                        : AppConstants.minDesktopWidth,
-                    maxHeight: MediaQuery.of(context).size.height > 750
-                        ? MediaQuery.of(context).size.height
-                        : 750,
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // الـ Sidebar مع ارتفاع كامل يتناسب مع الـ Constraints
-                      RepaintBoundary(
-                        child: SizedBox(
-                          height: MediaQuery.of(context).size.height > 750
-                              ? MediaQuery.of(context).size.height
-                              : 750,
-                          child: _buildCustomSidebar(widget.user),
-                        ),
-                      ),
-                      // المحتوى الرئيسي
-                      Expanded(
-                        child: SizedBox(
-                          height: MediaQuery.of(context).size.height > 750
-                              ? MediaQuery.of(context).size.height
-                              : 750,
-                          child: Column(
-                            children: [
-                              RepaintBoundary(
-                                child: TopHeader(user: widget.user),
-                              ),
-                              Expanded(
-                                child: PageView(
-                                  controller: _pageController,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  children: _getPagesByRole(widget.user),
-                                ),
-                              ),
-                            ],
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  // نحدد هنا "أقل" عرض مسموح به
+                  minWidth: AppConstants.minDesktopWidth, // 1100
+                  maxWidth: MediaQuery.of(context).size.width > AppConstants.minDesktopWidth
+                      ? MediaQuery.of(context).size.width
+                      : AppConstants.minDesktopWidth,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // الـ Sidebar ثابت الطول
+                    RepaintBoundary(
+                      child: _buildCustomSidebar(widget.user),
+                    ),
+                    // المحتوى الرئيسي يأخذ باقي المساحة
+                    Expanded(
+                      child: Column(
+                        children: [
+                          RepaintBoundary(
+                            child: TopHeader(user: widget.user),
                           ),
-                        ),
+                          Expanded(
+                            child: PageView(
+                              controller: _pageController,
+                              physics: const NeverScrollableScrollPhysics(),
+                              children: _getPagesByRole(widget.user),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -164,7 +147,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
 
         return Container(
           width: 280.w,
-          color: AppColors.sidebarBackground,
+          color: AppColors.bgSideBar,
           child: Column(
             children: [
               const SideBarLogo(),
@@ -207,7 +190,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 15),
                 child: Divider(
-                  color: AppColors.greyLight.withOpacity(0.3),
+                  color: AppColors.borderSubtle.withOpacity(0.3),
                 ),
               ),
               Expanded(
@@ -220,6 +203,8 @@ class _LayoutScreenState extends State<LayoutScreen> {
                     _CustomNavItem(icon: Icons.format_paint_outlined, label: "Designs", index: 3, currentIndex: currentIndex),
                     if (widget.user.role == 'admin')
                       _CustomNavItem(icon: Icons.admin_panel_settings_outlined, label: "Accounts", index: 4, currentIndex: currentIndex),
+                    if (widget.user.role == 'manager' || widget.user.role == 'admin')
+                      _CustomNavItem(icon: Icons.list_alt, label: "Dropdowns", index: widget.user.role == 'admin' ? 5 : 4, currentIndex: currentIndex),
                   ],
                 ),
               ),
@@ -266,14 +251,14 @@ class _CustomNavItemState extends State<_CustomNavItem> {
           transform: Matrix4.translationValues(_isHovering && !isSelected ? 4.w : 0, 0, 0),
           decoration: BoxDecoration(
             color: isSelected
-                ? AppColors.white.withValues(alpha: 0.12)
+                ? Colors.white.withValues(alpha: 0.12)
                 : _isHovering
-                    ? AppColors.white.withValues(alpha: 0.06)
+                    ? Colors.white.withValues(alpha: 0.06)
                     : Colors.transparent,
             borderRadius: BorderRadius.circular(8.r),
             border: isSelected
                 ? Border.all(
-                    color: AppColors.white.withValues(alpha: 0.15),
+                    color: Colors.white.withValues(alpha: 0.15),
                     width: 1,
                   )
                 : null,
@@ -304,12 +289,12 @@ class _CustomNavItemState extends State<_CustomNavItem> {
                   padding: EdgeInsets.symmetric(horizontal: 15.w),
                   child: Row(
                     children: [
-                      Icon(widget.icon, color: AppColors.white, size: 24.sp),
+                      Icon(widget.icon, color: Colors.white, size: 24.sp),
                       SizedBox(width: 16.w),
                       Text(
                         widget.label,
-                        style: AppTextStyles.blue18Medium.copyWith(
-                          color: AppColors.white,
+                        style: AppTextStyles.h3.copyWith(
+                          color: Colors.white,
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                         ),
                       ),

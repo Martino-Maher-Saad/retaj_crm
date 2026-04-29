@@ -58,7 +58,7 @@ class _PropertySearchBarState extends State<PropertySearchBar> {
                         },
                       ),
                     IconButton(
-                      icon: const Icon(Icons.search, color: AppColors.primaryBlue),
+                      icon: const Icon(Icons.search, color: AppColors.brandPrimary),
                       onPressed: () {
                         if (_controller.text.isNotEmpty) {
                           widget.onSearch(_controller.text);
@@ -88,7 +88,7 @@ class _PropertySearchBarState extends State<PropertySearchBar> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(10.r),
               ),
-              child: const Icon(Icons.tune, color: AppColors.primaryBlue),
+              child: const Icon(Icons.tune, color: AppColors.brandPrimary),
             ),
           ),
         ],

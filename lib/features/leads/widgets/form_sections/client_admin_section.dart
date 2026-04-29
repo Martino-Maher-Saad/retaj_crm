@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../../core/widgets/neon_dropdown.dart';
 import '../../../../core/widgets/retaj_shared_fields.dart';
 
 class ClientAdminSection extends StatelessWidget {
@@ -31,7 +30,7 @@ class ClientAdminSection extends StatelessWidget {
       children: [
         // المدينة + الحالة في صف واحد (dropdowns قصيرة)
         RetajFieldRow(
-          first: NeonDropdown<String>(
+          first: RetajDropdown<String>(
             value: cities.contains(selectedCity) ? selectedCity : null,
             label: 'المدينة',
             prefixIcon: Icons.location_on_outlined,
@@ -40,7 +39,7 @@ class ClientAdminSection extends StatelessWidget {
                 .toList(),
             onChanged: onCityChanged,
           ),
-          second: NeonDropdown<String>(
+          second: RetajDropdown<String>(
             value: statuses.contains(selectedStatus) ? selectedStatus : null,
             label: 'حالة العميل',
             prefixIcon: Icons.star_outline,

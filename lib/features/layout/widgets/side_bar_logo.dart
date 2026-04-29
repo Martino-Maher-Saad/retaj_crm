@@ -15,14 +15,14 @@ class SideBarLogo extends StatelessWidget {
         children: [
           Icon(
             Icons.home_outlined,
-            color: AppColors.white,
+            color: Colors.white,
             size: 50.sp,
           ),
           SizedBox(height: 12.h),
           Text(
             "RETAJ CRM",
-            style: AppTextStyles.blue20Medium.copyWith(
-              color: AppColors.white,
+            style: AppTextStyles.h2.copyWith(
+              color: Colors.white,
               fontWeight: FontWeight.w900,
               letterSpacing: 1.5,
               fontSize: 20.sp, // تحجيم النص بـ sp
@@ -33,7 +33,7 @@ class SideBarLogo extends StatelessWidget {
             width: 40.w,
             height: 3.h,
             decoration: BoxDecoration(
-              color: AppColors.white.withOpacity(0.3),
+              color: Colors.white.withOpacity(0.3),
               borderRadius: BorderRadius.circular(10),
             ),
           ),

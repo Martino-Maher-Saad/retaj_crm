@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../property_field_builders.dart';
 import '../../../../core/widgets/retaj_shared_fields.dart';
 
 class TechnicalSection extends StatelessWidget {
@@ -88,11 +87,13 @@ class TechnicalSection extends StatelessWidget {
 
           // ─── التشطيب / التأثيث ───
           if (isResidential)
-            PropertyFieldBuilders.buildFixedDrop(
+            RetajDropdown<String>(
               label: 'حالة التأثيث',
-              items: ['yes', 'no', 'semi'],
-              val: selectedFurnished,
-              onChg: onFurnishedChanged,
+              value: selectedFurnished,
+              items: ['yes', 'no', 'semi']
+                  .map((i) => DropdownMenuItem(value: i, child: Text(i)))
+                  .toList(),
+              onChanged: onFurnishedChanged,
             ),
 
           // ─── فيلا / عمارة — عدد الأدوار + الشقق + الحديقة ───
