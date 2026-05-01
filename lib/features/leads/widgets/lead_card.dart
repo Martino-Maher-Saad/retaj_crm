@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_constants.dart';
-import '../../../core/constants/app_text_styles.dart';
 import '../../../data/models/lead_model.dart';
 
 class LeadCard extends StatefulWidget {
@@ -42,16 +39,19 @@ class _LeadCardState extends State<LeadCard> {
 
   @override
   Widget build(BuildContext context) {
-    final Color statusColor = _resolveStatusColor(widget.lead.leadStatus ?? 'جديد');
-    final String initials = widget.lead.clientName.isNotEmpty
-        ? widget.lead.clientName.trim().substring(0, 1).toUpperCase()
-        : '?';
+    final Color statusColor =
+        _resolveStatusColor(widget.lead.leadStatus ?? 'جديد');
+    final bool isManagerOrAdmin =
+        widget.role == 'manager' || widget.role == 'admin';
 
-    final String formattedDate = widget.lead.createdAt != null
-        ? DateFormat('dd/MM/yyyy HH:mm').format(widget.lead.createdAt!)
-        : 'غير محدد';
-
-    final bool isManagerOrAdmin = widget.role == 'manager' || widget.role == 'admin';
+    final String name = widget.lead.clientName.trim();
+    final List<String> parts =
+        name.split(' ').where((p) => p.isNotEmpty).toList();
+    final String initials = parts.length >= 2
+        ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
+        : parts.isNotEmpty && parts[0].isNotEmpty
+            ? parts[0][0].toUpperCase()
+            : '?';
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
@@ -59,225 +59,197 @@ class _LeadCardState extends State<LeadCard> {
       cursor: SystemMouseCursors.click,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        margin: EdgeInsets.symmetric(horizontal: 20.w, vertical: 8.h),
+        margin: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
         transform: _isHovering
-            ? (Matrix4.identity()..scale(1.01))
+            ? (Matrix4.identity()..scale(1.005))
             : Matrix4.identity(),
         transformAlignment: Alignment.center,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16.r), // Scaled up
+          borderRadius: BorderRadius.circular(22.r),
+          border: Border.all(
+            color: _isHovering
+                ? AppColors.brandPrimary.withValues(alpha: 0.3)
+                : const Color(0xFFEAEAF0),
+            width: _isHovering ? 2.0 : 1.5,
+          ),
           boxShadow: _isHovering
               ? [
                   BoxShadow(
-                    color: AppColors.brandPrimary.withValues(alpha: 0.12),
-                    blurRadius: 18,
-                    spreadRadius: 1,
-                    offset: const Offset(0, 5),
+                    color: AppColors.brandPrimary.withValues(alpha: 0.1),
+                    blurRadius: 24,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 8),
                   ),
                 ]
               : [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 12,
-                    offset: const Offset(0, 3),
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
                   ),
                 ],
-          border: Border.all(
-            color: _isHovering
-                ? AppColors.brandPrimary.withValues(alpha: 0.35)
-                : AppColors.borderSubtle,
-            width: _isHovering ? 1.5 : 1,
-          ),
         ),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
             onTap: widget.onTap,
-            borderRadius: BorderRadius.circular(16.r),
+            borderRadius: BorderRadius.circular(22.r),
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h), // Scaled up
+              padding: EdgeInsets.symmetric(horizontal: 28.w, vertical: 24.h),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // ─── 1. Avatar ───
-                  CircleAvatar(
-                    radius: 28.r, // Scaled up
-                    backgroundColor: AppColors.brandPrimary.withValues(alpha: 0.1),
-                    child: Text(
-                      initials,
-                      style: AppTextStyles.h2.copyWith(
-                        color: AppColors.brandPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 22.sp, // Scaled up
-                      ),
-                    ),
-                  ),
+                  // ─── أزرار تعديل / حذف ───
+                  _buildActionButtons(isManagerOrAdmin),
                   SizedBox(width: 20.w),
 
-                  // ─── 2. العميل والهاتف ───
-                  Expanded(
-                    flex: 3,
+                  // ─── Status + الاهتمام ───
+                  SizedBox(
+                    width: 200.w,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        _buildStatusBadge(statusColor),
+                        SizedBox(height: 14.h),
                         Text(
-                          widget.lead.clientName,
-                          style: AppTextStyles.cardTitle.copyWith(
-                            fontSize: 18.sp, // Scaled up
-                            fontWeight: FontWeight.w800,
+                          'الاهتمام',
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            color: const Color(0xFFAAAAAA),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        SizedBox(height: 5.h),
+                        Text(
+                          '${widget.lead.propertyType ?? 'غير محدد'} — ${widget.lead.city ?? widget.lead.governorate ?? 'غير محدد'}',
+                          style: TextStyle(
+                            fontSize: 18.sp,
+                            color: const Color(0xFF333344),
+                            fontWeight: FontWeight.w700,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        SizedBox(height: 8.h),
-                        if (widget.lead.clientPhone.isNotEmpty)
-                          InkWell(
-                            onTap: () => _copyPhone(widget.lead.clientPhone.first),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.phone_outlined, size: 16.sp, color: AppColors.brandPrimary),
-                                SizedBox(width: 4.w),
-                                Text(
-                                  widget.lead.clientPhone.first,
-                                  style: AppTextStyles.tableCellMain.copyWith(
-                                    color: AppColors.brandPrimary,
-                                    decoration: TextDecoration.underline,
-                                  ),
-                                ),
-                                SizedBox(width: 4.w),
-                                Icon(Icons.copy, size: 14.sp, color: AppColors.textSecondary),
-                              ],
+                        if (widget.lead.listingType != null) ...[
+                          SizedBox(height: 4.h),
+                          Text(
+                            widget.lead.listingType!,
+                            style: TextStyle(
+                              fontSize: 15.sp,
+                              color: const Color(0xFF888899),
                             ),
                           ),
+                        ],
+                        if (widget.lead.budgetFrom != null || widget.lead.budgetTo != null) ...[
+                          SizedBox(height: 6.h),
+                          Row(
+                            children: [
+                              Icon(Icons.attach_money_rounded,
+                                  size: 16.sp,
+                                  color: AppColors.success),
+                              SizedBox(width: 3.w),
+                              Text(
+                                widget.lead.budgetFrom != null && widget.lead.budgetTo != null
+                                    ? '${widget.lead.budgetFrom} - ${widget.lead.budgetTo}'
+                                    : '${widget.lead.budgetFrom ?? widget.lead.budgetTo}',
+                                style: TextStyle(
+                                  fontSize: 15.sp,
+                                  color: AppColors.success,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
 
-                  // ─── 3. الطلب (نوع العقار والموقع) ───
+                  const Spacer(),
+
+                  // ─── Divider عمودي ───
+                  Container(
+                    width: 1.2,
+                    height: 70.h,
+                    color: const Color(0xFFEEEEF5),
+                    margin: EdgeInsets.symmetric(horizontal: 20.w),
+                  ),
+
+                  // ─── اسم العميل + رقمه + المنصة ───
                   Expanded(
                     flex: 3,
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Row(
-                          children: [
-                            Icon(Icons.home_work_outlined, size: 18.sp, color: AppColors.textSecondary),
-                            SizedBox(width: 6.w),
-                            Expanded(
-                              child: Text(
-                                "${widget.lead.listingType ?? 'غير محدد'} — ${widget.lead.propertyType ?? 'غير محدد'}",
-                                style: AppTextStyles.tableCellSub.copyWith(fontSize: 14.sp, fontWeight: FontWeight.bold),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 8.h),
-                        Row(
-                          children: [
-                            Icon(Icons.location_on_outlined, size: 18.sp, color: AppColors.textSecondary),
-                            SizedBox(width: 6.w),
-                            Expanded(
-                              child: Text(
-                                "${widget.lead.governorate ?? 'غير محدد'} — ${widget.lead.city ?? 'غير محدد'}",
-                                style: AppTextStyles.tableCellSub.copyWith(fontSize: 14.sp),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // ─── 4. المنصة واسم الموظف والتاريخ ───
-                  Expanded(
-                    flex: 2,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.campaign_outlined, size: 16.sp, color: AppColors.info),
-                            SizedBox(width: 6.w),
-                            Text(widget.lead.platform ?? 'غير محدد', style: AppTextStyles.tableCellSub.copyWith(fontSize: 13.sp)),
-                          ],
-                        ),
-                        SizedBox(height: 6.h),
-                        Row(
-                          children: [
-                            Icon(Icons.person_add_alt_1_outlined, size: 16.sp, color: AppColors.brandAccent),
-                            SizedBox(width: 6.w),
-                            Expanded(
-                              child: Text(
-                                widget.lead.createdByName ?? 'غير محدد',
-                                style: AppTextStyles.tableCellSub.copyWith(fontSize: 13.sp),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 6.h),
-                        Row(
-                          children: [
-                            Icon(Icons.access_time, size: 16.sp, color: AppColors.textDisabled),
-                            SizedBox(width: 6.w),
-                            Text(formattedDate, style: AppTextStyles.tableCellSub.copyWith(fontSize: 12.sp)),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // ─── 5. الحالة والأزرار ───
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
-                        decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(24.r),
-                          border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 1.5),
-                        ),
-                        child: Text(
-                          widget.lead.leadStatus ?? 'جديد',
-                          style: AppTextStyles.tableCellSub.copyWith(
-                            color: statusColor,
+                        Text(
+                          widget.lead.clientName,
+                          style: TextStyle(
+                            fontSize: 26.sp,
                             fontWeight: FontWeight.w800,
-                            fontSize: 14.sp,
+                            color: const Color(0xFF1A1A2E),
+                            height: 1.2,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.right,
                         ),
-                      ),
-                      SizedBox(height: 12.h),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildActionButton(
-                            icon: Icons.edit_rounded,
-                            color: AppColors.info,
-                            onPressed: widget.onEdit,
+                        SizedBox(height: 10.h),
+                        if (widget.lead.clientPhone.isNotEmpty)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              GestureDetector(
+                                onTap: () =>
+                                    _copyPhone(widget.lead.clientPhone.first),
+                                child: Text(
+                                  widget.lead.clientPhone.first,
+                                  style: TextStyle(
+                                    fontSize: 18.sp,
+                                    color: AppColors.brandPrimary,
+                                    decoration: TextDecoration.underline,
+                                    decorationColor: AppColors.brandPrimary
+                                        .withValues(alpha: 0.4),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 8.w),
+                              Icon(
+                                Icons.phone_outlined,
+                                size: 18.sp,
+                                color: const Color(0xFFAAAAAA),
+                              ),
+                            ],
                           ),
-                          if (isManagerOrAdmin) ...[
-                            SizedBox(width: 10.w),
-                            _buildActionButton(
-                              icon: Icons.delete_outline_rounded,
-                              color: AppColors.brandAccent,
-                              onPressed: widget.onDelete,
-                            ),
-                          ],
+                        if (widget.lead.platform != null) ...[
+                          SizedBox(height: 6.h),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Text(
+                                widget.lead.platform!,
+                                style: TextStyle(
+                                  fontSize: 15.sp,
+                                  color: const Color(0xFFAAAAAA),
+                                ),
+                              ),
+                              SizedBox(width: 6.w),
+                              Icon(
+                                Icons.campaign_outlined,
+                                size: 17.sp,
+                                color: const Color(0xFFCCCCDD),
+                              ),
+                            ],
+                          ),
                         ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
+                  SizedBox(width: 20.w),
+
+                  // ─── Avatar ───
+                  _buildAvatar(initials),
                 ],
               ),
             ),
@@ -287,23 +259,108 @@ class _LeadCardState extends State<LeadCard> {
     );
   }
 
-  Widget _buildActionButton({
-    required IconData icon,
-    required Color color,
-    required VoidCallback onPressed,
-  }) {
-    return InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(10.r),
-      child: Container(
-        padding: EdgeInsets.all(10.w),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(10.r),
-          border: Border.all(color: color.withValues(alpha: 0.15), width: 1),
+  Widget _buildAvatar(String initials) {
+    return Container(
+      width: 70.r,
+      height: 70.r,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: AppColors.brandPrimary.withValues(alpha: 0.1),
+        border: Border.all(
+          color: AppColors.brandPrimary.withValues(alpha: 0.2),
+          width: 2,
         ),
-        child: Icon(icon, size: 22.sp, color: color), // Scaled up
       ),
+      child: Center(
+        child: Text(
+          initials,
+          style: TextStyle(
+            fontSize: 24.sp,
+            fontWeight: FontWeight.w800,
+            color: AppColors.brandPrimary,
+            letterSpacing: 1,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(Color statusColor) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
+      decoration: BoxDecoration(
+        color: statusColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20.r),
+        border: Border.all(
+          color: statusColor.withValues(alpha: 0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 9.r,
+            height: 9.r,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: statusColor,
+            ),
+          ),
+          SizedBox(width: 8.w),
+          Text(
+            widget.lead.leadStatus ?? 'جديد',
+            style: TextStyle(
+              fontSize: 16.sp,
+              fontWeight: FontWeight.w700,
+              color: statusColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(bool isManagerOrAdmin) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Tooltip(
+          message: 'تعديل',
+          child: InkWell(
+            onTap: widget.onEdit,
+            borderRadius: BorderRadius.circular(10.r),
+            child: Container(
+              padding: EdgeInsets.all(10.r),
+              decoration: BoxDecoration(
+                color: AppColors.info.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10.r),
+              ),
+              child: Icon(Icons.edit_rounded,
+                  size: 22.sp, color: AppColors.info),
+            ),
+          ),
+        ),
+        if (isManagerOrAdmin) ...[
+          SizedBox(height: 10.h),
+          Tooltip(
+            message: 'حذف',
+            child: InkWell(
+              onTap: widget.onDelete,
+              borderRadius: BorderRadius.circular(10.r),
+              child: Container(
+                padding: EdgeInsets.all(10.r),
+                decoration: BoxDecoration(
+                  color: AppColors.brandAccent.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: Icon(Icons.delete_outline_rounded,
+                    size: 22.sp, color: AppColors.brandAccent),
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -312,7 +369,7 @@ class _LeadCardState extends State<LeadCard> {
       case 'جديد':
         return AppColors.info;
       case 'تم التواصل':
-        return AppColors.warning;
+        return const Color(0xFF8B5CF6);
       case 'تفاوض':
         return AppColors.brandPrimary;
       case 'تم التعاقد':
@@ -320,7 +377,7 @@ class _LeadCardState extends State<LeadCard> {
       case 'مستبعد':
         return AppColors.brandAccent;
       default:
-        return AppColors.textDisabled;
+        return const Color(0xFFAAAAAA);
     }
   }
 }

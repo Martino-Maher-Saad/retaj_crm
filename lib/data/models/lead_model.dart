@@ -109,8 +109,6 @@ class LeadModel {
       'lead_status': leadStatus,
       'desc_lead_need': descLeadNeed,
       'property_code': propertyCode,
-      'budget_from': budgetFrom,
-      'budget_to': budgetTo,
       'communication_channel': communicationChannel,
       // history لا يُرسل في الـ toJson العادي - يُحدَّث عبر دالة appendComment منفصلة
     };

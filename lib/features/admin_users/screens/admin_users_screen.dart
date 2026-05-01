@@ -59,6 +59,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         centerTitle: true,
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: "admin_users_fab",
         onPressed: _showAddUserBottomSheet,
         backgroundColor: AppColors.brandPrimary,
         icon: const Icon(Icons.add, color: Colors.white),

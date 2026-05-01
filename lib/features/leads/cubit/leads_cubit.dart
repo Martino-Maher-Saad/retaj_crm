@@ -103,11 +103,7 @@ class LeadCubit extends Cubit<LeadState> {
           employees: employees.isNotEmpty ? employees : (currentState?.employees ?? []),
         ),
       );
-    } catch (e, stackTrace) {
-      print('=== ERROR IN LEADS CUBIT (getAllLeads) ===');
-      print(e);
-      print(stackTrace);
-      print('==========================================');
+    } catch (e) {
       emit(LeadError(e.toString()));
     }
   }
@@ -158,11 +154,14 @@ class LeadCubit extends Cubit<LeadState> {
   }
 
   // 3. إضافة عميل
-  Future<void> addLead(LeadModel newLead) async {
+  Future<void> addLead(LeadModel newLead, {String? newComment}) async {
     if (state is LeadLoaded) {
       final currentState = state as LeadLoaded;
       try {
-        final addedLead = await _repository.addNewLead(newLead);
+        LeadModel addedLead = await _repository.addNewLead(newLead);
+        if (newComment != null && newComment.trim().isNotEmpty) {
+          addedLead = await _repository.appendComment(addedLead.id!, newComment.trim());
+        }
         final updatedAll = [addedLead, ...currentState.allLeads];
 
         emit(
@@ -203,11 +202,14 @@ class LeadCubit extends Cubit<LeadState> {
     }
   }
 
-  Future<void> updateFullLead(LeadModel updatedLead) async {
+  Future<void> updateFullLead(LeadModel updatedLead, {String? newComment}) async {
     if (state is LeadLoaded) {
       final currentState = state as LeadLoaded;
       try {
-        final newLead = await _repository.updateLeadData(updatedLead.id!, updatedLead.toJson(isUpdate: true));
+        LeadModel newLead = await _repository.updateLeadData(updatedLead.id!, updatedLead.toJson(isUpdate: true));
+        if (newComment != null && newComment.trim().isNotEmpty) {
+          newLead = await _repository.appendComment(newLead.id!, newComment.trim());
+        }
 
         final updatedAll = currentState.allLeads.map((l) {
           return l.id == updatedLead.id ? newLead : l;
@@ -232,17 +234,10 @@ class LeadCubit extends Cubit<LeadState> {
       final currentState = state as LeadLoaded;
       try {
         final updatedLead = await _repository.appendComment(id, comment);
-        
         final updatedAll = currentState.allLeads.map((l) {
           return l.id == id ? updatedLead : l;
         }).toList();
-
-        emit(
-          currentState.copyWith(
-            allLeads: updatedAll,
-            filteredLeads: updatedAll,
-          ),
-        );
+        emit(currentState.copyWith(allLeads: updatedAll, filteredLeads: updatedAll));
       } catch (e) {
         emit(LeadError(e.toString()));
         emit(currentState);

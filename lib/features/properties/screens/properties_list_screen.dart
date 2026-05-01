@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/utils/responsive_debouncer_wrapper.dart';
 import '../../../data/models/property_model.dart';
@@ -55,7 +53,7 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
   void _onScroll() {
     if (_cubit.state is PropertiesSuccess) {
       final pos = _scrollController.position;
-      if (pos.pixels >= pos.maxScrollExtent * 0.7) {
+      if (pos.pixels >= pos.maxScrollExtent * 0.6) {
         final current = _cubit.state as PropertiesSuccess;
 
         // البحث لا يدعم pagination حالياً
@@ -106,6 +104,7 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
                   PropertyListHeader(
                     totalCount: total,
                     onAdd: () => _openForm(context: context, cubit: _cubit),
+                    onFilter: () => _openAdvancedFilter(context),
                   ),
                   PropertySearchBar(
                     onSearch: (v) => _cubit.smartSearch(v),

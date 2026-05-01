@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_constants.dart';
-import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/static_data_manager.dart';
 import '../../../data/models/lead_model.dart';
 import '../../../data/models/profile_model.dart';
@@ -29,6 +27,7 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
   late TextEditingController _nameController;
   late TextEditingController _propertyCodeController;
   late TextEditingController _descController;
+  late TextEditingController _newCommentController;
   List<TextEditingController> _phoneControllers = [];
 
   String? _selectedPlatform;
@@ -54,6 +53,7 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
     _nameController = TextEditingController(text: widget.lead?.clientName);
     _propertyCodeController = TextEditingController(text: widget.lead?.propertyCode);
     _descController = TextEditingController(text: widget.lead?.descLeadNeed);
+    _newCommentController = TextEditingController();
 
     _selectedStatus = widget.lead?.leadStatus ?? 'جديد';
     _selectedEmployeeId = widget.lead?.assignedTo ?? widget.user.id;
@@ -83,6 +83,7 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
     _nameController.dispose();
     _propertyCodeController.dispose();
     _descController.dispose();
+    _newCommentController.dispose();
     for (var c in _phoneControllers) { c.dispose(); }
     super.dispose();
   }
@@ -110,20 +111,52 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
       },
       builder: (context, state) {
         return Scaffold(
-          backgroundColor: AppColors.bgMain,
-          appBar: AppBar(
-            title: Text(isEdit ? 'تعديل بيانات عميل' : 'إضافة عميل جديد', style: AppTextStyles.h2),
-            backgroundColor: AppColors.bgSurface,
-            elevation: 0,
-            centerTitle: true,
-          ),
+          backgroundColor: const Color(0xFFF5F5FB),
           body: Form(
             key: _formKey,
             child: SingleChildScrollView(
-              padding: EdgeInsets.all(24.w), // Scaled up
+              padding: EdgeInsets.fromLTRB(24.w, 0, 24.w, 24.w),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // ─── Page Header ───
+                  Padding(
+                    padding: EdgeInsets.symmetric(vertical: 32.h),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          isEdit ? 'تعديل بيانات العميل' : 'إدخال بيانات العميل',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 30.sp,
+                            fontWeight: FontWeight.w900,
+                            color: const Color(0xFF1A1A2E),
+                          ),
+                        ),
+                        SizedBox(height: 8.h),
+                        Text(
+                          'يرجى تعبئة النموذج أدناه لتسجيل بيانات العميل في النظام العقاري.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            color: const Color(0xFFAAAABB),
+                          ),
+                        ),
+                        SizedBox(height: 6.h),
+                        // زر الرجوع
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 14),
+                            label: const Text('رجوع'),
+                            style: TextButton.styleFrom(foregroundColor: const Color(0xFFAAAABB)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   // ─── 1. القسم الأساسي ───
                   _buildSectionCard(
                     title: "بيانات العميل",
@@ -280,9 +313,20 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
                     ),
                   ),
 
+                  // ─── 4. إضافة تعليق ───
+                  _buildSectionCard(
+                    title: "إضافة تعليق (اختياري)",
+                    icon: Icons.comment_outlined,
+                    child: RetajTextField(
+                      controller: _newCommentController,
+                      label: "اكتب تعليقاً يضاف للسجل مباشرة...",
+                      maxLines: 3,
+                    ),
+                  ),
+
                   SizedBox(height: 32.h),
 
-                  // ─── 4. زر الحفظ ───
+                  // ─── 5. زر الحفظ ───
                   _buildSubmitButton(isEdit, _isSubmitting),
                   SizedBox(height: 40.h),
                 ],
@@ -296,42 +340,46 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
 
   Widget _buildSectionCard({required String title, required IconData icon, required Widget child}) {
     return Container(
-      margin: EdgeInsets.only(bottom: 24.h), // Scaled up
+      margin: EdgeInsets.only(bottom: 20.h),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColors.borderSubtle),
+        border: Border.all(color: const Color(0xFFEAEAF0), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-            decoration: BoxDecoration(
-              color: AppColors.brandPrimary.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.only(topLeft: Radius.circular(16.r), topRight: Radius.circular(16.r)),
-            ),
+          // عنوان القسم في المنتصف
+          Padding(
+            padding: EdgeInsets.only(top: 24.h, bottom: 4.h),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, color: AppColors.brandPrimary, size: 24.sp),
-                SizedBox(width: 10.w),
-                Text(title, style: AppTextStyles.h3.copyWith(color: AppColors.brandPrimary, fontWeight: FontWeight.bold)),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 20.sp,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF1A1A2E),
+                  ),
+                ),
+                SizedBox(width: 8.w),
+                Icon(icon, color: AppColors.brandPrimary, size: 22.sp),
               ],
             ),
           ),
-          Padding(padding: EdgeInsets.all(20.w), child: child), // Scaled up
+          Divider(color: const Color(0xFFF0F0F6), thickness: 1, height: 24.h),
+          Padding(padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 24.h), child: child),
         ],
       ),
-    );
-  }
-
-  InputDecoration _inputDecoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      filled: true,
-      fillColor: Colors.grey[50],
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r), borderSide: const BorderSide(color: Colors.black12)),
     );
   }
 
@@ -355,25 +403,60 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
   }
 
   Widget _buildSubmitButton(bool isEdit, bool isLoading) {
-    return SizedBox(
-      width: double.infinity,
-      height: 60.h, // Scaled up
-      child: ElevatedButton(
-        onPressed: isLoading ? null : _submitForm,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.brandPrimary,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)), // Scaled up
-          elevation: 0,
-        ),
-        child: isLoading
-            ? const SizedBox(
-                height: 24, width: 24,
-                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-              )
-            : Text(
-                isEdit ? 'تحديث بيانات العميل' : 'حفظ العميل الجديد',
-                style: AppTextStyles.buttonLarge.copyWith(fontSize: 18.sp), // Scaled up
+    return Container(
+      margin: EdgeInsets.only(bottom: 16.h),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16.r),
+        gradient: isLoading
+            ? null
+            : LinearGradient(
+                colors: [AppColors.brandPrimary, AppColors.brandPrimary.withValues(alpha: 0.8)],
+                begin: Alignment.centerRight,
+                end: Alignment.centerLeft,
               ),
+        color: isLoading ? AppColors.brandPrimary.withValues(alpha: 0.5) : null,
+        boxShadow: isLoading
+            ? []
+            : [
+                BoxShadow(
+                  color: AppColors.brandPrimary.withValues(alpha: 0.35),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isLoading ? null : _submitForm,
+          borderRadius: BorderRadius.circular(16.r),
+          child: SizedBox(
+            height: 64.h,
+            child: Center(
+              child: isLoading
+                  ? const SizedBox(
+                      height: 26, width: 26,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                    )
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.save_rounded, color: Colors.white, size: 22.sp),
+                        SizedBox(width: 10.w),
+                        Text(
+                          isEdit ? 'تحديث بيانات العميل' : 'حفظ البيانات',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18.sp,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -409,9 +492,9 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
       );
 
       if (widget.lead == null) {
-        context.read<LeadCubit>().addLead(leadData);
+        context.read<LeadCubit>().addLead(leadData, newComment: _newCommentController.text);
       } else {
-        context.read<LeadCubit>().updateFullLead(leadData);
+        context.read<LeadCubit>().updateFullLead(leadData, newComment: _newCommentController.text);
       }
     }
   }

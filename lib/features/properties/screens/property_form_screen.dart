@@ -99,16 +99,51 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
       },
       builder: (context, state) {
         return Scaffold(
-          appBar: AppBar(
-            title: Text(widget.property == null ? "إضافة إعلان" : "تعديل إعلان"),
-            centerTitle: true,
-          ),
+          backgroundColor: const Color(0xFFF5F5FB),
           body: Form(
             key: _formKey,
             child: SingleChildScrollView(
-              padding: EdgeInsets.all(20.w),
+              padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 40.w),
               child: Column(
                 children: [
+                  // ─── Page Header ───
+                  Padding(
+                    padding: EdgeInsets.symmetric(vertical: 28.h),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          widget.property == null ? 'إضافة عقار جديد' : 'تعديل بيانات العقار',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 28.sp,
+                            fontWeight: FontWeight.w900,
+                            color: const Color(0xFF1A1A2E),
+                          ),
+                        ),
+                        SizedBox(height: 8.h),
+                        Text(
+                          'أدخل تفاصيل العقار والصور وجميع البيانات المطلوبة',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 13.sp,
+                            color: const Color(0xFFAAAABB),
+                          ),
+                        ),
+                        SizedBox(height: 6.h),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 14),
+                            label: const Text('رجوع'),
+                            style: TextButton.styleFrom(foregroundColor: const Color(0xFFAAAABB)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                   PropertyFormCard(
                     title: "الصور",
                     icon: Icons.photo_camera_outlined,
@@ -295,7 +330,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                     ),
                   ),
 
-                  SizedBox(height: 30.h),
+                  SizedBox(height: 24.h),
                   _buildSubmitButton(),
                   SizedBox(height: 40.h),
                 ],
@@ -307,15 +342,6 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
     );
   }
 
-  InputDecoration _inputDecoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      filled: true,
-      fillColor: Colors.grey[50],
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r), borderSide: const BorderSide(color: Colors.black12)),
-    );
-  }
 
   Widget _buildDropdown(
     String hint,
@@ -339,34 +365,79 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
 
   Widget _buildSubmitButton() {
     final bool isEdit = widget.property != null;
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 250),
-      child: _isLoading
-          ? Container(
-              key: const ValueKey('loading'),
-              height: 58.h,
-              alignment: Alignment.center,
-              child: const CircularProgressIndicator(color: AppColors.brandPrimary),
-            )
-          : SizedBox(
-              key: const ValueKey('button'),
-              width: double.infinity,
-              height: 58.h,
-              child: ElevatedButton.icon(
-                onPressed: _submit,
-                icon: Icon(isEdit ? Icons.save_outlined : Icons.add_task, size: 24.sp),
-                label: Text(
-                  isEdit ? "حفظ التعديلات" : "إضافة العقار",
-                  style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold),
+    if (_isLoading) {
+      return Container(
+        height: 64.h,
+        alignment: Alignment.center,
+        child: const CircularProgressIndicator(color: AppColors.brandPrimary),
+      );
+    }
+    return Row(
+      children: [
+        // ─── زر حفظ العقار ───
+        Expanded(
+          flex: 3,
+          child: Container(
+            height: 64.h,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14.r),
+              gradient: LinearGradient(
+                colors: [AppColors.brandPrimary, AppColors.brandPrimary.withValues(alpha: 0.8)],
+                begin: Alignment.centerRight,
+                end: Alignment.centerLeft,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.brandPrimary.withValues(alpha: 0.3),
+                  blurRadius: 14,
+                  offset: const Offset(0, 5),
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.brandPrimary,
-                  foregroundColor: Colors.white,
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14.r)),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _submit,
+                borderRadius: BorderRadius.circular(14.r),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.save_rounded, color: Colors.white, size: 20.sp),
+                    SizedBox(width: 8.w),
+                    Text(
+                      isEdit ? 'حفظ التعديلات' : 'حفظ العقار',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 17.sp,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
+          ),
+        ),
+        SizedBox(width: 12.w),
+        // ─── زر إلغاء ───
+        Expanded(
+          flex: 1,
+          child: SizedBox(
+            height: 64.h,
+            child: OutlinedButton(
+              onPressed: () => Navigator.pop(context),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF888899),
+                side: const BorderSide(color: Color(0xFFDDDDEE), width: 1.5),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14.r)),
+              ),
+              child: Text('إلغاء',
+                  style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

@@ -5,7 +5,7 @@ import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
-import '../../../core/constants/app_text_styles.dart';
+import '../../../core/widgets/retaj_page_header.dart';
 import '../../../data/models/lead_model.dart';
 import '../../../data/models/profile_model.dart';
 import '../../../core/di/injection_container.dart' as di;
@@ -57,7 +57,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
 
   void _onScroll() {
     final pos = _scrollController.position;
-    if (pos.pixels >= pos.maxScrollExtent * 0.7) {
+    if (pos.pixels >= pos.maxScrollExtent * 0.6) {
       _cubit.loadMoreLeads(
         role: widget.user.role,
         userId: widget.user.id,
@@ -93,7 +93,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
     return BlocProvider.value(
       value: _cubit,
       child: Scaffold(
-        backgroundColor: AppColors.bgMain,
+        backgroundColor: const Color(0xFFF5F5FB),
         body: Column(
           children: [
             // ─── Header bar ───
@@ -106,69 +106,15 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // AppBar بديل يحتوي على عداد + زر الفلتر
-                    Container(
-                      color: AppColors.bgSurface,
-                      padding: EdgeInsets.symmetric(
-                          horizontal: AppConstants.p16, vertical: 12.h),
-                      child: Row(
-                        children: [
-                          Text('إدارة العملاء', style: AppTextStyles.h2),
-                          SizedBox(width: 8.w),
-                          if (total > 0)
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 8.w, vertical: 2.h),
-                              decoration: BoxDecoration(
-                                color: AppColors.brandPrimary.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(20.r),
-                              ),
-                              child: Text(
-                                '$total',
-                                style: TextStyle(
-                                  color: AppColors.brandPrimary,
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          const Spacer(),
-                          // زر الفلاتر المتقدمة
-                          OutlinedButton.icon(
-                            onPressed: () => _openFilterDialog(context),
-                            icon: Icon(Icons.filter_list_rounded,
-                                size: 18.sp, color: AppColors.brandPrimary),
-                            label: Text('فلاتر',
-                                style: TextStyle(
-                                    fontSize: 13.sp,
-                                    color: AppColors.brandPrimary)),
-                            style: OutlinedButton.styleFrom(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 14.w, vertical: 8.h),
-                              side: BorderSide(
-                                  color: AppColors.brandPrimary, width: 1.5),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10.r)),
-                            ),
-                          ),
-                          SizedBox(width: 10.w),
-                          // زر الإضافة
-                          ElevatedButton.icon(
-                            onPressed: () => _openForm(context),
-                            icon: Icon(Icons.add, size: 18.sp),
-                            label: Text('إضافة',
-                                style: TextStyle(fontSize: 13.sp)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.brandPrimary,
-                              foregroundColor: Colors.white,
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 14.w, vertical: 8.h),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10.r)),
-                            ),
-                          ),
-                        ],
-                      ),
+                    // ─── Header الموحّد ───
+                    RetajPageHeader(
+                      title: 'العملاء المحتملين',
+                      subtitle: 'تتبع وإدارة وتحويل فرص الاستثمار العقاري',
+                      addLabel: 'إضافة عميل',
+                      onAdd: () => _openForm(context),
+                      totalCount: total,
+                      onFilter: () => _openFilterDialog(context),
+                      filterLabel: 'فلاتر متقدمة',
                     ),
 
                     // شريط فلاتر الحالة
@@ -334,7 +280,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
       MaterialPageRoute(
         builder: (_) => BlocProvider.value(
           value: _cubit,
-          child: LeadDetailsScreen(lead: lead),
+          child: LeadDetailsScreen(leadId: lead.id!),
         ),
       ),
     );

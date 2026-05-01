@@ -133,13 +133,21 @@ class LeadService {
     return LeadModel.fromJson(response);
   }
 
-  /// إضافة كومنت جديد لقائمة الـ history (JSONB array append)
+  /// إضافة كومنت جديد لقائمة الـ history (read-modify-write)
   Future<LeadModel> appendComment(String leadId, String comment) async {
-    final response = await _supabase.rpc('append_lead_comment', params: {
-      'lead_id': leadId,
-      'new_comment': comment,
-    });
-    // بعد الـ append نجيب العميل المحدث
+    // 1. اقرأ الـ lead الحالي عشان نجيب الـ history الموجودة
+    final currentLead = await getLeadById(leadId);
+
+    // 2. أضف الكومنت الجديد على آخر الـ list
+    final updatedHistory = [...currentLead.history, comment];
+
+    // 3. اعمل update للـ history فقط
+    await _supabase
+        .from('leads')
+        .update({'history': updatedHistory})
+        .eq('id', leadId);
+
+    // 4. رجع الـ lead المحدث من السيرفر للتأكيد
     return await getLeadById(leadId);
   }
 

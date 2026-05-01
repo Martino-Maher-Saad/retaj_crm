@@ -1,20 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_text_styles.dart';
 
-/// بطاقة غلاف كل section في فورم العقار أو العميل
-/// تعرض: رقم الخطوة (اختياري) + أيقونة + العنوان + المحتوى
-/// يمكن استخدامها بدون stepNumber للـ leads أو أي form آخر
+/// بطاقة غلاف كل section في فورم العقار
+/// تعرض: أيقونة + العنوان في المنتصف + المحتوى
 class PropertyFormCard extends StatelessWidget {
   final String title;
   final IconData icon;
   final Widget child;
-
-  /// رقم الخطوة — لو موجود يظهر badge رقمي ملون على يسار العنوان
   final int? stepNumber;
-
-  /// لون مخصص لأيقونة الـ header — الافتراضي primaryBlue
   final Color? accentColor;
 
   const PropertyFormCard({
@@ -34,75 +28,42 @@ class PropertyFormCard extends StatelessWidget {
       margin: EdgeInsets.only(bottom: 16.h),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14.r),
-        // حد خفيف جداً مع ظل صغير يعطي عمقاً من غير مبالغة
-        border: Border.all(color: Colors.grey.shade100),
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: const Color(0xFFEAEAF0), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: AppColors.brandPrimary.withValues(alpha: 0.05),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
-            offset: const Offset(0, 4),
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ─── رأس الـ section ───
-          Container(
-            padding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w, 14.h),
-            decoration: BoxDecoration(
-              // خلفية فاتحة جداً تميز الـ header عن المحتوى
-              color: AppColors.brandPrimary.withValues(alpha: 0.04),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(14.r),
-                topRight: Radius.circular(14.r),
-              ),
-              border: Border(
-                bottom: BorderSide(color: resolvedColor.withValues(alpha: 0.1)),
-              ),
-            ),
+          // ─── عنوان القسم في المنتصف ───
+          Padding(
+            padding: EdgeInsets.only(top: 22.h, bottom: 4.h),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // ─── badge رقم الخطوة (اختياري) ───
-                if (stepNumber != null) ...[
-                  Container(
-                    width: 26.w,
-                    height: 26.w,
-                    decoration: BoxDecoration(
-                      color: resolvedColor,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        '$stepNumber',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 10.w),
-                ],
-
-                // ─── أيقونة الـ section ───
-                Icon(icon, size: 20.sp, color: resolvedColor),
-                SizedBox(width: 8.w),
-
-                // ─── عنوان الـ section ───
                 Text(
                   title,
-                  style: AppTextStyles.h3.copyWith(color: resolvedColor),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 19.sp,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF1A1A2E),
+                  ),
                 ),
+                SizedBox(width: 8.w),
+                Icon(icon, color: resolvedColor, size: 20.sp),
               ],
             ),
           ),
-
-          // ─── محتوى الـ section ───
+          Divider(color: const Color(0xFFF0F0F6), thickness: 1, height: 22.h),
           Padding(
-            padding: EdgeInsets.all(16.w),
+            padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 20.h),
             child: child,
           ),
         ],

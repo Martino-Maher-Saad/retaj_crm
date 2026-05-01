@@ -45,13 +45,13 @@ InputDecoration _buildDecoration({
       labelText: isRequired ? '$label *' : label,
       labelStyle: TextStyle(
         fontFamily: 'Cairo',
-        fontSize: 13.sp,
+        fontSize: 22.sp,
         color: isFocused ? _kNeonBlue : _kLabelColor,
         fontWeight: FontWeight.w500,
       ),
       floatingLabelStyle: TextStyle(
         fontFamily: 'Cairo',
-        fontSize: 11.sp,
+        fontSize: 16.sp,
         color: _kNeonBlue,
         fontWeight: FontWeight.w600,
       ),
@@ -60,13 +60,13 @@ InputDecoration _buildDecoration({
       fillColor: _kFillColor,
       prefixIcon: prefixIcon != null
           ? Icon(prefixIcon,
-              size: 18.sp,
+              size: 28.sp,
               color: isFocused ? _kNeonBlue : _kLabelColor)
           : null,
       suffix: suffix,
       contentPadding: EdgeInsets.symmetric(
-        horizontal: 16.w,
-        vertical: isMultiline ? 14.h : 13.h,
+        horizontal: 22.w,
+        vertical: isMultiline ? 22.h : 20.h,
       ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(_kRadius),
@@ -78,7 +78,7 @@ InputDecoration _buildDecoration({
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(_kRadius),
-        borderSide: BorderSide(color: _kBorderFocused, width: 1.8.w),
+        borderSide: BorderSide(color: _kBorderFocused, width: 2.w),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(_kRadius),
@@ -86,7 +86,7 @@ InputDecoration _buildDecoration({
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(_kRadius),
-        borderSide: const BorderSide(color: Color(0xFFE31E24), width: 1.8),
+        borderSide: const BorderSide(color: Color(0xFFE31E24), width: 2),
       ),
     );
 
@@ -377,7 +377,7 @@ class RetajCopyableDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+      padding: EdgeInsets.symmetric(horizontal: 22.w, vertical: 18.h),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(_kRadius),
@@ -388,15 +388,15 @@ class RetajCopyableDisplay extends StatelessWidget {
         children: [
           if (leadingIcon != null) ...[
             Container(
-              padding: EdgeInsets.all(6.r),
+              padding: EdgeInsets.all(10.r),
               decoration: BoxDecoration(
                 color: (iconColor ?? _kNeonBlue).withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(leadingIcon, size: 16.sp,
+              child: Icon(leadingIcon, size: 28.sp,
                   color: iconColor ?? _kNeonBlue),
             ),
-            SizedBox(width: 10.w),
+            SizedBox(width: 14.w),
           ],
           Expanded(
             child: Column(
@@ -406,23 +406,23 @@ class RetajCopyableDisplay extends StatelessWidget {
                   label,
                   style: TextStyle(
                     fontFamily: 'Cairo',
-                    fontSize: 13.sp,
+                    fontSize: 16.sp,
                     color: _kLabelColor,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                SizedBox(height: 2.h),
+                SizedBox(height: 4.h),
                 Directionality(
                   textDirection: _detectDirection(value),
                   child: Container(
-                    width: double.infinity, // لضمان أخذ العرض بالكامل لتطبيق الـ alignment الصحيح
+                    width: double.infinity,
                     alignment: _detectDirection(value) == TextDirection.rtl ? Alignment.centerRight : Alignment.centerLeft,
                     child: SelectableText(
                       value.isEmpty ? '—' : value,
                       textAlign: _detectDirection(value) == TextDirection.rtl ? TextAlign.right : TextAlign.left,
                       style: TextStyle(
                         fontFamily: 'Cairo',
-                        fontSize: 16.sp,
+                        fontSize: 22.sp,
                         color: value.isEmpty ? _kLabelColor : _kTextColor,
                         fontWeight: FontWeight.w700,
                         height: 1.5,
@@ -436,12 +436,12 @@ class RetajCopyableDisplay extends StatelessWidget {
           if (value.isNotEmpty)
             IconButton(
               icon: Icon(Icons.copy_rounded,
-                  size: 16.sp, color: _kLabelColor),
+                  size: 22.sp, color: _kLabelColor),
               tooltip: 'نسخ',
               onPressed: () => _copy(context),
-              padding: EdgeInsets.all(6.r),
+              padding: EdgeInsets.all(8.r),
               constraints: const BoxConstraints(),
-              splashRadius: 20,
+              splashRadius: 24,
             ),
         ],
       ),

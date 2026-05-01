@@ -6,10 +6,9 @@ import 'package:retaj_crm/features/layout/cubit/layout_cubit.dart';
 import 'package:retaj_crm/features/layout/cubit/layout_state.dart';
 import 'package:retaj_crm/features/layout/widgets/logout_button.dart';
 import 'package:retaj_crm/features/layout/widgets/side_bar_logo.dart';
-import 'package:retaj_crm/core/utils/responsive_debouncer_wrapper.dart'; // استيراد الـ Wrapper
+import 'package:retaj_crm/core/utils/responsive_debouncer_wrapper.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_text_styles.dart';
 import '../../../core/constants/app_constants.dart';
 
 import '../../../core/di/injection_container.dart' as di;
@@ -20,8 +19,8 @@ import '../../dashboard/screens/dashboard_screen.dart';
 import '../../designs/screens/designs_list_screen.dart';
 import '../../leads/screens/leads_management_screen.dart';
 import '../../properties/screens/properties_list_screen.dart';
-import '../widgets/top_header.dart';
-import '../widgets/user_avatar.dart';
+import '../../profile/screens/user_profile_screen.dart';
+import '../../profile/cubit/profile_cubit.dart';
 
 class LayoutScreen extends StatefulWidget {
   final ProfileModel user;
@@ -68,7 +67,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
     return BlocProvider(
       create: (context) => di.sl<LayoutCubit>(),
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFF5F5FB),
         body: BlocListener<LayoutCubit, LayoutState>(
           listener: (context, state) {
             if (state is LayoutNavigationChanged) {
@@ -79,15 +78,12 @@ class _LayoutScreenState extends State<LayoutScreen> {
               );
             }
           },
-          // 1. المحرك الذي يمنع الـ Lag أثناء تغيير الحجم
           child: ResponsiveDebouncerWrapper(
-            // 2. السكرول الأفقي (يمين وشمال) في حالة الشاشات الصغيرة فقط
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: ConstrainedBox(
                 constraints: BoxConstraints(
-                  // نحدد هنا "أقل" عرض مسموح به
-                  minWidth: AppConstants.minDesktopWidth, // 1100
+                  minWidth: AppConstants.minDesktopWidth,
                   maxWidth: MediaQuery.of(context).size.width > AppConstants.minDesktopWidth
                       ? MediaQuery.of(context).size.width
                       : AppConstants.minDesktopWidth,
@@ -95,25 +91,15 @@ class _LayoutScreenState extends State<LayoutScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // الـ Sidebar ثابت الطول
                     RepaintBoundary(
                       child: _buildCustomSidebar(widget.user),
                     ),
-                    // المحتوى الرئيسي يأخذ باقي المساحة
+                    // المحتوى الرئيسي بدون TopHeader
                     Expanded(
-                      child: Column(
-                        children: [
-                          RepaintBoundary(
-                            child: TopHeader(user: widget.user),
-                          ),
-                          Expanded(
-                            child: PageView(
-                              controller: _pageController,
-                              physics: const NeverScrollableScrollPhysics(),
-                              children: _getPagesByRole(widget.user),
-                            ),
-                          ),
-                        ],
+                      child: PageView(
+                        controller: _pageController,
+                        physics: const NeverScrollableScrollPhysics(),
+                        children: _getPagesByRole(widget.user),
                       ),
                     ),
                   ],
@@ -139,6 +125,13 @@ class _LayoutScreenState extends State<LayoutScreen> {
     }
   }
 
+  String _getInitials(ProfileModel user) {
+    final first = user.firstName?.isNotEmpty == true ? user.firstName![0] : '';
+    final last = user.lastName?.isNotEmpty == true ? user.lastName![0] : '';
+    final combined = (first + last).toUpperCase();
+    return combined.isEmpty ? '?' : combined;
+  }
+
   Widget _buildCustomSidebar(ProfileModel user) {
     return BlocBuilder<LayoutCubit, LayoutState>(
       builder: (context, state) {
@@ -146,69 +139,125 @@ class _LayoutScreenState extends State<LayoutScreen> {
         if (state is LayoutNavigationChanged) currentIndex = state.selectedIndex;
 
         return Container(
-          width: 280.w,
-          color: AppColors.bgSideBar,
+          width: 260.w,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              left: BorderSide(color: Color(0xFFEEEEF5), width: 1),
+            ),
+          ),
           child: Column(
             children: [
+              // ─── Logo ───
               const SideBarLogo(),
-              const SizedBox(height: 10),
-              // ─── بطاقة المستخدم في الـ Sidebar ───
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
-                child: Row(
-                  children: [
-                    UserAvatar(user: widget.user),
-                    SizedBox(width: 8.w),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            "${widget.user.firstName ?? ''} ${widget.user.lastName ?? ''}".trim(),
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 13.sp,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          SizedBox(height: 2.h),
-                          Text(
-                            _resolveSidebarRole(widget.user.role),
-                            style: TextStyle(
-                              color: Colors.white54,
-                              fontSize: 10.sp,
-                            ),
-                          ),
-                        ],
+
+              // ─── بطاقة المستخدم ─── (قابلة للضغط → فتح صفحة البروفايل)
+              MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => BlocProvider(
+                        create: (_) => di.sl<ProfileCubit>(),
+                        child: UserProfileScreen(currentUser: widget.user),
                       ),
                     ),
-                  ],
+                  ),
+                  child: Container(
+                    margin: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+                    padding: EdgeInsets.all(18.w),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5F3FF),
+                      borderRadius: BorderRadius.circular(16.r),
+                      border: Border.all(
+                        color: AppColors.brandPrimary.withValues(alpha: 0.12),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        // Avatar كبير
+                        Container(
+                          width: 68.r,
+                          height: 68.r,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.brandPrimary.withValues(alpha: 0.12),
+                            border: Border.all(
+                              color: AppColors.brandPrimary.withValues(alpha: 0.3),
+                              width: 2.5,
+                            ),
+                          ),
+                          child: ClipOval(
+                            child: widget.user.imageUrl != null
+                                ? Image.network(widget.user.imageUrl!, fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => _initialsWidget())
+                                : _initialsWidget(),
+                          ),
+                        ),
+                        SizedBox(width: 14.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "${widget.user.firstName ?? ''} ${widget.user.lastName ?? ''}".trim(),
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: const Color(0xFF1A1A2E),
+                                  fontSize: 17.sp,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              SizedBox(height: 6.h),
+                              Container(
+                                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                                decoration: BoxDecoration(
+                                  color: AppColors.brandPrimary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(20.r),
+                                ),
+                                child: Text(
+                                  _resolveSidebarRole(widget.user.role),
+                                  style: TextStyle(
+                                    color: AppColors.brandPrimary,
+                                    fontSize: 13.sp,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_left_rounded,
+                            size: 20.sp, color: AppColors.brandPrimary.withValues(alpha: 0.5)),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 15),
-                child: Divider(
-                  color: AppColors.borderSubtle.withOpacity(0.3),
-                ),
-              ),
+
+              Divider(color: const Color(0xFFEEEEF5), height: 1.h),
+              SizedBox(height: 6.h),
+
+              // ─── قائمة التنقل ───
               Expanded(
                 child: ListView(
-                  padding: EdgeInsets.symmetric(vertical: 10.h),
+                  padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
                   children: [
-                    _CustomNavItem(icon: Icons.analytics_outlined, label: "Dashboard", index: 0, currentIndex: currentIndex),
-                    _CustomNavItem(icon: Icons.home_work_outlined, label: "Properties", index: 1, currentIndex: currentIndex),
-                    _CustomNavItem(icon: Icons.person_search_outlined, label: "Leads", index: 2, currentIndex: currentIndex),
-                    _CustomNavItem(icon: Icons.format_paint_outlined, label: "Designs", index: 3, currentIndex: currentIndex),
+                    _CustomNavItem(icon: Icons.dashboard_outlined,            label: "لوحة القيادة",       index: 0, currentIndex: currentIndex),
+                    _CustomNavItem(icon: Icons.home_work_outlined,             label: "العقارات",           index: 1, currentIndex: currentIndex),
+                    _CustomNavItem(icon: Icons.people_outline_rounded,         label: "العملاء المحتملين",  index: 2, currentIndex: currentIndex),
+                    _CustomNavItem(icon: Icons.format_paint_outlined,          label: "مكتبة التصاميم",     index: 3, currentIndex: currentIndex),
                     if (widget.user.role == 'admin')
-                      _CustomNavItem(icon: Icons.admin_panel_settings_outlined, label: "Accounts", index: 4, currentIndex: currentIndex),
+                      _CustomNavItem(icon: Icons.admin_panel_settings_outlined, label: "إدارة الحسابات",   index: 4, currentIndex: currentIndex),
                     if (widget.user.role == 'manager' || widget.user.role == 'admin')
-                      _CustomNavItem(icon: Icons.list_alt, label: "Dropdowns", index: widget.user.role == 'admin' ? 5 : 4, currentIndex: currentIndex),
+                      _CustomNavItem(icon: Icons.list_alt_rounded,             label: "إدارة القوائم",      index: widget.user.role == 'admin' ? 5 : 4, currentIndex: currentIndex),
                   ],
                 ),
               ),
+
               const LogoutButton(),
+              SizedBox(height: 12.h),
             ],
           ),
         );
@@ -216,15 +265,33 @@ class _LayoutScreenState extends State<LayoutScreen> {
     );
   }
 
+  Widget _initialsWidget() {
+    return Center(
+      child: Text(
+        _getInitials(widget.user),
+        style: TextStyle(
+          fontSize: 26.sp,
+          fontWeight: FontWeight.w800,
+          color: AppColors.brandPrimary,
+        ),
+      ),
+    );
+  }
 }
 
+// ─── Nav Item Widget ───
 class _CustomNavItem extends StatefulWidget {
   final IconData icon;
   final String label;
   final int index;
   final int currentIndex;
 
-  const _CustomNavItem({required this.icon, required this.label, required this.index, required this.currentIndex});
+  const _CustomNavItem({
+    required this.icon,
+    required this.label,
+    required this.index,
+    required this.currentIndex,
+  });
 
   @override
   State<_CustomNavItem> createState() => _CustomNavItemState();
@@ -235,77 +302,67 @@ class _CustomNavItemState extends State<_CustomNavItem> {
 
   @override
   Widget build(BuildContext context) {
-    bool isSelected = widget.index == widget.currentIndex;
+    final bool isSelected = widget.index == widget.currentIndex;
 
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
-      child: InkWell(
-        onTap: () => context.read<LayoutCubit>().changeNavigation(widget.index),
-        onHover: (hovering) {
-          setState(() => _isHovering = hovering);
-        },
-        borderRadius: BorderRadius.circular(8.r),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          height: 55.h,
-          transform: Matrix4.translationValues(_isHovering && !isSelected ? 4.w : 0, 0, 0),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? Colors.white.withValues(alpha: 0.12)
-                : _isHovering
-                    ? Colors.white.withValues(alpha: 0.06)
-                    : Colors.transparent,
-            borderRadius: BorderRadius.circular(8.r),
-            border: isSelected
-                ? Border.all(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    width: 1,
-                  )
-                : null,
-          ),
-          child: Row(
-            children: [
-              // Active Indicator Pillar — Neon Glow
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: 3.w,
-                height: isSelected ? 36.h : 0,
-                decoration: BoxDecoration(
-                  color: AppColors.brandAccent,
-                  borderRadius: BorderRadius.horizontal(right: Radius.circular(3.r)),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: AppColors.brandAccent.withValues(alpha: 0.7),
-                            blurRadius: 8,
-                            spreadRadius: 1,
-                          ),
-                        ]
-                      : [],
-                ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 15.w),
-                  child: Row(
-                    children: [
-                      Icon(widget.icon, color: Colors.white, size: 24.sp),
-                      SizedBox(width: 16.w),
-                      Text(
-                        widget.label,
-                        style: AppTextStyles.h3.copyWith(
-                          color: Colors.white,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                        ),
-                      ),
-                    ],
+      padding: EdgeInsets.symmetric(vertical: 2.h),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _isHovering = true),
+        onExit: (_) => setState(() => _isHovering = false),
+        child: GestureDetector(
+          onTap: () => context.read<LayoutCubit>().changeNavigation(widget.index),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            height: 54.h,
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? AppColors.brandPrimary.withValues(alpha: 0.08)
+                  : _isHovering
+                      ? const Color(0xFFF3F2FF)
+                      : Colors.transparent,
+              borderRadius: BorderRadius.circular(12.r),
+            ),
+            child: Row(
+              children: [
+                // Purple left indicator bar
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  width: 5.w,
+                  height: isSelected ? 36.h : 0,
+                  decoration: BoxDecoration(
+                    color: AppColors.brandPrimary,
+                    borderRadius: BorderRadius.horizontal(
+                      right: Radius.circular(5.r),
+                    ),
                   ),
                 ),
-              ),
-            ],
+                SizedBox(width: 16.w),
+                Icon(
+                  widget.icon,
+                  size: 34.sp,
+                  color: isSelected
+                      ? AppColors.brandPrimary
+                      : const Color(0xFF888899),
+                ),
+                SizedBox(width: 14.w),
+                Expanded(
+                  child: Text(
+                    widget.label,
+                    style: TextStyle(
+                      fontSize: 17.sp,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      color: isSelected
+                          ? AppColors.brandPrimary
+                          : const Color(0xFF555566),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
-}
+}
