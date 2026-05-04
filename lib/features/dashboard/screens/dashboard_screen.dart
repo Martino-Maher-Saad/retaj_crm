@@ -8,26 +8,40 @@ import '../cubit/dashboard_cubit.dart';
 import 'employee_dashboard_view.dart';
 import 'manager_dashboard_view.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   final ProfileModel user;
 
   const DashboardScreen({super.key, required this.user});
 
   @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> with AutomaticKeepAliveClientMixin {
+  late DashboardCubit _cubit;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _cubit = di.sl<DashboardCubit>();
+    if (widget.user.role == 'sales') {
+      _cubit.loadEmployeeDashboard(userId: widget.user.id, days: 30);
+    } else {
+      _cubit.loadManagerDashboard(days: 30);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) {
-        final cubit = di.sl<DashboardCubit>();
-        if (user.role == 'sales') {
-          cubit.loadEmployeeDashboard(userId: user.id, days: 30);
-        } else {
-          cubit.loadManagerDashboard(days: 30);
-        }
-        return cubit;
-      },
-      child: user.role == 'sales'
-          ? EmployeeDashboardView(user: user)
-          : ManagerDashboardView(user: user),
+    super.build(context);
+    return BlocProvider.value(
+      value: _cubit,
+      child: widget.user.role == 'sales'
+          ? EmployeeDashboardView(user: widget.user)
+          : ManagerDashboardView(user: widget.user),
     );
   }
 }
