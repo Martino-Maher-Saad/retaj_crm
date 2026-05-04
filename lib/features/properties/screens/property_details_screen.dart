@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../data/models/property_model.dart';
 import '../widgets/details/property_copyable_field.dart';
@@ -71,7 +72,17 @@ class PropertyDetailsScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 20.h),
 
-                  // 5. بيانات المالك والملاحظات
+                  // 5. مصدر العقار ومنصات الإعلان
+                  if ((property.source != null && property.source!.isNotEmpty) || property.platforms.isNotEmpty) ...[
+                    PropertySectionCard(
+                      title: "مصدر العقار والمنصات",
+                      icon: Icons.campaign_outlined,
+                      content: _buildSourceAndPlatforms(),
+                    ),
+                    SizedBox(height: 20.h),
+                  ],
+
+                  // 6. بيانات المالك والملاحظات
                   PropertySectionCard(
                     title: "بيانات الإدارة والمالك",
                     icon: Icons.admin_panel_settings,
@@ -96,6 +107,50 @@ class PropertyDetailsScreen extends StatelessWidget {
           PropertyCopyableField(label: "المنطقة", value: property.regionAr),
         if (!shouldMask && property.locationInDetails != null && property.locationInDetails!.isNotEmpty)
           PropertyCopyableField(label: "العنوان التفصيلي", value: property.locationInDetails),
+      ],
+    );
+  }
+
+  Widget _buildSourceAndPlatforms() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (property.source != null && property.source!.isNotEmpty)
+          PropertyCopyableField(label: "مصدر العقار", value: property.source),
+        if (property.platforms.isNotEmpty) ...[
+          SizedBox(height: 12.h),
+          Text(
+            "منصات الإعلان:",
+            style: TextStyle(
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF888899),
+            ),
+          ),
+          SizedBox(height: 8.h),
+          Wrap(
+            spacing: 8.w,
+            runSpacing: 6.h,
+            children: property.platforms.map((platform) {
+              return Container(
+                padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 6.h),
+                decoration: BoxDecoration(
+                  color: AppColors.brandPrimary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20.r),
+                  border: Border.all(color: AppColors.brandPrimary.withValues(alpha: 0.3)),
+                ),
+                child: Text(
+                  platform,
+                  style: TextStyle(
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.brandPrimary,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
       ],
     );
   }

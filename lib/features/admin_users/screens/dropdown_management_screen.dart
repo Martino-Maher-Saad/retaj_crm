@@ -25,8 +25,11 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
   final Map<String, String> _dropdownTypes = {
     'property_type': 'أنواع العقارات',
     'listing_type': 'أنواع الإعلانات',
-    'platform': 'منصات التواصل',
+    'property_source': 'مصدر العقار',
+    'property_platform': 'منصات الإعلان (عقارات)',
+    'platform': 'منصة العميل (Leads)',
     'lead_status': 'حالات العملاء',
+    'communication_channel': 'قنوات التواصل',
   };
 
   void _loadData() async {

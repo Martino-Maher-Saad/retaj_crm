@@ -35,7 +35,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
 
   List<Widget> _getPagesByRole(ProfileModel user) {
     return [
-      DashboardScreen(key: const PageStorageKey('dashboard_page')),
+      DashboardScreen(key: const PageStorageKey('dashboard_page'), user: user),
       PropertiesListScreen(userId: user.id, role: user.role, key: const PageStorageKey('properties_page')),
       LeadsManagementScreen(user: user, key: const PageStorageKey('leads_page')),
       const DesignsListScreen(key: PageStorageKey('designs_page')),

@@ -34,6 +34,8 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
   String? selectedPropertyType;
   int? selectedGovId;
   String? selectedCityName;
+  String? selectedSource;
+  List<String> selectedPlatforms = [];
 
   final List<Uint8List> _newImagesBytes = [];
   List<PropertyImageModel> _existingImages = [];
@@ -70,6 +72,8 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
       
       selectedListingType = p.listingTypeAr;
       selectedPropertyType = p.propertyTypeAr;
+      selectedSource = p.source;
+      selectedPlatforms = List.from(p.platforms);
       
       try {
         final gov = dataManager.governorates.firstWhere((g) => g.name == p.governorateAr);
@@ -330,6 +334,70 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                     ),
                   ),
 
+                  PropertyFormCard(
+                    title: "مصدر العقار ومنصات الإعلان",
+                    icon: Icons.campaign_outlined,
+                    stepNumber: 5,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildDropdown(
+                          "مصدر العقار (اختياري)",
+                          dataManager.getOptions('property_source'),
+                          selectedSource,
+                          (v) => setState(() => selectedSource = v),
+                          required: false,
+                        ),
+                        SizedBox(height: 14.h),
+                        Text(
+                          "منصات الإعلان (اختياري)",
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF555566),
+                          ),
+                        ),
+                        SizedBox(height: 10.h),
+                        Wrap(
+                          spacing: 10.w,
+                          runSpacing: 8.h,
+                          children: dataManager.getOptions('property_platform').map((platform) {
+                            final isSelected = selectedPlatforms.contains(platform);
+                            return FilterChip(
+                              label: Text(
+                                platform,
+                                style: TextStyle(
+                                  fontSize: 13.sp,
+                                  fontWeight: FontWeight.w600,
+                                  color: isSelected ? Colors.white : const Color(0xFF555566),
+                                ),
+                              ),
+                              selected: isSelected,
+                              onSelected: (selected) {
+                                setState(() {
+                                  if (selected) {
+                                    selectedPlatforms.add(platform);
+                                  } else {
+                                    selectedPlatforms.remove(platform);
+                                  }
+                                });
+                              },
+                              selectedColor: AppColors.brandPrimary,
+                              backgroundColor: const Color(0xFFF0F0F8),
+                              checkmarkColor: Colors.white,
+                              side: BorderSide(
+                                color: isSelected ? AppColors.brandPrimary : const Color(0xFFDDDDEE),
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20.r),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+
                   SizedBox(height: 24.h),
                   _buildSubmitButton(),
                   SizedBox(height: 40.h),
@@ -347,8 +415,9 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
     String hint,
     List<String> items,
     String? value,
-    ValueChanged<String?> onChanged,
-  ) {
+    ValueChanged<String?> onChanged, {
+    bool required = true,
+  }) {
     return RetajDropdown<String>(
       label: hint,
       value: value,
@@ -359,7 +428,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
               ))
           .toList(),
       onChanged: onChanged,
-      validator: (v) => v == null || v.isEmpty ? 'مطلوب' : null,
+      validator: required ? (v) => v == null || v.isEmpty ? 'مطلوب' : null : null,
     );
   }
 
@@ -479,6 +548,8 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
         ownerPhone: _controllers['ownerPhone']!.text,
         internalNotes: _controllers['internalNotes']!.text,
         images: _existingImages,
+        source: selectedSource,
+        platforms: selectedPlatforms,
       );
 
       if (widget.property == null) {

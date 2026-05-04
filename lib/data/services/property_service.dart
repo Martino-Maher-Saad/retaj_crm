@@ -151,13 +151,12 @@ class PropertyService {
   Future<Map<String, dynamic>> updateProperty(
     String id,
     Map<String, dynamic> data,
-  ) async =>
-      await _client
-          .from('properties')
-          .update(data)
-          .eq('id', id)
-          .select()
-          .single();
+  ) async => await _client
+      .from('properties')
+      .update(data)
+      .eq('id', id)
+      .select()
+      .single();
 
   Future<void> deleteImageRecordsByIds(List<String> ids) async =>
       await _client.from('property_images').delete().inFilter('id', ids);
@@ -165,14 +164,16 @@ class PropertyService {
   Future<List<Map<String, dynamic>>> searchPropertiesByAi(
     List<double> vector,
   ) async {
-    final response = await _client.rpc(
-      'match_properties',
-      params: {
-        'query_embedding': vector,
-        'match_threshold': 0.75,
-        'match_count': 10,
-      },
-    ).select(_select);
+    final response = await _client
+        .rpc(
+          'match_properties',
+          params: {
+            'query_embedding': vector,
+            'match_threshold': 0.85,
+            'match_count': 10,
+          },
+        )
+        .select(_select);
     return List<Map<String, dynamic>>.from(response);
   }
 }

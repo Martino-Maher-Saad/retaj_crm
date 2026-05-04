@@ -41,8 +41,6 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
   String? _selectedEmployeeId;
   bool _isSubmitting = false;
 
-  final List<String> _statuses = ['جديد', 'تم التواصل', 'تفاوض', 'تم التعاقد', 'مستبعد'];
-
   @override
   void initState() {
     super.initState();
@@ -279,11 +277,11 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
                           children: [
                             Expanded(child: _buildDropdown("المنصة القادم منها", dataManager.getOptions('platform'), _selectedPlatform, (v) => setState(() => _selectedPlatform = v))),
                             SizedBox(width: 16.w),
-                            Expanded(child: _buildDropdown("طريقة التواصل", ['مكالمة هاتفية', 'واتساب', 'ماسنجر', 'زيارة'], _selectedCommunicationChannel, (v) => setState(() => _selectedCommunicationChannel = v))),
+                            Expanded(child: _buildDropdown("طريقة التواصل", dataManager.getOptions('communication_channel'), _selectedCommunicationChannel, (v) => setState(() => _selectedCommunicationChannel = v))),
                           ],
                         ),
                         SizedBox(height: 16.h),
-                        _buildDropdown("حالة العميل", _statuses, _selectedStatus, (v) => setState(() => _selectedStatus = v)),
+                        _buildDropdown("حالة العميل", dataManager.getOptions('lead_status'), _selectedStatus, (v) => setState(() => _selectedStatus = v)),
                         
                         if (widget.user.role == 'manager' || widget.user.role == 'admin') ...[
                           SizedBox(height: 16.h),

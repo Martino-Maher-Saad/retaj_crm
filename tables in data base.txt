@@ -1,615 +1,520 @@
 [
   {
-    "Table Name": "design_images",
-    "Column Name": "id",
-    "Data Type": "uuid",
-    "Is Nullable": "NO",
-    "Default Value": "gen_random_uuid()"
+    "الجدول": "cities",
+    "العمود": "id",
+    "نوع البيانات": "integer",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "design_images",
-    "Column Name": "design_id",
-    "Data Type": "uuid",
-    "Is Nullable": "NO",
-    "Default Value": null
+    "الجدول": "cities",
+    "العمود": "name",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "design_images",
-    "Column Name": "image_url",
-    "Data Type": "text",
-    "Is Nullable": "NO",
-    "Default Value": null
+    "الجدول": "cities",
+    "العمود": "governorate_id",
+    "نوع البيانات": "integer",
+    "مرتبط بجدول": "governorates",
+    "العمود المرتبط": "id"
   },
   {
-    "Table Name": "design_images",
-    "Column Name": "is_thumbnail",
-    "Data Type": "boolean",
-    "Is Nullable": "NO",
-    "Default Value": "false"
+    "الجدول": "design_images",
+    "العمود": "id",
+    "نوع البيانات": "uuid",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "designs",
-    "Column Name": "id",
-    "Data Type": "uuid",
-    "Is Nullable": "NO",
-    "Default Value": "gen_random_uuid()"
+    "الجدول": "design_images",
+    "العمود": "design_id",
+    "نوع البيانات": "uuid",
+    "مرتبط بجدول": "designs",
+    "العمود المرتبط": "id"
   },
   {
-    "Table Name": "designs",
-    "Column Name": "desc_ar",
-    "Data Type": "text",
-    "Is Nullable": "NO",
-    "Default Value": null
+    "الجدول": "design_images",
+    "العمود": "image_url",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "designs",
-    "Column Name": "room_type",
-    "Data Type": "text",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "design_images",
+    "العمود": "is_thumbnail",
+    "نوع البيانات": "boolean",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "designs",
-    "Column Name": "style",
-    "Data Type": "text",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "designs",
+    "العمود": "id",
+    "نوع البيانات": "uuid",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "designs",
-    "Column Name": "created_at",
-    "Data Type": "timestamp with time zone",
-    "Is Nullable": "NO",
-    "Default Value": "now()"
+    "الجدول": "designs",
+    "العمود": "desc_ar",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "designs",
-    "Column Name": "added_by",
-    "Data Type": "uuid",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "designs",
+    "العمود": "room_type",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "favorites",
-    "Column Name": "id",
-    "Data Type": "uuid",
-    "Is Nullable": "NO",
-    "Default Value": "gen_random_uuid()"
+    "الجدول": "designs",
+    "العمود": "style",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "favorites",
-    "Column Name": "user_id",
-    "Data Type": "uuid",
-    "Is Nullable": "NO",
-    "Default Value": null
+    "الجدول": "designs",
+    "العمود": "created_at",
+    "نوع البيانات": "timestamp with time zone",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "favorites",
-    "Column Name": "property_id",
-    "Data Type": "uuid",
-    "Is Nullable": "NO",
-    "Default Value": null
+    "الجدول": "designs",
+    "العمود": "added_by",
+    "نوع البيانات": "uuid",
+    "مرتبط بجدول": "profiles",
+    "العمود المرتبط": "id"
   },
   {
-    "Table Name": "leads",
-    "Column Name": "id",
-    "Data Type": "uuid",
-    "Is Nullable": "NO",
-    "Default Value": "gen_random_uuid()"
+    "الجدول": "designs",
+    "العمود": "embedding",
+    "نوع البيانات": "USER-DEFINED",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "leads",
-    "Column Name": "client_name",
-    "Data Type": "text",
-    "Is Nullable": "NO",
-    "Default Value": null
+    "الجدول": "dropdown_options",
+    "العمود": "id",
+    "نوع البيانات": "uuid",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "leads",
-    "Column Name": "client_phone",
-    "Data Type": "json",
-    "Is Nullable": "NO",
-    "Default Value": null
+    "الجدول": "dropdown_options",
+    "العمود": "category",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "leads",
-    "Column Name": "property_id",
-    "Data Type": "uuid",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "dropdown_options",
+    "العمود": "value_ar",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "leads",
-    "Column Name": "created_by",
-    "Data Type": "uuid",
-    "Is Nullable": "NO",
-    "Default Value": null
+    "الجدول": "dropdown_options",
+    "العمود": "is_active",
+    "نوع البيانات": "boolean",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "leads",
-    "Column Name": "comment",
-    "Data Type": "text",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "dropdown_options",
+    "العمود": "created_at",
+    "نوع البيانات": "timestamp with time zone",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "leads",
-    "Column Name": "property_code",
-    "Data Type": "text",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "favorites",
+    "العمود": "id",
+    "نوع البيانات": "uuid",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "leads",
-    "Column Name": "created_at",
-    "Data Type": "timestamp with time zone",
-    "Is Nullable": "YES",
-    "Default Value": "now()"
+    "الجدول": "favorites",
+    "العمود": "user_id",
+    "نوع البيانات": "uuid",
+    "مرتبط بجدول": "profiles",
+    "العمود المرتبط": "id"
   },
   {
-    "Table Name": "leads",
-    "Column Name": "city",
-    "Data Type": "text",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "favorites",
+    "العمود": "property_id",
+    "نوع البيانات": "uuid",
+    "مرتبط بجدول": "properties",
+    "العمود المرتبط": "id"
   },
   {
-    "Table Name": "leads",
-    "Column Name": "source",
-    "Data Type": "text",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "governorates",
+    "العمود": "id",
+    "نوع البيانات": "integer",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "leads",
-    "Column Name": "lead_status",
-    "Data Type": "text",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "governorates",
+    "العمود": "name",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "leads",
-    "Column Name": "desc_lead_need",
-    "Data Type": "text",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "leads",
+    "العمود": "id",
+    "نوع البيانات": "uuid",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "leads",
-    "Column Name": "assigned_to",
-    "Data Type": "uuid",
-    "Is Nullable": "NO",
-    "Default Value": "auth.uid()"
+    "الجدول": "leads",
+    "العمود": "client_name",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "leads",
-    "Column Name": "communication_channel",
-    "Data Type": "text",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "leads",
+    "العمود": "client_phone",
+    "نوع البيانات": "json",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "profiles",
-    "Column Name": "id",
-    "Data Type": "uuid",
-    "Is Nullable": "NO",
-    "Default Value": "auth.uid()"
+    "الجدول": "leads",
+    "العمود": "created_by",
+    "نوع البيانات": "uuid",
+    "مرتبط بجدول": "profiles",
+    "العمود المرتبط": "id"
   },
   {
-    "Table Name": "profiles",
-    "Column Name": "first_name",
-    "Data Type": "text",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "leads",
+    "العمود": "property_code",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "profiles",
-    "Column Name": "last_name",
-    "Data Type": "text",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "leads",
+    "العمود": "created_at",
+    "نوع البيانات": "timestamp with time zone",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "profiles",
-    "Column Name": "phone",
-    "Data Type": "text",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "leads",
+    "العمود": "city",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "profiles",
-    "Column Name": "email",
-    "Data Type": "text",
-    "Is Nullable": "NO",
-    "Default Value": null
+    "الجدول": "leads",
+    "العمود": "lead_status",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "profiles",
-    "Column Name": "role",
-    "Data Type": "text",
-    "Is Nullable": "NO",
-    "Default Value": null
+    "الجدول": "leads",
+    "العمود": "desc_lead_need",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "profiles",
-    "Column Name": "image_url",
-    "Data Type": "text",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "leads",
+    "العمود": "communication_channel",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "profiles",
-    "Column Name": "created_at",
-    "Data Type": "timestamp with time zone",
-    "Is Nullable": "YES",
-    "Default Value": "now()"
+    "الجدول": "leads",
+    "العمود": "assigned_to",
+    "نوع البيانات": "uuid",
+    "مرتبط بجدول": "profiles",
+    "العمود المرتبط": "id"
   },
   {
-    "Table Name": "profiles",
-    "Column Name": "updated_at",
-    "Data Type": "timestamp with time zone",
-    "Is Nullable": "YES",
-    "Default Value": "now()"
+    "الجدول": "leads",
+    "العمود": "platform",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "id",
-    "Data Type": "uuid",
-    "Is Nullable": "NO",
-    "Default Value": "gen_random_uuid()"
+    "الجدول": "leads",
+    "العمود": "history",
+    "نوع البيانات": "json",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "created_by",
-    "Data Type": "uuid",
-    "Is Nullable": "NO",
-    "Default Value": null
+    "الجدول": "leads",
+    "العمود": "property_type",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "property_code",
-    "Data Type": "text",
-    "Is Nullable": "NO",
-    "Default Value": null
+    "الجدول": "leads",
+    "العمود": "listing_type",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "search_vector",
-    "Data Type": "tsvector",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "leads",
+    "العمود": "governorate",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "title_ar",
-    "Data Type": "text",
-    "Is Nullable": "NO",
-    "Default Value": null
+    "الجدول": "profiles",
+    "العمود": "id",
+    "نوع البيانات": "uuid",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "desc_ar",
-    "Data Type": "text",
-    "Is Nullable": "NO",
-    "Default Value": null
+    "الجدول": "profiles",
+    "العمود": "first_name",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "listing_type_ar",
-    "Data Type": "text",
-    "Is Nullable": "NO",
-    "Default Value": null
+    "الجدول": "profiles",
+    "العمود": "last_name",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "property_type_ar",
-    "Data Type": "text",
-    "Is Nullable": "NO",
-    "Default Value": null
+    "الجدول": "profiles",
+    "العمود": "phone",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "governorate_ar",
-    "Data Type": "text",
-    "Is Nullable": "NO",
-    "Default Value": null
+    "الجدول": "profiles",
+    "العمود": "email",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "city_ar",
-    "Data Type": "text",
-    "Is Nullable": "NO",
-    "Default Value": null
+    "الجدول": "profiles",
+    "العمود": "role",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "region_ar",
-    "Data Type": "text",
-    "Is Nullable": "NO",
-    "Default Value": null
+    "الجدول": "profiles",
+    "العمود": "image_url",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "location_in_details",
-    "Data Type": "text",
-    "Is Nullable": "NO",
-    "Default Value": null
+    "الجدول": "profiles",
+    "العمود": "created_at",
+    "نوع البيانات": "timestamp with time zone",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "location_map",
-    "Data Type": "text",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "profiles",
+    "العمود": "updated_at",
+    "نوع البيانات": "timestamp with time zone",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "floor",
-    "Data Type": "smallint",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "properties",
+    "العمود": "id",
+    "نوع البيانات": "uuid",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "built_area",
-    "Data Type": "smallint",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "properties",
+    "العمود": "created_by",
+    "نوع البيانات": "uuid",
+    "مرتبط بجدول": "profiles",
+    "العمود المرتبط": "id"
   },
   {
-    "Table Name": "properties",
-    "Column Name": "bedrooms",
-    "Data Type": "smallint",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "properties",
+    "العمود": "property_code",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "bathrooms",
-    "Data Type": "smallint",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "properties",
+    "العمود": "search_vector",
+    "نوع البيانات": "tsvector",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "total_floors",
-    "Data Type": "smallint",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "properties",
+    "العمود": "title_ar",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "total_apartments",
-    "Data Type": "smallint",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "properties",
+    "العمود": "desc_ar",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "kitchens",
-    "Data Type": "smallint",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "properties",
+    "العمود": "listing_type_ar",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "balconies",
-    "Data Type": "smallint",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "properties",
+    "العمود": "property_type_ar",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "completion_status",
-    "Data Type": "text",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "properties",
+    "العمود": "governorate_ar",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "furnished",
-    "Data Type": "text",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "properties",
+    "العمود": "city_ar",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "land_area",
-    "Data Type": "smallint",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "properties",
+    "العمود": "region_ar",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "garden_area",
-    "Data Type": "smallint",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "properties",
+    "العمود": "location_in_details",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "price",
-    "Data Type": "integer",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "properties",
+    "العمود": "location_map",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "down_payment",
-    "Data Type": "integer",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "properties",
+    "العمود": "price",
+    "نوع البيانات": "integer",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "months_installations",
-    "Data Type": "smallint",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "properties",
+    "العمود": "status",
+    "نوع البيانات": "boolean",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "rental_frequency",
-    "Data Type": "text",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "properties",
+    "العمود": "owner_name",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "monthly_installation",
-    "Data Type": "integer",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "properties",
+    "العمود": "owner_phone",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "insurance",
-    "Data Type": "integer",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "properties",
+    "العمود": "created_at",
+    "نوع البيانات": "timestamp with time zone",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "delivery_date",
-    "Data Type": "date",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "properties",
+    "العمود": "internal_notes",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "building_age",
-    "Data Type": "smallint",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "properties",
+    "العمود": "embedding",
+    "نوع البيانات": "USER-DEFINED",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "status",
-    "Data Type": "boolean",
-    "Is Nullable": "NO",
-    "Default Value": null
+    "الجدول": "properties",
+    "العمود": "platforms",
+    "نوع البيانات": "json",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "negotiable",
-    "Data Type": "boolean",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "properties",
+    "العمود": "source",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "owner_name",
-    "Data Type": "text",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "property_images",
+    "العمود": "id",
+    "نوع البيانات": "uuid",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   },
   {
-    "Table Name": "properties",
-    "Column Name": "owner_phone",
-    "Data Type": "text",
-    "Is Nullable": "YES",
-    "Default Value": null
+    "الجدول": "property_images",
+    "العمود": "property_id",
+    "نوع البيانات": "uuid",
+    "مرتبط بجدول": "properties",
+    "العمود المرتبط": "id"
   },
   {
-    "Table Name": "properties",
-    "Column Name": "created_at",
-    "Data Type": "timestamp with time zone",
-    "Is Nullable": "NO",
-    "Default Value": "now()"
-  },
-  {
-    "Table Name": "properties",
-    "Column Name": "internal_notes",
-    "Data Type": "text",
-    "Is Nullable": "YES",
-    "Default Value": null
-  },
-  {
-    "Table Name": "properties",
-    "Column Name": "embedding",
-    "Data Type": "USER-DEFINED",
-    "Is Nullable": "YES",
-    "Default Value": null
-  },
-  {
-    "Table Name": "property_images",
-    "Column Name": "id",
-    "Data Type": "uuid",
-    "Is Nullable": "NO",
-    "Default Value": "gen_random_uuid()"
-  },
-  {
-    "Table Name": "property_images",
-    "Column Name": "property_id",
-    "Data Type": "uuid",
-    "Is Nullable": "NO",
-    "Default Value": "gen_random_uuid()"
-  },
-  {
-    "Table Name": "property_images",
-    "Column Name": "image_url",
-    "Data Type": "text",
-    "Is Nullable": "NO",
-    "Default Value": null
-  }
-]
-
-
-
-
-
---------------------------------------------------
-
-
-
-
-[
-  {
-    "Table": "properties",
-    "Column": "created_by",
-    "Referenced Table": "profiles",
-    "Referenced Column": "id"
-  },
-  {
-    "Table": "property_images",
-    "Column": "property_id",
-    "Referenced Table": "properties",
-    "Referenced Column": "id"
-  },
-  {
-    "Table": "favorites",
-    "Column": "user_id",
-    "Referenced Table": "profiles",
-    "Referenced Column": "id"
-  },
-  {
-    "Table": "favorites",
-    "Column": "property_id",
-    "Referenced Table": "properties",
-    "Referenced Column": "id"
-  },
-  {
-    "Table": "design_images",
-    "Column": "design_id",
-    "Referenced Table": "designs",
-    "Referenced Column": "id"
-  },
-  {
-    "Table": "leads",
-    "Column": "property_id",
-    "Referenced Table": "properties",
-    "Referenced Column": "id"
-  },
-  {
-    "Table": "leads",
-    "Column": "created_by",
-    "Referenced Table": "profiles",
-    "Referenced Column": "id"
-  },
-  {
-    "Table": "designs",
-    "Column": "added_by",
-    "Referenced Table": "profiles",
-    "Referenced Column": "id"
+    "الجدول": "property_images",
+    "العمود": "image_url",
+    "نوع البيانات": "text",
+    "مرتبط بجدول": null,
+    "العمود المرتبط": null
   }
 ]

@@ -5,6 +5,7 @@ import '../../data/repositories/design_repository.dart';
 import '../../data/repositories/lead_repository.dart';
 import '../../data/repositories/property_repository.dart';
 import '../../data/repositories/dropdown_repository.dart';
+import '../../data/repositories/dashboard_repository.dart';
 
 import '../../data/services/admin_user_service.dart';
 import '../../data/services/ai_service.dart';
@@ -15,6 +16,7 @@ import '../../data/services/profile_service.dart';
 import '../../data/services/property_service.dart';
 import '../../data/services/storage_service.dart';
 import '../../data/services/dropdown_service.dart';
+import '../../data/services/dashboard_service.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/utils/static_data_manager.dart';
@@ -26,6 +28,7 @@ import '../../features/layout/cubit/layout_cubit.dart';
 import '../../features/leads/cubit/leads_cubit.dart';
 import '../../features/profile/cubit/profile_cubit.dart';
 import '../../features/properties/cubit/properties_cubit.dart';
+import '../../features/dashboard/cubit/dashboard_cubit.dart';
 
 final sl = GetIt.instance;
 
@@ -40,6 +43,7 @@ Future<void> init() async {
   sl.registerFactory(() => AdminUsersCubit(sl()));
   sl.registerFactory(() => ProfileCubit(sl()));
   sl.registerFactory(() => LayoutCubit());
+  sl.registerFactory(() => DashboardCubit(sl()));
 
   // ─── Repositories ───
   sl.registerLazySingleton(() => AuthRepository(sl()));
@@ -47,6 +51,7 @@ Future<void> init() async {
   sl.registerLazySingleton(() => LeadRepository(sl()));
   sl.registerLazySingleton(() => DesignRepository(sl(), sl(), sl()));
   sl.registerLazySingleton(() => DropdownRepository(sl()));
+  sl.registerLazySingleton(() => DashboardRepository(sl()));
 
   // ─── Services ───
   sl.registerLazySingleton(() => AuthService());
@@ -58,5 +63,6 @@ Future<void> init() async {
   sl.registerLazySingleton(() => AdminUserService());
   sl.registerLazySingleton(() => ProfileService());
   sl.registerLazySingleton(() => DropdownService());
+  sl.registerLazySingleton(() => DashboardService());
   sl.registerLazySingleton<StaticDataManager>(() => StaticDataManagerImpl(sl(), sl()));
 }

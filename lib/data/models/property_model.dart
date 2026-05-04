@@ -36,6 +36,10 @@ class PropertyModel {
   // 7. الـ Embedding للبحث بالذكاء الاصطناعي
   final List<double>? embedding;
 
+  // 8. مصدر العقار ومنصات الإعلان
+  final String? source;       // المصدر (من أين جاء العقار)
+  final List<String> platforms; // المنصات التي نُزّل فيها إعلان
+
   const PropertyModel({
     this.embedding,
     required this.id,
@@ -58,6 +62,8 @@ class PropertyModel {
     this.ownerName,
     this.ownerPhone,
     this.images = const [],
+    this.source,
+    this.platforms = const [],
   });
 
   factory PropertyModel.fromJson(Map<String, dynamic> json) {
@@ -96,6 +102,10 @@ class PropertyModel {
       ownerName: json['owner_name'],
       ownerPhone: json['owner_phone'],
       images: imagesList,
+      source: json['source'],
+      platforms: json['platforms'] != null
+          ? List<String>.from(json['platforms'] as List)
+          : [],
     );
   }
 
@@ -118,6 +128,8 @@ class PropertyModel {
       'price': price,
       'owner_name': ownerName,
       'owner_phone': ownerPhone,
+      'source': source,
+      'platforms': platforms,
     };
   }
 
@@ -143,6 +155,8 @@ class PropertyModel {
     String? ownerName,
     String? ownerPhone,
     List<PropertyImageModel>? images,
+    String? source,
+    List<String>? platforms,
   }) {
     return PropertyModel(
       embedding: embedding ?? this.embedding,
@@ -166,6 +180,8 @@ class PropertyModel {
       ownerName: ownerName ?? this.ownerName,
       ownerPhone: ownerPhone ?? this.ownerPhone,
       images: images ?? this.images,
+      source: source ?? this.source,
+      platforms: platforms ?? this.platforms,
     );
   }
 }
