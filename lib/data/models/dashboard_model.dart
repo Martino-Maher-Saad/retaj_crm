@@ -8,24 +8,27 @@ class PlatformStat {
   final int total;
   final int contracted;
   final double conversionPct;
+  final double avgClosingDays; // متوسط وقت الإغلاق لهذه المنصة
 
   const PlatformStat({
     required this.platform,
     required this.total,
     required this.contracted,
     required this.conversionPct,
+    this.avgClosingDays = 0,
   });
 
   factory PlatformStat.fromJson(Map<String, dynamic> json) => PlatformStat(
-        platform:      json['platform'] as String? ?? 'غير محدد',
-        total:         (json['total'] as num).toInt(),
-        contracted:    (json['contracted'] as num).toInt(),
-        conversionPct: (json['conversion_pct'] as num?)?.toDouble() ?? (
+        platform:       json['platform'] as String? ?? 'غير محدد',
+        total:          (json['total'] as num).toInt(),
+        contracted:     (json['contracted'] as num).toInt(),
+        conversionPct:  (json['conversion_pct'] as num?)?.toDouble() ?? (
             (json['total'] as num).toInt() == 0
                 ? 0.0
                 : (json['contracted'] as num).toDouble() /
                     (json['total'] as num).toDouble() *
                     100),
+        avgClosingDays: (json['avg_closing_days'] as num?)?.toDouble() ?? 0,
       );
 }
 
@@ -69,6 +72,7 @@ class EmployeeStat {
   final int leads;
   final int contracted;
   final double conversionPct;
+  final double avgClosingDays; // متوسط وقت الإغلاق لهذا الموظف
 
   const EmployeeStat({
     required this.employeeId,
@@ -76,6 +80,7 @@ class EmployeeStat {
     required this.leads,
     required this.contracted,
     required this.conversionPct,
+    this.avgClosingDays = 0,
   });
 
   factory EmployeeStat.fromJson(Map<String, dynamic> json) => EmployeeStat(
@@ -84,6 +89,7 @@ class EmployeeStat {
         leads:         (json['leads'] as num).toInt(),
         contracted:    (json['contracted'] as num).toInt(),
         conversionPct: (json['conversion_pct'] as num?)?.toDouble() ?? 0,
+        avgClosingDays:(json['avg_closing_days'] as num?)?.toDouble() ?? 0,
       );
 }
 
@@ -182,6 +188,7 @@ class EmployeeDashboardModel {
   final int leadsCount;
   final int contractedCount;
   final int staleLeadsCount;
+  final double avgClosingDays; // متوسط وقت الإغلاق لهذا الموظف
   final List<StatusStat> leadsByStatus;
   final List<PlatformStat> platformsBreakdown;
   final List<PerformancePoint> performanceOverTime;
@@ -196,6 +203,7 @@ class EmployeeDashboardModel {
     required this.leadsCount,
     required this.contractedCount,
     required this.staleLeadsCount,
+    this.avgClosingDays = 0,
     required this.leadsByStatus,
     required this.platformsBreakdown,
     required this.performanceOverTime,
@@ -209,6 +217,7 @@ class EmployeeDashboardModel {
         leadsCount:          (json['leads_count'] as num?)?.toInt() ?? 0,
         contractedCount:     (json['contracted_count'] as num?)?.toInt() ?? 0,
         staleLeadsCount:     (json['stale_leads_count'] as num?)?.toInt() ?? 0,
+        avgClosingDays:      (json['avg_closing_days'] as num?)?.toDouble() ?? 0,
         leadsByStatus: (json['leads_by_status'] as List?)
                 ?.map((e) => StatusStat.fromJson(e as Map<String, dynamic>))
                 .toList() ??

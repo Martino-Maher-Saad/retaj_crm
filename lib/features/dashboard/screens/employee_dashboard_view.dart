@@ -147,6 +147,19 @@ class EmployeeDashboardView extends StatelessWidget {
                   )),
                 ],
               ),
+              SizedBox(height: 14.h),
+              // ✅ بطاقة متوسط وقت الإغلاق
+              DashboardStatCard(
+                title: 'متوسط وقت الإغلاق',
+                value: data.avgClosingDays == 0
+                    ? 'لا توجد تعاقدات بعد'
+                    : data.avgClosingDays < 1
+                        ? 'أقل من يوم'
+                        : '${data.avgClosingDays.toStringAsFixed(1)} يوم',
+                icon: Icons.timer_rounded,
+                color: const Color(0xFF0EA5E9),
+                subtitle: 'من لحظة الإنشاء (جديد) وحتى (تم التعاقد)',
+              ),
               SizedBox(height: 24.h),
 
               // ─── Line Chart ───
@@ -459,7 +472,29 @@ class EmployeeDashboardView extends StatelessWidget {
                   ]),
                 ],
               ),
-              SizedBox(height: 8.h),
+              SizedBox(height: 6.h),
+              // ✅ متوسط وقت الإغلاق لهذه المنصة
+              if (p.avgClosingDays > 0)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0EA5E9).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(6.r),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.timer_outlined, size: 13.sp, color: const Color(0xFF0EA5E9)),
+                      SizedBox(width: 4.w),
+                      Text(
+                        'متوسط وقت الإغلاق: ${p.avgClosingDays.toStringAsFixed(1)} يوم',
+                        style: AppTextStyles.bodySmall.copyWith(
+                            color: const Color(0xFF0EA5E9), fontSize: 12.sp),
+                      ),
+                    ]),
+                  ),
+                ),
+              SizedBox(height: 6.h),
               ClipRRect(
                 borderRadius: BorderRadius.circular(8.r),
                 child: LinearProgressIndicator(

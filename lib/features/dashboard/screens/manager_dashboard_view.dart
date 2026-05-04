@@ -334,11 +334,12 @@ class ManagerDashboardView extends StatelessWidget {
   Widget _buildPlatformROI(List<PlatformStat> platforms) {
     return Column(
       children: [
-        // Header
         Padding(
           padding: EdgeInsets.only(bottom: 12.h),
           child: Row(children: [
-            Expanded(flex: 2, child: Text('التحويل', textAlign: TextAlign.left,
+            Expanded(flex: 2, child: Text('وقت الإغلاق', textAlign: TextAlign.left,
+                style: AppTextStyles.tableHeader)),
+            Expanded(flex: 2, child: Text('التحويل', textAlign: TextAlign.center,
                 style: AppTextStyles.tableHeader)),
             Expanded(flex: 2, child: Text('تعاقدات', textAlign: TextAlign.center,
                 style: AppTextStyles.tableHeader)),
@@ -358,6 +359,20 @@ class ManagerDashboardView extends StatelessWidget {
           return Padding(
             padding: EdgeInsets.symmetric(vertical: 12.h),
             child: Row(children: [
+              // ✅ وقت الإغلاق
+              Expanded(
+                flex: 2,
+                child: Text(
+                  p.avgClosingDays == 0
+                      ? '-'
+                      : p.avgClosingDays < 1
+                          ? '< يوم'
+                          : '${p.avgClosingDays.toStringAsFixed(1)}ي',
+                  textAlign: TextAlign.left,
+                  style: AppTextStyles.tableCellSub.copyWith(
+                      color: const Color(0xFF0EA5E9), fontWeight: FontWeight.w700),
+                ),
+              ),
               Expanded(
                 flex: 2,
                 child: Container(
@@ -434,17 +449,18 @@ class ManagerDashboardView extends StatelessWidget {
     const medals = ['🥇', '🥈', '🥉'];
     return Column(
       children: [
-        // Header
         Padding(
           padding: EdgeInsets.only(bottom: 12.h),
           child: Row(children: [
-            Expanded(flex: 2, child: Text('التحويل', textAlign: TextAlign.left,
+            Expanded(flex: 2, child: Text('وقت الإغلاق', textAlign: TextAlign.left,
+                style: AppTextStyles.tableHeader)),
+            Expanded(flex: 2, child: Text('التحويل', textAlign: TextAlign.center,
                 style: AppTextStyles.tableHeader)),
             Expanded(flex: 2, child: Text('تعاقدات', textAlign: TextAlign.center,
                 style: AppTextStyles.tableHeader)),
             Expanded(flex: 2, child: Text('عملاء', textAlign: TextAlign.center,
                 style: AppTextStyles.tableHeader)),
-            Expanded(flex: 4, child: Text('الموظف', textAlign: TextAlign.right,
+            Expanded(flex: 3, child: Text('الموظف', textAlign: TextAlign.right,
                 style: AppTextStyles.tableHeader)),
           ]),
         ),
@@ -469,6 +485,20 @@ class ManagerDashboardView extends StatelessWidget {
                 child: Padding(
                   padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 4.w),
                   child: Row(children: [
+                    // ✅ وقت الإغلاق
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        emp.avgClosingDays == 0
+                            ? '-'
+                            : emp.avgClosingDays < 1
+                                ? '< يوم'
+                                : '${emp.avgClosingDays.toStringAsFixed(1)}ي',
+                        textAlign: TextAlign.left,
+                        style: AppTextStyles.tableCellSub.copyWith(
+                            color: const Color(0xFF0EA5E9), fontWeight: FontWeight.w700),
+                      ),
+                    ),
                     // Conversion
                     Expanded(
                       flex: 2,
@@ -498,7 +528,7 @@ class ManagerDashboardView extends StatelessWidget {
                     ),
                     // الاسم + ميدالية
                     Expanded(
-                      flex: 4,
+                      flex: 3,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
