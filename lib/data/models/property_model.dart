@@ -1,44 +1,60 @@
 import 'property_image_model.dart';
 
+/// مدخل منصة إعلانية مرتبطة بعقار — من جدول property_platforms
+class PropertyPlatformEntry {
+  final String id;
+  final String platformId;
+  final String nameAr;
+
+  const PropertyPlatformEntry({
+    required this.id,
+    required this.platformId,
+    required this.nameAr,
+  });
+
+  factory PropertyPlatformEntry.fromJson(Map<String, dynamic> json) {
+    final platformData = json['advertising_platforms'] as Map<String, dynamic>?;
+    return PropertyPlatformEntry(
+      id: json['id']?.toString() ?? '',
+      platformId: json['platform_id']?.toString() ?? '',
+      nameAr: platformData?['name_ar']?.toString() ?? '',
+    );
+  }
+}
+
 class PropertyModel {
-  // 1. المعرفات والبيانات الأساسية
   final String id;
   final String? propertyCode;
   final String? createdBy;
-  final String? createdByName; // اسم الموظف - يأتي من JOIN على جدول profiles
+  final String? createdByName;
   final DateTime? createdAt;
   final bool status;
 
-  // 2. بيانات العقار الأساسية
+  // حقول العرض النصية
   final String titleAr;
   final String descAr;
   final String listingTypeAr;
   final String propertyTypeAr;
   final String governorateAr;
   final String cityAr;
-
-  // 3. الأعمدة الاختيارية
   final String? regionAr;
   final String? locationInDetails;
   final String? locationMap;
   final String? internalNotes;
-
-  // 4. السعر (إجباري)
   final num price;
-
-  // 5. بيانات المالك (تظهر فقط للمالك أو المدير)
   final String? ownerName;
   final String? ownerPhone;
-
-  // 6. قائمة الصور
   final List<PropertyImageModel> images;
-
-  // 7. الـ Embedding للبحث بالذكاء الاصطناعي
   final List<double>? embedding;
+  final String? source;
+  final List<PropertyPlatformEntry> advertisingPlatforms;
 
-  // 8. مصدر العقار ومنصات الإعلان
-  final String? source;       // المصدر (من أين جاء العقار)
-  final List<String> platforms; // المنصات التي نُزّل فيها إعلان
+  // حقول الـ IDs الجديدة (للحفظ)
+  final String? propertyTypeId;
+  final String? listingTypeId;
+  final String? sourceId;
+  final int? cityId;
+  final int? governorateId;
 
   const PropertyModel({
     this.embedding,
@@ -63,11 +79,15 @@ class PropertyModel {
     this.ownerPhone,
     this.images = const [],
     this.source,
-    this.platforms = const [],
+    this.advertisingPlatforms = const [],
+    this.propertyTypeId,
+    this.listingTypeId,
+    this.sourceId,
+    this.cityId,
+    this.governorateId,
   });
 
   factory PropertyModel.fromJson(Map<String, dynamic> json) {
-    // جلب اسم الموظف من الـ JOIN
     final creator = json['creator'] as Map<String, dynamic>?;
     final createdByName = creator != null
         ? '${creator['first_name'] ?? ''} ${creator['last_name'] ?? ''}'.trim()
@@ -78,6 +98,21 @@ class PropertyModel {
             .take(10)
             .toList() ??
         [];
+
+    // النصوص: من الجداول الجديدة أو Fallback للقديمة
+    final propTypeMap = json['property_types'] as Map<String, dynamic>?;
+    final listTypeMap = json['listing_types'] as Map<String, dynamic>?;
+    final sourceMap   = json['property_sources'] as Map<String, dynamic>?;
+    final govMap      = json['governorates'] as Map<String, dynamic>?;
+    final cityMapData = json['cities'] as Map<String, dynamic>?;
+
+    // المنصات الإعلانية من جدول property_platforms
+    final rawPlatforms = json['property_platforms'] as List?;
+    final advertisingPlatforms = rawPlatforms != null
+        ? rawPlatforms
+            .map((p) => PropertyPlatformEntry.fromJson(p as Map<String, dynamic>))
+            .toList()
+        : <PropertyPlatformEntry>[];
 
     return PropertyModel(
       id: json['id']?.toString() ?? '',
@@ -90,10 +125,11 @@ class PropertyModel {
       status: json['status'] ?? false,
       titleAr: json['title_ar'] ?? '',
       descAr: json['desc_ar'] ?? '',
-      listingTypeAr: json['listing_type_ar'] ?? '',
-      propertyTypeAr: json['property_type_ar'] ?? '',
-      governorateAr: json['governorate_ar'] ?? '',
-      cityAr: json['city_ar'] ?? '',
+      listingTypeAr:  listTypeMap?['name_ar'] ?? json['listing_type_ar'] ?? '',
+      propertyTypeAr: propTypeMap?['name_ar'] ?? json['property_type_ar'] ?? '',
+      governorateAr:  govMap?['name'] ?? json['governorate_ar'] ?? '',
+      cityAr:         cityMapData?['name'] ?? json['city_ar'] ?? '',
+      source:         sourceMap?['name_ar'] ?? json['source'],
       regionAr: json['region_ar'],
       locationInDetails: json['location_in_details'],
       locationMap: json['location_map'],
@@ -102,13 +138,18 @@ class PropertyModel {
       ownerName: json['owner_name'],
       ownerPhone: json['owner_phone'],
       images: imagesList,
-      source: json['source'],
-      platforms: json['platforms'] != null
-          ? List<String>.from(json['platforms'] as List)
-          : [],
+      advertisingPlatforms: advertisingPlatforms,
+      // الـ IDs الجديدة
+      propertyTypeId: json['property_type_id']?.toString(),
+      listingTypeId:  json['listing_type_id']?.toString(),
+      sourceId:       json['source_id']?.toString(),
+      cityId:         json['city_id'] as int?,
+      governorateId:  json['governorate_id'] as int?,
     );
   }
 
+  /// toJson: يرسل الـ IDs الجديدة للأعمدة المرتبطة
+  /// toJson: يرسل الـ IDs للأعمدة المرتبطة — المنصات تُدار بشكل منفصل عبر property_platforms
   Map<String, dynamic> toJson() {
     return {
       'embedding': embedding,
@@ -117,10 +158,6 @@ class PropertyModel {
       'status': status,
       'title_ar': titleAr,
       'desc_ar': descAr,
-      'listing_type_ar': listingTypeAr,
-      'property_type_ar': propertyTypeAr,
-      'governorate_ar': governorateAr,
-      'city_ar': cityAr,
       'region_ar': regionAr,
       'location_in_details': locationInDetails,
       'location_map': locationMap,
@@ -128,8 +165,11 @@ class PropertyModel {
       'price': price,
       'owner_name': ownerName,
       'owner_phone': ownerPhone,
-      'source': source,
-      'platforms': platforms,
+      if (propertyTypeId != null) 'property_type_id': propertyTypeId,
+      if (listingTypeId != null) 'listing_type_id': listingTypeId,
+      if (sourceId != null) 'source_id': sourceId,
+      if (cityId != null) 'city_id': cityId,
+      if (governorateId != null) 'governorate_id': governorateId,
     };
   }
 
@@ -156,7 +196,12 @@ class PropertyModel {
     String? ownerPhone,
     List<PropertyImageModel>? images,
     String? source,
-    List<String>? platforms,
+    List<PropertyPlatformEntry>? advertisingPlatforms,
+    String? propertyTypeId,
+    String? listingTypeId,
+    String? sourceId,
+    int? cityId,
+    int? governorateId,
   }) {
     return PropertyModel(
       embedding: embedding ?? this.embedding,
@@ -181,7 +226,12 @@ class PropertyModel {
       ownerPhone: ownerPhone ?? this.ownerPhone,
       images: images ?? this.images,
       source: source ?? this.source,
-      platforms: platforms ?? this.platforms,
+      advertisingPlatforms: advertisingPlatforms ?? this.advertisingPlatforms,
+      propertyTypeId: propertyTypeId ?? this.propertyTypeId,
+      listingTypeId: listingTypeId ?? this.listingTypeId,
+      sourceId: sourceId ?? this.sourceId,
+      cityId: cityId ?? this.cityId,
+      governorateId: governorateId ?? this.governorateId,
     );
   }
 }

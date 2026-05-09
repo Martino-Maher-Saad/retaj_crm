@@ -14,12 +14,12 @@ class LeadRepository {
     required int from,
     required int to,
     String? filterByEmployeeId,
-    String? platform,
-    String? leadStatus,
-    String? propertyType,
-    String? listingType,
-    String? governorate,
-    String? city,
+    String? platformId,
+    String? leadStatusId,
+    String? propertyTypeId,
+    String? listingTypeId,
+    int? governorateId,
+    int? cityId,
     DateTime? fromDate,
     DateTime? toDate,
   }) async {
@@ -30,12 +30,12 @@ class LeadRepository {
         from: from,
         to: to,
         filterByEmployeeId: filterByEmployeeId,
-        platform: platform,
-        leadStatus: leadStatus,
-        propertyType: propertyType,
-        listingType: listingType,
-        governorate: governorate,
-        city: city,
+        platformId: platformId,
+        leadStatusId: leadStatusId,
+        propertyTypeId: propertyTypeId,
+        listingTypeId: listingTypeId,
+        governorateId: governorateId,
+        cityId: cityId,
         fromDate: fromDate,
         toDate: toDate,
       );
@@ -50,12 +50,12 @@ class LeadRepository {
     required String role,
     required String userId,
     String? filterByEmployeeId,
-    String? platform,
-    String? leadStatus,
-    String? propertyType,
-    String? listingType,
-    String? governorate,
-    String? city,
+    String? platformId,
+    String? leadStatusId,
+    String? propertyTypeId,
+    String? listingTypeId,
+    int? governorateId,
+    int? cityId,
     DateTime? fromDate,
     DateTime? toDate,
   }) async {
@@ -64,12 +64,12 @@ class LeadRepository {
         role: role,
         userId: userId,
         filterByEmployeeId: filterByEmployeeId,
-        platform: platform,
-        leadStatus: leadStatus,
-        propertyType: propertyType,
-        listingType: listingType,
-        governorate: governorate,
-        city: city,
+        platformId: platformId,
+        leadStatusId: leadStatusId,
+        propertyTypeId: propertyTypeId,
+        listingTypeId: listingTypeId,
+        governorateId: governorateId,
+        cityId: cityId,
         fromDate: fromDate,
         toDate: toDate,
       );
@@ -78,9 +78,13 @@ class LeadRepository {
     }
   }
 
-  Future<LeadModel> addNewLead(LeadModel lead) async {
+  Future<LeadModel> addNewLead(
+    LeadModel lead,
+    List<LeadPhoneModel> phones, {
+    List<LeadNoteModel> notes = const [],
+  }) async {
     try {
-      return await _leadService.addLead(lead);
+      return await _leadService.addLead(lead, phones, notes: notes);
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
@@ -88,10 +92,14 @@ class LeadRepository {
     }
   }
 
-  Future<LeadModel> updateLeadData(String id, Map<String, dynamic> updates) async {
+  Future<LeadModel> updateLeadData(
+    String id,
+    LeadModel lead,
+    List<LeadPhoneModel> phones, {
+    String? newNote,
+  }) async {
     try {
-      updates.remove('id');
-      return await _leadService.updateLead(id, updates);
+      return await _leadService.updateLead(id, lead, phones, newNote: newNote);
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
@@ -99,10 +107,19 @@ class LeadRepository {
     }
   }
 
-  /// إضافة كومنت جديد لقائمة الـ history
-  Future<LeadModel> appendComment(String leadId, String comment) async {
+  Future<LeadModel> updateLeadStatus(String id, String statusId) async {
     try {
-      return await _leadService.appendComment(leadId, comment);
+      return await _leadService.updateLeadStatus(id, statusId);
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
+    } catch (e) {
+      throw 'فشل تحديث الحالة، حاول مرة أخرى';
+    }
+  }
+
+  Future<LeadModel> addNote(String leadId, String noteText) async {
+    try {
+      return await _leadService.addNote(leadId, noteText);
     } catch (e) {
       throw 'فشل إضافة التعليق، حاول مرة أخرى';
     }

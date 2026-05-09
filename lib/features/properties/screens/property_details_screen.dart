@@ -73,7 +73,7 @@ class PropertyDetailsScreen extends StatelessWidget {
                   SizedBox(height: 20.h),
 
                   // 5. مصدر العقار ومنصات الإعلان
-                  if ((property.source != null && property.source!.isNotEmpty) || property.platforms.isNotEmpty) ...[
+                  if ((property.source != null && property.source!.isNotEmpty) || property.advertisingPlatforms.isNotEmpty) ...[
                     PropertySectionCard(
                       title: "مصدر العقار والمنصات",
                       icon: Icons.campaign_outlined,
@@ -117,7 +117,7 @@ class PropertyDetailsScreen extends StatelessWidget {
       children: [
         if (property.source != null && property.source!.isNotEmpty)
           PropertyCopyableField(label: "مصدر العقار", value: property.source),
-        if (property.platforms.isNotEmpty) ...[
+        if (property.advertisingPlatforms.isNotEmpty) ...[
           SizedBox(height: 12.h),
           Text(
             "منصات الإعلان:",
@@ -131,7 +131,7 @@ class PropertyDetailsScreen extends StatelessWidget {
           Wrap(
             spacing: 8.w,
             runSpacing: 6.h,
-            children: property.platforms.map((platform) {
+            children: property.advertisingPlatforms.map((entry) {
               return Container(
                 padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 6.h),
                 decoration: BoxDecoration(
@@ -140,7 +140,7 @@ class PropertyDetailsScreen extends StatelessWidget {
                   border: Border.all(color: AppColors.brandPrimary.withValues(alpha: 0.3)),
                 ),
                 child: Text(
-                  platform,
+                  entry.nameAr,
                   style: TextStyle(
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w700,

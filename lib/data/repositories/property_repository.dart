@@ -14,19 +14,23 @@ class PropertyRepository {
 
   Future<PropertyModel> createFullProperty(
     PropertyModel model,
-    List<Uint8List> images,
-  ) async {
+    List<Uint8List> images, {
+    List<String> platformIds = const [],
+  }) async {
     String? newId;
     try {
-      // توليد الـ Embedding باستخدام الأعمدة المحددة فقط (بدون price/search_vector fields)
-      // المطلوب: desc_ar + governorate_ar + city_ar + region_ar + location_in_details
       final text =
-          '${model.descAr ?? ''} ${model.governorateAr} ${model.cityAr} ${model.regionAr ?? ''} ${model.locationInDetails ?? ''}';
+          '${model.descAr} ${model.governorateAr} ${model.cityAr} ${model.regionAr ?? ''} ${model.locationInDetails ?? ''}';
       final vector = await _aiService.generateEmbedding(text, isSearch: false);
       model = model.copyWith(embedding: vector);
 
       final data = await _pService.insertProperty(model.toJson());
       newId = data['id'].toString();
+
+      // إضافة المنصات الإعلانية في جدول property_platforms
+      if (platformIds.isNotEmpty) {
+        await _pService.insertPlatforms(newId, platformIds);
+      }
 
       for (int i = 0; i < images.length; i++) {
         final name = 'img_${DateTime.now().microsecondsSinceEpoch}_$i.jpg';
@@ -50,13 +54,14 @@ class PropertyRepository {
     return data.map((e) => PropertyModel.fromJson(e)).toList();
   }
 
+  /// الفلترة — تستخدم IDs بدلاً من نصوص
   Future<List<PropertyModel>> filterProperties(
     int f,
     int t, {
-    String? c,
-    String? ty,
-    String? governorate,
-    String? listingType,
+    int? cityId,
+    String? propertyTypeId,
+    int? governorateId,
+    String? listingTypeId,
     num? minPrice,
     num? maxPrice,
     String? assignedTo,
@@ -66,10 +71,10 @@ class PropertyRepository {
     final data = await _pService.filterProperties(
       from: f,
       to: t,
-      city: c,
-      type: ty,
-      governorate: governorate,
-      listingType: listingType,
+      cityId: cityId,
+      propertyTypeId: propertyTypeId,
+      governorateId: governorateId,
+      listingTypeId: listingTypeId,
       minPrice: minPrice,
       maxPrice: maxPrice,
       assignedTo: assignedTo,
@@ -87,10 +92,10 @@ class PropertyRepository {
   Future<int> fetchMyCount(String uid) => _pService.getMyCount(uid);
 
   Future<int> fetchFilterCount({
-    String? c,
-    String? ty,
-    String? governorate,
-    String? listingType,
+    int? cityId,
+    String? propertyTypeId,
+    int? governorateId,
+    String? listingTypeId,
     num? minPrice,
     num? maxPrice,
     String? assignedTo,
@@ -98,10 +103,10 @@ class PropertyRepository {
     DateTime? toDate,
   }) =>
       _pService.getFilterCount(
-        city: c,
-        type: ty,
-        governorate: governorate,
-        listingType: listingType,
+        cityId: cityId,
+        propertyTypeId: propertyTypeId,
+        governorateId: governorateId,
+        listingTypeId: listingTypeId,
         minPrice: minPrice,
         maxPrice: maxPrice,
         assignedTo: assignedTo,
@@ -119,14 +124,21 @@ class PropertyRepository {
     required List<Uint8List> newImgs,
     List<String>? delImgsIds,
     List<String>? delImgsUrls,
+    List<String> platformIds = const [],
   }) async {
     try {
       final text =
-          '${p.descAr ?? ''} ${p.governorateAr} ${p.cityAr} ${p.regionAr ?? ''} ${p.locationInDetails ?? ''}';
+          '${p.descAr} ${p.governorateAr} ${p.cityAr} ${p.regionAr ?? ''} ${p.locationInDetails ?? ''}';
       final vector = await _aiService.generateEmbedding(text, isSearch: false);
       p = p.copyWith(embedding: vector);
 
       await _pService.updateProperty(p.id, p.toJson());
+
+      // تحديث المنصات: حذف القديمة ثم إضافة الجديدة
+      await _pService.deletePlatforms(p.id);
+      if (platformIds.isNotEmpty) {
+        await _pService.insertPlatforms(p.id, platformIds);
+      }
 
       if (delImgsIds != null && delImgsIds.isNotEmpty) {
         await _pService.deleteImageRecordsByIds(delImgsIds);

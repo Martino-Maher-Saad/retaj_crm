@@ -35,8 +35,8 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
   DateTime? _fromDate;
   DateTime? _toDate;
 
-  // حالة الـ leads
-  final List<String> _statuses = ['جديد', 'تم التواصل', 'تفاوض', 'تم التعاقد', 'مستبعد'];
+  // حالة الـ leads تُجلب من dataManager (لا hardcode)
+  List<String> get _statuses => dataManager.getOptions('lead_status');
 
   Future<void> _pickDate({required bool isFrom}) async {
     final date = await showDatePicker(
@@ -261,22 +261,38 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
                         flex: 2,
                         child: ElevatedButton.icon(
                           onPressed: () {
-                            String? govName;
-                            if (_selectedGovId != null) {
-                              govName = dataManager.governorates
-                                  .firstWhere((g) => g.id == _selectedGovId)
-                                  .name;
+                            // تحويل الاختيارات النصية إلى IDs
+                            final leadStatusId = _selectedLeadStatus != null
+                                ? dataManager.getIdByName('lead_status', _selectedLeadStatus!)
+                                : null;
+                            final platformId = _selectedPlatform != null
+                                ? dataManager.getIdByName('platform', _selectedPlatform!)
+                                : null;
+                            final propertyTypeId = _selectedPropertyType != null
+                                ? dataManager.getIdByName('property_type', _selectedPropertyType!)
+                                : null;
+                            final listingTypeId = _selectedListingType != null
+                                ? dataManager.getIdByName('listing_type', _selectedListingType!)
+                                : null;
+                            int? cityId;
+                            if (_selectedGovId != null && _selectedCityName != null) {
+                              try {
+                                final cityObj = dataManager
+                                    .getCitiesByGovId(_selectedGovId!)
+                                    .firstWhere((c) => c.name == _selectedCityName);
+                                cityId = cityObj.id;
+                              } catch (_) {}
                             }
                             context.read<LeadCubit>().getAllLeads(
                               role: widget.role,
                               userId: widget.currentUserId,
                               isRefresh: true,
-                              leadStatus: _selectedLeadStatus,
-                              platform: _selectedPlatform,
-                              propertyType: _selectedPropertyType,
-                              listingType: _selectedListingType,
-                              governorate: govName,
-                              city: _selectedCityName,
+                              leadStatusId: leadStatusId,
+                              platformId: platformId,
+                              propertyTypeId: propertyTypeId,
+                              listingTypeId: listingTypeId,
+                              governorateId: _selectedGovId,
+                              cityId: cityId,
                               filterByEmployeeId: _selectedEmployee,
                               fromDate: _fromDate,
                               toDate: _toDate,

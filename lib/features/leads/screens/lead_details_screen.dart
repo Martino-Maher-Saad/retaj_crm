@@ -10,7 +10,7 @@ import '../cubit/leads_state.dart';
 import '../widgets/details/lead_copyable_field.dart';
 
 class LeadDetailsScreen extends StatefulWidget {
-  final String leadId; // نمرر ID فقط ونجلب أحدث نسخة من الـ State
+  final String leadId;
 
   const LeadDetailsScreen({super.key, required this.leadId});
 
@@ -19,29 +19,26 @@ class LeadDetailsScreen extends StatefulWidget {
 }
 
 class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
-  final TextEditingController _commentController = TextEditingController();
-  bool _isAddingComment = false;  // loading state للتعليق
+  final TextEditingController _noteController = TextEditingController();
+  bool _isAddingNote = false;
 
-  // كام كومنت بيتظهروا افتراضياً
-  static const int _initialCommentsCount = 3;
-  bool _showAllComments = false;
+  static const int _initialNotesCount = 3;
+  bool _showAllNotes = false;
 
-  void _submitComment(LeadModel lead) {
-    final text = _commentController.text.trim();
-    if (text.isEmpty || _isAddingComment) return;
-    setState(() => _isAddingComment = true);
-    _commentController.clear();
-    context.read<LeadCubit>().addComment(lead.id!, text);
-    // الرسالة بتظهر في الـ BlocConsumer listener بعد التأكيد الفعلي من السيرفر
+  void _submitNote(LeadModel lead) {
+    final text = _noteController.text.trim();
+    if (text.isEmpty || _isAddingNote) return;
+    setState(() => _isAddingNote = true);
+    _noteController.clear();
+    context.read<LeadCubit>().addNote(lead.id!, text);
   }
 
   @override
   void dispose() {
-    _commentController.dispose();
+    _noteController.dispose();
     super.dispose();
   }
 
-  /// نجيب أحدث نسخة من الـ lead من الـ State مباشرةً
   LeadModel? _getLatestLead(LeadState state) {
     if (state is LeadLoaded) {
       try {
@@ -57,22 +54,21 @@ class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
   Widget build(BuildContext context) {
     return BlocConsumer<LeadCubit, LeadState>(
       listener: (context, state) {
-        // هنا بس نعرض رسائل النجاح/الفشل بعد التأكيد الفعلي
-        if (_isAddingComment) {
+        if (_isAddingNote) {
           if (state is LeadLoaded) {
-            setState(() => _isAddingComment = false);
+            setState(() => _isAddingNote = false);
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('✅ تم إضافة التعليق بنجاح'),
+                content: Text('✅ تم إضافة الملاحظة بنجاح'),
                 backgroundColor: Colors.green,
                 duration: Duration(seconds: 2),
               ),
             );
           } else if (state is LeadError) {
-            setState(() => _isAddingComment = false);
+            setState(() => _isAddingNote = false);
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('❌ فشل إضافة التعليق: ${state.message}'),
+                content: Text('❌ فشل إضافة الملاحظة: ${state.message}'),
                 backgroundColor: Colors.red,
                 duration: const Duration(seconds: 3),
               ),
@@ -97,7 +93,8 @@ class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
             elevation: 0,
             centerTitle: true,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.brandPrimary),
+              icon: const Icon(Icons.arrow_back_ios_new,
+                  color: AppColors.brandPrimary),
               onPressed: () => Navigator.pop(context),
             ),
           ),
@@ -108,45 +105,66 @@ class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
               children: [
                 // ─── 1. المعلومات الأساسية ───
                 _buildSectionTitle("المعلومات الأساسية"),
-                LeadCopyableField(label: "الاسم بالكامل", value: lead.clientName),
-                ...lead.clientPhone.asMap().entries.map(
-                  (e) => LeadCopyableField(label: "تيلفون ${e.key + 1}", value: e.value),
-                ),
+                LeadCopyableField(
+                    label: "الاسم بالكامل", value: lead.clientName),
+                // أرقام الهاتف من lead_phones
+                ...lead.phones.asMap().entries.map(
+                      (e) => LeadCopyableField(
+                        label: e.value.isPrimary
+                            ? "تيلفون أساسي"
+                            : "تيلفون ${e.key + 1}",
+                        value: e.value.phoneNumber,
+                      ),
+                    ),
                 SizedBox(height: 24.h),
 
                 // ─── 2. تفاصيل الطلب ───
                 _buildSectionTitle("تفاصيل الطلب"),
                 LeadCopyableField(label: "المنصة", value: lead.platform),
-                LeadCopyableField(label: "طريقة التواصل", value: lead.communicationChannel),
-                LeadCopyableField(label: "نوع الإعلان", value: lead.listingType),
-                LeadCopyableField(label: "نوع العقار", value: lead.propertyType),
-                LeadCopyableField(label: "المحافظة", value: lead.governorate),
+                LeadCopyableField(
+                    label: "طريقة التواصل",
+                    value: lead.communicationChannel),
+                LeadCopyableField(
+                    label: "نوع الإعلان", value: lead.listingType),
+                LeadCopyableField(
+                    label: "نوع العقار", value: lead.propertyType),
+                LeadCopyableField(
+                    label: "المحافظة", value: lead.governorate),
                 LeadCopyableField(label: "المدينة", value: lead.city),
-                LeadCopyableField(label: "كود العقار المهتم به", value: lead.propertyCode),
-                LeadCopyableField(label: "تخصيص لموظف", value: lead.assignedToName),
+                LeadCopyableField(
+                    label: "كود العقار المهتم به", value: lead.propertyCode),
+                LeadCopyableField(
+                    label: "تخصيص لموظف", value: lead.assignedToName),
                 SizedBox(height: 24.h),
 
                 // ─── 3. وصف الاحتياج ───
-                if (lead.descLeadNeed != null && lead.descLeadNeed!.isNotEmpty) ...[
+                if (lead.descLeadNeed != null &&
+                    lead.descLeadNeed!.isNotEmpty) ...[
                   _buildSectionTitle("وصف الاحتياج"),
-                  LeadCopyableField(label: "الوصف", value: lead.descLeadNeed, isLong: true),
+                  LeadCopyableField(
+                      label: "الوصف",
+                      value: lead.descLeadNeed,
+                      isLong: true),
                   SizedBox(height: 12.h),
                 ],
 
-                // ─── 4. التعليقات / السجل (History) ───
-                _buildSectionTitle("سجل التعليقات"),
-                _buildHistorySection(lead),
+                // ─── 4. سجل الملاحظات ───
+                _buildSectionTitle("سجل الملاحظات"),
+                _buildNotesSection(lead),
 
                 SizedBox(height: 40.h),
 
-                // ─── Footer: تاريخ الإنشاء ───
+                // ─── Footer ───
                 Center(
                   child: Opacity(
                     opacity: 0.6,
                     child: Text(
                       "تمت الإضافة بتاريخ: ${lead.createdAt != null ? DateFormat('yyyy/MM/dd - HH:mm').format(lead.createdAt!) : '---'}\nبواسطة: ${lead.createdByName ?? '---'}",
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 14.sp, color: AppColors.textSecondary, height: 1.5),
+                      style: TextStyle(
+                          fontSize: 14.sp,
+                          color: AppColors.textSecondary,
+                          height: 1.5),
                     ),
                   ),
                 ),
@@ -159,21 +177,28 @@ class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
     );
   }
 
-  Widget _buildHistorySection(LeadModel lead) {
-    final comments = lead.history;
-    // نعرض التعليقات من الأحدث للأقدم
-    final reversed = comments.reversed.toList();
-    final displayCount = _showAllComments ? reversed.length : _initialCommentsCount.clamp(0, reversed.length);
+  Widget _buildNotesSection(LeadModel lead) {
+    // ترتيب الملاحظات من الأحدث للأقدم
+    final notes = [...lead.notes]
+      ..sort((a, b) {
+        if (a.createdAt == null && b.createdAt == null) return 0;
+        if (a.createdAt == null) return 1;
+        if (b.createdAt == null) return -1;
+        return b.createdAt!.compareTo(a.createdAt!);
+      });
+
+    final displayCount =
+        _showAllNotes ? notes.length : _initialNotesCount.clamp(0, notes.length);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ─── قائمة التعليقات ───
-        if (reversed.isEmpty)
+        // ─── قائمة الملاحظات ───
+        if (notes.isEmpty)
           Padding(
             padding: EdgeInsets.only(bottom: 12.h),
             child: Text(
-              "لا توجد تعليقات حتى الآن",
+              "لا توجد ملاحظات حتى الآن",
               style: TextStyle(color: Colors.grey, fontSize: 14.sp),
             ),
           )
@@ -183,6 +208,7 @@ class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
             physics: const NeverScrollableScrollPhysics(),
             itemCount: displayCount,
             itemBuilder: (context, index) {
+              final note = notes[index];
               return Container(
                 margin: EdgeInsets.only(bottom: 12.h),
                 padding: EdgeInsets.all(16.w),
@@ -198,23 +224,46 @@ class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
                     ),
                   ],
                 ),
-                child: Row(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      margin: EdgeInsets.only(left: 10.w, top: 2.h),
-                      width: 8.w,
-                      height: 8.h,
-                      decoration: BoxDecoration(
-                        color: AppColors.brandPrimary,
-                        shape: BoxShape.circle,
-                      ),
+                    // Header: اسم الكاتب + التاريخ
+                    Row(
+                      children: [
+                        Container(
+                          width: 8.w,
+                          height: 8.h,
+                          decoration: BoxDecoration(
+                            color: AppColors.brandPrimary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        SizedBox(width: 8.w),
+                        if (note.userName != null)
+                          Text(
+                            note.userName!,
+                            style: TextStyle(
+                              fontSize: 13.sp,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.brandPrimary,
+                            ),
+                          ),
+                        const Spacer(),
+                        if (note.createdAt != null)
+                          Text(
+                            DateFormat('dd/MM/yyyy - HH:mm').format(note.createdAt!),
+                            style: TextStyle(
+                              fontSize: 11.sp,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                      ],
                     ),
-                    Expanded(
-                      child: Text(
-                        reversed[index],
-                        style: TextStyle(fontSize: 14.sp, height: 1.6),
-                      ),
+                    SizedBox(height: 8.h),
+                    // نص الملاحظة
+                    Text(
+                      note.noteText,
+                      style: TextStyle(fontSize: 14.sp, height: 1.6),
                     ),
                   ],
                 ),
@@ -222,25 +271,27 @@ class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
             },
           ),
 
-          // زر "عرض المزيد" أو "إخفاء"
-          if (reversed.length > _initialCommentsCount)
+          // زر "عرض المزيد"
+          if (notes.length > _initialNotesCount)
             TextButton.icon(
-              onPressed: () => setState(() => _showAllComments = !_showAllComments),
+              onPressed: () =>
+                  setState(() => _showAllNotes = !_showAllNotes),
               icon: Icon(
-                _showAllComments ? Icons.expand_less : Icons.expand_more,
+                _showAllNotes ? Icons.expand_less : Icons.expand_more,
                 color: AppColors.brandPrimary,
                 size: 20.sp,
               ),
               label: Text(
-                _showAllComments
-                    ? "إخفاء التعليقات القديمة"
-                    : "عرض المزيد (${reversed.length - _initialCommentsCount} تعليق إضافي)",
-                style: TextStyle(color: AppColors.brandPrimary, fontSize: 13.sp),
+                _showAllNotes
+                    ? "إخفاء الملاحظات القديمة"
+                    : "عرض المزيد (${notes.length - _initialNotesCount} ملاحظة إضافية)",
+                style: TextStyle(
+                    color: AppColors.brandPrimary, fontSize: 13.sp),
               ),
             ),
         ],
 
-        // ─── حقل إضافة تعليق جديد ───
+        // ─── حقل إضافة ملاحظة ───
         SizedBox(height: 16.h),
         Container(
           padding: EdgeInsets.all(16.w),
@@ -253,24 +304,27 @@ class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "إضافة تعليق جديد",
-                style: AppTextStyles.h3.copyWith(fontSize: 14.sp, color: AppColors.textSecondary),
+                "إضافة ملاحظة جديدة",
+                style: AppTextStyles.h3
+                    .copyWith(fontSize: 14.sp, color: AppColors.textSecondary),
               ),
               SizedBox(height: 10.h),
               Row(
                 children: [
                   Expanded(
                     child: TextField(
-                      controller: _commentController,
+                      controller: _noteController,
                       decoration: InputDecoration(
-                        hintText: "اكتب تعليقاً...",
+                        hintText: "اكتب ملاحظة...",
                         filled: true,
                         fillColor: Colors.white,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12.r),
-                          borderSide: const BorderSide(color: AppColors.borderSubtle),
+                          borderSide:
+                              const BorderSide(color: AppColors.borderSubtle),
                         ),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+                        contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16.w, vertical: 14.h),
                       ),
                       maxLines: 2,
                       minLines: 1,
@@ -278,13 +332,13 @@ class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
                   ),
                   SizedBox(width: 12.w),
                   InkWell(
-                    onTap: _isAddingComment ? null : () => _submitComment(lead),
+                    onTap: _isAddingNote ? null : () => _submitNote(lead),
                     child: CircleAvatar(
                       radius: 26.r,
-                      backgroundColor: _isAddingComment
+                      backgroundColor: _isAddingNote
                           ? AppColors.brandPrimary.withValues(alpha: 0.5)
                           : AppColors.brandPrimary,
-                      child: _isAddingComment
+                      child: _isAddingNote
                           ? SizedBox(
                               width: 18.w,
                               height: 18.h,

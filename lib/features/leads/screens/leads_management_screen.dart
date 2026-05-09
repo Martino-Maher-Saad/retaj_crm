@@ -5,6 +5,7 @@ import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/utils/static_data_manager.dart';
 import '../../../core/widgets/retaj_page_header.dart';
 import '../../../data/models/lead_model.dart';
 import '../../../data/models/profile_model.dart';
@@ -33,14 +34,11 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
   late LeadCubit _cubit;
   bool _isFiltering = false;
 
-  final List<String> _filters = [
-    'الكل',
-    'جديد',
-    'تم التواصل',
-    'تفاوض',
-    'تم التعاقد',
-    'مستبعد',
-  ];
+  final _dataManager = di.sl<StaticDataManager>();
+
+  // شريط الفلاتر السريع - الأسماء للعرض فقط، التصفية بالـ ID
+  List<String> get _filters =>
+      ['الكل', ...(_dataManager.getOptions('lead_status'))];
 
   final ScrollController _scrollController = ScrollController();
 
@@ -124,11 +122,14 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                       onAddPressed: () => _openForm(context),
                       onFilterSelected: (filter) {
                         setState(() => _isFiltering = false);
+                        final statusId = filter == 'الكل'
+                            ? null
+                            : _dataManager.getIdByName('lead_status', filter);
                         _cubit.getAllLeads(
                           role: widget.user.role,
                           userId: widget.user.id,
                           isRefresh: true,
-                          leadStatus: filter == 'الكل' ? null : filter,
+                          leadStatusId: statusId,
                         );
                       },
                     ),
@@ -195,7 +196,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                               clientName: 'تحميل اسم العميل',
                               city: 'مدينة افتراضية',
                               leadStatus: 'جديد',
-                              clientPhone: const ['010000000'],
+                              phones: const [LeadPhoneModel(phoneNumber: '010000000', isPrimary: true)],
                               createdBy: '',
                               assignedTo: '',
                             ),

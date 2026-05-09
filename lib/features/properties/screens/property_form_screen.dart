@@ -69,17 +69,26 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
     if (p != null) {
       status = p.status;
       _existingImages = List.from(p.images);
-      
       selectedListingType = p.listingTypeAr;
       selectedPropertyType = p.propertyTypeAr;
       selectedSource = p.source;
-      selectedPlatforms = List.from(p.platforms);
-      
-      try {
-        final gov = dataManager.governorates.firstWhere((g) => g.name == p.governorateAr);
-        selectedGovId = gov.id;
+      selectedPlatforms = widget.property!.advertisingPlatforms
+          .map((p) => p.nameAr)
+          .where((name) => name.isNotEmpty)
+          .toList();
+
+      // أولاً: جرب من الـ governorateId الجديد مباشرة
+      if (p.governorateId != null) {
+        selectedGovId = p.governorateId;
         selectedCityName = p.cityAr;
-      } catch (_) {}
+      } else {
+        // Fallback: ابحث باسم المحافظة (للسجلات القديمة)
+        try {
+          final gov = dataManager.governorates.firstWhere((g) => g.name == p.governorateAr);
+          selectedGovId = gov.id;
+          selectedCityName = p.cityAr;
+        } catch (_) {}
+      }
     }
   }
 
@@ -361,7 +370,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                         Wrap(
                           spacing: 10.w,
                           runSpacing: 8.h,
-                          children: dataManager.getOptions('property_platform').map((platform) {
+                          children: dataManager.getOptions('advertising_platform').map((platform) {
                             final isSelected = selectedPlatforms.contains(platform);
                             return FilterChip(
                               label: Text(
@@ -512,12 +521,59 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
-    
+
     if (_newImagesBytes.isEmpty && _existingImages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("يرجى إضافة صورة واحدة على الأقل للعقار"), backgroundColor: Colors.orange),
+        const SnackBar(
+          content: Text("يرجى إضافة صورة واحدة على الأقل للعقار"),
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
+    }
+
+    // ─── Smart Comparison (وضع التعديل فقط) ───
+    if (widget.property != null) {
+      final p = widget.property!;
+
+      // مقارنة الحقول النصية والـ IDs
+      final bool dataChanged =
+          _controllers['titleAr']!.text         != p.titleAr                  ||
+          _controllers['descAr']!.text          != p.descAr                   ||
+          _controllers['price']!.text           != p.price.toString()          ||
+          _controllers['propertyCode']!.text    != (p.propertyCode ?? '')      ||
+          _controllers['regionAr']!.text        != (p.regionAr ?? '')          ||
+          _controllers['locDetails']!.text      != (p.locationInDetails ?? '') ||
+          _controllers['locMap']!.text          != (p.locationMap ?? '')       ||
+          _controllers['internalNotes']!.text   != (p.internalNotes ?? '')     ||
+          _controllers['ownerName']!.text       != (p.ownerName ?? '')         ||
+          _controllers['ownerPhone']!.text      != (p.ownerPhone ?? '')        ||
+          selectedPropertyType                  != p.propertyTypeAr            ||
+          selectedListingType                   != p.listingTypeAr             ||
+          selectedSource                        != p.source                    ||
+          selectedGovId                         != p.governorateId             ||
+          selectedCityName                      != p.cityAr                    ||
+          status                                != p.status;
+
+      // مقارنة المنصات الإعلانية
+      final selectedSorted = selectedPlatforms.toList()..sort();
+      final existingSorted = p.advertisingPlatforms.map((e) => e.nameAr).toList()..sort();
+      final bool platformsChanged = selectedSorted.join('|') != existingSorted.join('|');
+
+      // مقارنة الصور
+      final bool imagesChanged = _newImagesBytes.isNotEmpty || _imagesToDeleteObjects.isNotEmpty;
+
+      if (!dataChanged && !platformsChanged && !imagesChanged) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('لم يتم إجراء أي تعديلات — البيانات كما هي ✅'),
+            backgroundColor: Colors.blueGrey,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        Navigator.pop(context);
+        return;
+      }
     }
 
     setState(() => _isLoading = true);
@@ -527,7 +583,35 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
         finalCode = "PROP-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}";
       }
 
-      String govName = dataManager.governorates.firstWhere((g) => g.id == selectedGovId).name;
+      // تحويل الاختيارات النصية إلى IDs
+      final propertyTypeId = selectedPropertyType != null
+          ? dataManager.getIdByName('property_type', selectedPropertyType!)
+          : null;
+      final listingTypeId = selectedListingType != null
+          ? dataManager.getIdByName('listing_type', selectedListingType!)
+          : null;
+      final sourceId = selectedSource != null
+          ? dataManager.getIdByName('property_source', selectedSource!)
+          : null;
+
+      // المدينة: احصل على الـ ID من الـ name
+      int? cityId;
+      if (selectedGovId != null && selectedCityName != null) {
+        try {
+          final cityObj = dataManager
+              .getCitiesByGovId(selectedGovId!)
+              .firstWhere((c) => c.name == selectedCityName);
+          cityId = cityObj.id;
+        } catch (_) {}
+      }
+
+      // اسم المحافظة للعرض النصي (legacy fields)
+      String govName = '';
+      if (selectedGovId != null) {
+        try {
+          govName = dataManager.governorates.firstWhere((g) => g.id == selectedGovId).name;
+        } catch (_) {}
+      }
 
       final model = PropertyModel(
         id: widget.property?.id ?? '',
@@ -536,10 +620,18 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
         status: status,
         titleAr: _controllers['titleAr']!.text,
         descAr: _controllers['descAr']!.text,
-        listingTypeAr: selectedListingType!,
-        propertyTypeAr: selectedPropertyType!,
+        // النصوص للعرض
+        listingTypeAr: selectedListingType ?? '',
+        propertyTypeAr: selectedPropertyType ?? '',
         governorateAr: govName,
-        cityAr: selectedCityName!,
+        cityAr: selectedCityName ?? '',
+        source: selectedSource,
+        // IDs للحفظ
+        propertyTypeId: propertyTypeId,
+        listingTypeId: listingTypeId,
+        sourceId: sourceId,
+        governorateId: selectedGovId,
+        cityId: cityId,
         regionAr: _controllers['regionAr']!.text,
         locationInDetails: _controllers['locDetails']!.text,
         locationMap: _controllers['locMap']!.text,
@@ -548,17 +640,24 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
         ownerPhone: _controllers['ownerPhone']!.text,
         internalNotes: _controllers['internalNotes']!.text,
         images: _existingImages,
-        source: selectedSource,
-        platforms: selectedPlatforms,
+        advertisingPlatforms: const [],
       );
 
+      // حل أسماء المنصات إلى IDs
+      final platformIds = selectedPlatforms
+          .map((name) => dataManager.getIdByName('advertising_platform', name))
+          .where((id) => id != null)
+          .cast<String>()
+          .toList();
+
       if (widget.property == null) {
-        context.read<PropertiesCubit>().addProperty(model, _newImagesBytes);
+        context.read<PropertiesCubit>().addProperty(model, _newImagesBytes, platformIds: platformIds);
       } else {
         context.read<PropertiesCubit>().updateProperty(
           property: model,
           newImages: _newImagesBytes,
           imagesToDelete: _imagesToDeleteObjects,
+          platformIds: platformIds,
         );
       }
     } catch (e) {

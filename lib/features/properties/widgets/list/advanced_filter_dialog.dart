@@ -264,18 +264,30 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
                       ),
                       onPressed: () {
-                        String? govName;
-                        if (_selectedGovId != null) {
-                          govName = dataManager.governorates.firstWhere((g) => g.id == _selectedGovId).name;
+                        // تحويل الاختيارات النصية إلى IDs
+                        final propertyTypeId = _selectedPropertyType != null
+                            ? dataManager.getIdByName('property_type', _selectedPropertyType!)
+                            : null;
+                        final listingTypeId = _selectedListingType != null
+                            ? dataManager.getIdByName('listing_type', _selectedListingType!)
+                            : null;
+                        int? cityId;
+                        if (_selectedGovId != null && _selectedCityName != null) {
+                          try {
+                            cityId = dataManager
+                                .getCitiesByGovId(_selectedGovId!)
+                                .firstWhere((c) => c.name == _selectedCityName)
+                                .id;
+                          } catch (_) {}
                         }
 
                         context.read<PropertiesCubit>().applyAdvancedFilters(
                           role: widget.role,
                           currentUserId: widget.currentUserId,
-                          listingType: _selectedListingType,
-                          type: _selectedPropertyType,
-                          city: _selectedCityName,
-                          governorate: govName,
+                          listingTypeId: listingTypeId,
+                          propertyTypeId: propertyTypeId,
+                          cityId: cityId,
+                          governorateId: _selectedGovId,
                           minPrice: _minPrice,
                           maxPrice: _maxPrice,
                           selectedEmployee: _selectedEmployee,

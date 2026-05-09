@@ -55,14 +55,14 @@ class _PropertyCardState extends State<PropertyCard> {
       cursor: SystemMouseCursors.click,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        margin: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h), // 30% Scale up
+        margin: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
         transform: _isHovering
             ? (Matrix4.identity()..scale(1.01))
             : Matrix4.identity(),
         transformAlignment: Alignment.center,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(22.r), // 30% Scale up
+          borderRadius: BorderRadius.circular(22.r),
           border: Border.all(
             color: _isHovering
                 ? AppColors.brandPrimary.withValues(alpha: 0.3)
@@ -117,7 +117,7 @@ class _PropertyCardState extends State<PropertyCard> {
                   ),
 
                 Padding(
-                  padding: EdgeInsets.all(20.w), // 30% Scale up
+                  padding: EdgeInsets.all(20.w),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -125,15 +125,15 @@ class _PropertyCardState extends State<PropertyCard> {
                       Stack(
                         children: [
                           ClipRRect(
-                            borderRadius: BorderRadius.circular(14.r), // 30% Scale up
+                            borderRadius: BorderRadius.circular(14.r),
                             child: CachedNetworkImage(
                               cacheManager: PropertyCacheManager.instance,
                               fadeInDuration: Duration.zero,
                               fadeOutDuration: Duration.zero,
                               useOldImageOnUrlChange: true,
                               imageUrl: displayUrl,
-                              width: 370.w, // 30% Scale up (was 290)
-                              height: 250.h, // 30% Scale up (was 195)
+                              width: 370.w,
+                              height: 250.h,
                               memCacheWidth: 500,
                               fit: BoxFit.cover,
                               placeholder: (context, url) => Container(
@@ -183,6 +183,7 @@ class _PropertyCardState extends State<PropertyCard> {
                                   child: Text(
                                     "${widget.property.listingTypeAr} — ${widget.property.propertyTypeAr}",
                                     style: AppTextStyles.tableCellSub.copyWith(
+                                      fontSize: 16.sp,
                                       color: AppColors.brandPrimary,
                                       fontWeight: FontWeight.w800,
                                     ),
@@ -191,6 +192,7 @@ class _PropertyCardState extends State<PropertyCard> {
                                 Text(
                                   "#${widget.property.propertyCode ?? '---'}",
                                   style: AppTextStyles.tableCellSub.copyWith(
+                                    fontSize: 16.sp,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -200,7 +202,7 @@ class _PropertyCardState extends State<PropertyCard> {
                             Text(
                               "${widget.property.price.toStringAsFixed(0)} ج.م",
                               style: AppTextStyles.h2.copyWith(
-                                fontSize: 26.sp, // 30% Scale up
+                                fontSize: 30.sp,
                                 fontWeight: FontWeight.w900,
                                 color: const Color(0xFF10B981),
                               ),
@@ -215,7 +217,7 @@ class _PropertyCardState extends State<PropertyCard> {
                                   child: Text(
                                     "${widget.property.governorateAr} — ${widget.property.cityAr}",
                                     style: AppTextStyles.tableCellSub.copyWith(
-                                      fontSize: 16.sp,
+                                      fontSize: 18.sp,
                                       color: AppColors.textPrimary,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -234,13 +236,13 @@ class _PropertyCardState extends State<PropertyCard> {
                                 Text(
                                   formattedDate,
                                   style: AppTextStyles.tableCellSub.copyWith(
-                                    fontSize: 15.sp,
+                                    fontSize: 16.sp,
                                     color: AppColors.textSecondary,
                                   ),
                                 ),
                               ],
                             ),
-                            
+
                             if (isManagerOrAdmin || shouldMask) ...[
                               SizedBox(height: 12.h),
                               Row(
@@ -251,7 +253,7 @@ class _PropertyCardState extends State<PropertyCard> {
                                   Text(
                                     "بواسطة: ${widget.property.createdByName ?? '---'}",
                                     style: AppTextStyles.tableCellSub.copyWith(
-                                      fontSize: 15.sp,
+                                      fontSize: 17.sp,
                                       color: AppColors.info,
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -305,7 +307,7 @@ class _PropertyCardState extends State<PropertyCard> {
           borderRadius: BorderRadius.circular(12.r),
           border: Border.all(color: color.withValues(alpha: 0.15)),
         ),
-        child: Icon(icon, color: color, size: 28.sp), // 30% Scale up
+        child: Icon(icon, color: color, size: 28.sp),
       ),
     );
   }

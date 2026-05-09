@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/lead_model.dart';
 
@@ -27,229 +28,207 @@ class LeadCard extends StatefulWidget {
 class _LeadCardState extends State<LeadCard> {
   bool _isHovering = false;
 
+  LeadPhoneModel? get _primaryPhone {
+    if (widget.lead.phones.isEmpty) return null;
+    try {
+      return widget.lead.phones.firstWhere((p) => p.isPrimary);
+    } catch (_) {
+      return widget.lead.phones.first;
+    }
+  }
+
   void _copyPhone(String phone) {
     Clipboard.setData(ClipboardData(text: phone));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("تم نسخ رقم الهاتف"),
-        duration: Duration(seconds: 1),
-      ),
+      const SnackBar(content: Text('تم نسخ رقم الهاتف 📋'), duration: Duration(seconds: 1)),
     );
+  }
+
+  Color _statusColor(String? status) {
+    switch (status) {
+      case 'جديد':          return const Color(0xFF3B82F6);
+      case 'تم التواصل':    return const Color(0xFF8B5CF6);
+      case 'تفاوض':         return AppColors.brandPrimary;
+      case 'تم التعاقد':   return const Color(0xFF10B981);
+      case 'مستبعد':        return const Color(0xFFEF4444);
+      default:              return const Color(0xFF9CA3AF);
+    }
+  }
+
+  String get _initials {
+    final parts = widget.lead.clientName.trim()
+        .split(' ')
+        .where((p) => p.isNotEmpty)
+        .toList();
+    if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    if (parts.isNotEmpty) return parts[0][0].toUpperCase();
+    return '?';
   }
 
   @override
   Widget build(BuildContext context) {
-    final Color statusColor =
-        _resolveStatusColor(widget.lead.leadStatus ?? 'جديد');
-    final bool isManagerOrAdmin =
-        widget.role == 'manager' || widget.role == 'admin';
-
-    final String name = widget.lead.clientName.trim();
-    final List<String> parts =
-        name.split(' ').where((p) => p.isNotEmpty).toList();
-    final String initials = parts.length >= 2
-        ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
-        : parts.isNotEmpty && parts[0].isNotEmpty
-            ? parts[0][0].toUpperCase()
-            : '?';
+    final bool isManagerOrAdmin = widget.role == 'manager' || widget.role == 'admin';
+    final Color sColor = _statusColor(widget.lead.leadStatus);
+    final bool hasPlatform = widget.lead.platformId != null;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
+      onExit:  (_) => setState(() => _isHovering = false),
       cursor: SystemMouseCursors.click,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        margin: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
-        transform: _isHovering
-            ? (Matrix4.identity()..scale(1.005))
-            : Matrix4.identity(),
+        margin: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
+        transform: _isHovering ? (Matrix4.identity()..scale(1.005)) : Matrix4.identity(),
         transformAlignment: Alignment.center,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(22.r),
+          borderRadius: BorderRadius.circular(20.r),
           border: Border.all(
-            color: _isHovering
-                ? AppColors.brandPrimary.withValues(alpha: 0.3)
-                : const Color(0xFFEAEAF0),
-            width: _isHovering ? 2.0 : 1.5,
+            color: !hasPlatform
+                ? Colors.red.withValues(alpha: 0.3)
+                : _isHovering
+                    ? AppColors.brandPrimary.withValues(alpha: 0.35)
+                    : const Color(0xFFE5E7EB),
+            width: _isHovering || !hasPlatform ? 2.0 : 1.5,
           ),
-          boxShadow: _isHovering
-              ? [
-                  BoxShadow(
-                    color: AppColors.brandPrimary.withValues(alpha: 0.1),
-                    blurRadius: 24,
-                    spreadRadius: 2,
-                    offset: const Offset(0, 8),
-                  ),
-                ]
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
+          boxShadow: [
+            BoxShadow(
+              color: _isHovering
+                  ? AppColors.brandPrimary.withValues(alpha: 0.08)
+                  : Colors.black.withValues(alpha: 0.04),
+              blurRadius: _isHovering ? 24 : 14,
+              spreadRadius: _isHovering ? 2 : 0,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
             onTap: widget.onTap,
-            borderRadius: BorderRadius.circular(22.r),
+            borderRadius: BorderRadius.circular(20.r),
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 28.w, vertical: 24.h),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+              padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 20.h),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ─── أزرار تعديل / حذف ───
-                  _buildActionButtons(isManagerOrAdmin),
-                  SizedBox(width: 20.w),
+                  // ─── الصف الأول: Avatar + الاسم + الهاتف + الأزرار ───
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Avatar
+                      _buildAvatar(sColor),
+                      SizedBox(width: 18.w),
 
-                  // ─── Status + الاهتمام ───
-                  SizedBox(
-                    width: 200.w,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildStatusBadge(statusColor),
-                        SizedBox(height: 14.h),
-                        Text(
-                          'الاهتمام',
-                          style: TextStyle(
-                            fontSize: 14.sp,
-                            color: const Color(0xFFAAAAAA),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        SizedBox(height: 5.h),
-                        Text(
-                          '${widget.lead.propertyType ?? 'غير محدد'} — ${widget.lead.city ?? widget.lead.governorate ?? 'غير محدد'}',
-                          style: TextStyle(
-                            fontSize: 18.sp,
-                            color: const Color(0xFF333344),
-                            fontWeight: FontWeight.w700,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (widget.lead.listingType != null) ...[
-                          SizedBox(height: 4.h),
-                          Text(
-                            widget.lead.listingType!,
-                            style: TextStyle(
-                              fontSize: 15.sp,
-                              color: const Color(0xFF888899),
+                      // الاسم + الهاتف
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.lead.clientName,
+                              style: TextStyle(
+                                fontSize: 22.sp,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF111827),
+                                height: 1.2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                        ],
-                        if (widget.lead.budgetFrom != null || widget.lead.budgetTo != null) ...[
-                          SizedBox(height: 6.h),
-                          Row(
-                            children: [
-                              Icon(Icons.attach_money_rounded,
-                                  size: 16.sp,
-                                  color: AppColors.success),
-                              SizedBox(width: 3.w),
-                              Text(
-                                widget.lead.budgetFrom != null && widget.lead.budgetTo != null
-                                    ? '${widget.lead.budgetFrom} - ${widget.lead.budgetTo}'
-                                    : '${widget.lead.budgetFrom ?? widget.lead.budgetTo}',
-                                style: TextStyle(
-                                  fontSize: 15.sp,
-                                  color: AppColors.success,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-
-                  const Spacer(),
-
-                  // ─── Divider عمودي ───
-                  Container(
-                    width: 1.2,
-                    height: 70.h,
-                    color: const Color(0xFFEEEEF5),
-                    margin: EdgeInsets.symmetric(horizontal: 20.w),
-                  ),
-
-                  // ─── اسم العميل + رقمه + المنصة ───
-                  Expanded(
-                    flex: 3,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          widget.lead.clientName,
-                          style: TextStyle(
-                            fontSize: 26.sp,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFF1A1A2E),
-                            height: 1.2,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.right,
-                        ),
-                        SizedBox(height: 10.h),
-                        if (widget.lead.clientPhone.isNotEmpty)
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
+                            SizedBox(height: 8.h),
+                            if (_primaryPhone != null)
                               GestureDetector(
-                                onTap: () =>
-                                    _copyPhone(widget.lead.clientPhone.first),
-                                child: Text(
-                                  widget.lead.clientPhone.first,
-                                  style: TextStyle(
-                                    fontSize: 18.sp,
-                                    color: AppColors.brandPrimary,
-                                    decoration: TextDecoration.underline,
-                                    decorationColor: AppColors.brandPrimary
-                                        .withValues(alpha: 0.4),
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                onTap: () => _copyPhone(_primaryPhone!.phoneNumber),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.phone_outlined, size: 17.sp, color: AppColors.brandPrimary),
+                                    SizedBox(width: 6.w),
+                                    Text(
+                                      _primaryPhone!.phoneNumber,
+                                      style: TextStyle(
+                                        fontSize: 18.sp,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.brandPrimary,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                    SizedBox(width: 6.w),
+                                    Icon(Icons.copy_rounded, size: 14.sp, color: AppColors.brandPrimary.withValues(alpha: 0.4)),
+                                  ],
                                 ),
-                              ),
-                              SizedBox(width: 8.w),
-                              Icon(
-                                Icons.phone_outlined,
-                                size: 18.sp,
-                                color: const Color(0xFFAAAAAA),
-                              ),
-                            ],
-                          ),
-                        if (widget.lead.platform != null) ...[
-                          SizedBox(height: 6.h),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
+                              )
+                            else
                               Text(
-                                widget.lead.platform!,
-                                style: TextStyle(
-                                  fontSize: 15.sp,
-                                  color: const Color(0xFFAAAAAA),
-                                ),
+                                'لا يوجد رقم هاتف',
+                                style: TextStyle(fontSize: 16.sp, color: Colors.grey[400]),
                               ),
-                              SizedBox(width: 6.w),
-                              Icon(
-                                Icons.campaign_outlined,
-                                size: 17.sp,
-                                color: const Color(0xFFCCCCDD),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  SizedBox(width: 20.w),
+                          ],
+                        ),
+                      ),
 
-                  // ─── Avatar ───
-                  _buildAvatar(initials),
+                      // أزرار التحكم
+                      _buildActions(isManagerOrAdmin),
+                    ],
+                  ),
+
+                  SizedBox(height: 16.h),
+                  Divider(height: 1, color: const Color(0xFFF3F4F6)),
+                  SizedBox(height: 14.h),
+
+                  // ─── الصف الثاني: الحالة + المنصة + التاريخ ───
+                  Wrap(
+                    spacing: 10.w,
+                    runSpacing: 8.h,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      // حالة العميل
+                      _buildBadge(
+                        label: widget.lead.leadStatus ?? 'غير محدد',
+                        color: sColor,
+                        icon: Icons.circle,
+                        iconSize: 8,
+                      ),
+
+                      // منصة المصدر
+                      if (hasPlatform)
+                        _buildBadge(
+                          label: widget.lead.platform!,
+                          color: const Color(0xFF6366F1),
+                          icon: Icons.campaign_outlined,
+                          iconSize: 15,
+                        )
+                      else
+                        _buildBadge(
+                          label: 'منصة غير محددة',
+                          color: Colors.red,
+                          icon: Icons.warning_amber_rounded,
+                          iconSize: 15,
+                          isOutlined: true,
+                        ),
+
+                      // تاريخ الإضافة
+                      if (widget.lead.createdAt != null)
+                        _buildBadge(
+                          label: DateFormat('dd/MM/yyyy').format(widget.lead.createdAt!),
+                          color: const Color(0xFF6B7280),
+                          icon: Icons.calendar_today_outlined,
+                          iconSize: 14,
+                          isOutlined: true,
+                        ),
+
+                      // الموظف المسؤول
+                      if (isManagerOrAdmin && widget.lead.assignedToName != null)
+                        _buildBadge(
+                          label: widget.lead.assignedToName!,
+                          color: AppColors.brandPrimary,
+                          icon: Icons.person_outline_rounded,
+                          iconSize: 15,
+                          isOutlined: true,
+                        ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -259,61 +238,56 @@ class _LeadCardState extends State<LeadCard> {
     );
   }
 
-  Widget _buildAvatar(String initials) {
+  Widget _buildAvatar(Color sColor) {
     return Container(
-      width: 70.r,
-      height: 70.r,
+      width: 56.r,
+      height: 56.r,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: AppColors.brandPrimary.withValues(alpha: 0.1),
-        border: Border.all(
-          color: AppColors.brandPrimary.withValues(alpha: 0.2),
-          width: 2,
-        ),
+        color: sColor.withValues(alpha: 0.1),
+        border: Border.all(color: sColor.withValues(alpha: 0.3), width: 2),
       ),
       child: Center(
         child: Text(
-          initials,
+          _initials,
           style: TextStyle(
-            fontSize: 24.sp,
+            fontSize: 20.sp,
             fontWeight: FontWeight.w800,
-            color: AppColors.brandPrimary,
-            letterSpacing: 1,
+            color: sColor,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildStatusBadge(Color statusColor) {
+  Widget _buildBadge({
+    required String label,
+    required Color color,
+    required IconData icon,
+    required double iconSize,
+    bool isOutlined = false,
+  }) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
       decoration: BoxDecoration(
-        color: statusColor.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(20.r),
+        color: isOutlined ? Colors.transparent : color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(30.r),
         border: Border.all(
-          color: statusColor.withValues(alpha: 0.2),
-          width: 1,
+          color: color.withValues(alpha: isOutlined ? 0.3 : 0.15),
+          width: 1.2,
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 9.r,
-            height: 9.r,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: statusColor,
-            ),
-          ),
-          SizedBox(width: 8.w),
+          Icon(icon, size: iconSize.sp, color: color),
+          SizedBox(width: 5.w),
           Text(
-            widget.lead.leadStatus ?? 'جديد',
+            label,
             style: TextStyle(
-              fontSize: 16.sp,
-              fontWeight: FontWeight.w700,
-              color: statusColor,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w600,
+              color: color,
             ),
           ),
         ],
@@ -321,63 +295,33 @@ class _LeadCardState extends State<LeadCard> {
     );
   }
 
-  Widget _buildActionButtons(bool isManagerOrAdmin) {
+  Widget _buildActions(bool isManagerOrAdmin) {
     return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Tooltip(
-          message: 'تعديل',
-          child: InkWell(
-            onTap: widget.onEdit,
-            borderRadius: BorderRadius.circular(10.r),
-            child: Container(
-              padding: EdgeInsets.all(10.r),
-              decoration: BoxDecoration(
-                color: AppColors.info.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(10.r),
-              ),
-              child: Icon(Icons.edit_rounded,
-                  size: 22.sp, color: AppColors.info),
-            ),
-          ),
-        ),
+        _actionBtn(Icons.edit_rounded, AppColors.info, widget.onEdit, 'تعديل'),
         if (isManagerOrAdmin) ...[
-          SizedBox(height: 10.h),
-          Tooltip(
-            message: 'حذف',
-            child: InkWell(
-              onTap: widget.onDelete,
-              borderRadius: BorderRadius.circular(10.r),
-              child: Container(
-                padding: EdgeInsets.all(10.r),
-                decoration: BoxDecoration(
-                  color: AppColors.brandAccent.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-                child: Icon(Icons.delete_outline_rounded,
-                    size: 22.sp, color: AppColors.brandAccent),
-              ),
-            ),
-          ),
+          SizedBox(height: 8.h),
+          _actionBtn(Icons.delete_outline_rounded, AppColors.brandAccent, widget.onDelete, 'حذف'),
         ],
       ],
     );
   }
 
-  Color _resolveStatusColor(String status) {
-    switch (status) {
-      case 'جديد':
-        return AppColors.info;
-      case 'تم التواصل':
-        return const Color(0xFF8B5CF6);
-      case 'تفاوض':
-        return AppColors.brandPrimary;
-      case 'تم التعاقد':
-        return AppColors.success;
-      case 'مستبعد':
-        return AppColors.brandAccent;
-      default:
-        return const Color(0xFFAAAAAA);
-    }
+  Widget _actionBtn(IconData icon, Color color, VoidCallback onTap, String tooltip) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10.r),
+        child: Container(
+          padding: EdgeInsets.all(9.r),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10.r),
+          ),
+          child: Icon(icon, size: 20.sp, color: color),
+        ),
+      ),
+    );
   }
 }

@@ -27,8 +27,12 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
   late TextEditingController _nameController;
   late TextEditingController _propertyCodeController;
   late TextEditingController _descController;
-  late TextEditingController _newCommentController;
+  late TextEditingController _newNoteController;
+
+  // كل controller بيقابل LeadPhoneModel (phoneNumber + isPrimary)
   List<TextEditingController> _phoneControllers = [];
+  // نتتبع is_primary لكل رقم
+  List<bool> _phonePrimary = [];
 
   String? _selectedPlatform;
   String? _selectedListingType;
@@ -36,7 +40,6 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
   int? _selectedGovId;
   String? _selectedCityName;
   String? _selectedCommunicationChannel;
-
   String? _selectedStatus;
   String? _selectedEmployeeId;
   bool _isSubmitting = false;
@@ -51,28 +54,42 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
     _nameController = TextEditingController(text: widget.lead?.clientName);
     _propertyCodeController = TextEditingController(text: widget.lead?.propertyCode);
     _descController = TextEditingController(text: widget.lead?.descLeadNeed);
-    _newCommentController = TextEditingController();
+    _newNoteController = TextEditingController();
 
     _selectedStatus = widget.lead?.leadStatus ?? 'جديد';
     _selectedEmployeeId = widget.lead?.assignedTo ?? widget.user.id;
-    
+
     _selectedPlatform = widget.lead?.platform;
     _selectedListingType = widget.lead?.listingType;
     _selectedPropertyType = widget.lead?.propertyType;
     _selectedCommunicationChannel = widget.lead?.communicationChannel;
-    
-    if (widget.lead?.governorate != null) {
-      try {
-        final gov = dataManager.governorates.firstWhere((g) => g.name == widget.lead!.governorate);
-        _selectedGovId = gov.id;
+
+    if (widget.lead != null) {
+      if (widget.lead!.governorateId != null) {
+        _selectedGovId = widget.lead!.governorateId;
         _selectedCityName = widget.lead!.city;
-      } catch (_) {}
+      } else if (widget.lead!.governorate != null) {
+        try {
+          final gov = dataManager.governorates
+              .firstWhere((g) => g.name == widget.lead!.governorate);
+          _selectedGovId = gov.id;
+          _selectedCityName = widget.lead!.city;
+        } catch (_) {}
+      }
     }
 
-    if (widget.lead != null && widget.lead!.clientPhone.isNotEmpty) {
-      _phoneControllers = widget.lead!.clientPhone.map((p) => TextEditingController(text: p)).toList();
+    // تحميل الأرقام من lead_phones
+    if (widget.lead != null && widget.lead!.phones.isNotEmpty) {
+      // نرتب الـ primary أولاً
+      final sorted = [...widget.lead!.phones]
+        ..sort((a, b) => b.isPrimary ? 1 : -1);
+      _phoneControllers = sorted
+          .map((p) => TextEditingController(text: p.phoneNumber))
+          .toList();
+      _phonePrimary = sorted.map((p) => p.isPrimary).toList();
     } else {
       _phoneControllers.add(TextEditingController());
+      _phonePrimary.add(true); // أول رقم primary افتراضياً
     }
   }
 
@@ -81,7 +98,7 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
     _nameController.dispose();
     _propertyCodeController.dispose();
     _descController.dispose();
-    _newCommentController.dispose();
+    _newNoteController.dispose();
     for (var c in _phoneControllers) { c.dispose(); }
     super.dispose();
   }
@@ -93,17 +110,21 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
     return BlocConsumer<LeadCubit, LeadState>(
       listener: (context, state) {
         if (state is LeadLoaded) {
-          if (!_isSubmitting) return; // Prevent closing if we didn't initiate
+          if (!_isSubmitting) return;
           setState(() => _isSubmitting = false);
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("تم حفظ البيانات بنجاح"), backgroundColor: Colors.green),
+            const SnackBar(
+                content: Text("تم حفظ البيانات بنجاح"),
+                backgroundColor: Colors.green),
           );
         } else if (state is LeadError) {
           if (!_isSubmitting) return;
           setState(() => _isSubmitting = false);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message), backgroundColor: AppColors.brandAccent),
+            SnackBar(
+                content: Text(state.message),
+                backgroundColor: AppColors.brandAccent),
           );
         }
       },
@@ -137,25 +158,26 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
                           'يرجى تعبئة النموذج أدناه لتسجيل بيانات العميل في النظام العقاري.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 14.sp,
-                            color: const Color(0xFFAAAABB),
-                          ),
+                              fontSize: 14.sp,
+                              color: const Color(0xFFAAAABB)),
                         ),
                         SizedBox(height: 6.h),
-                        // زر الرجوع
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton.icon(
                             onPressed: () => Navigator.pop(context),
-                            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 14),
+                            icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                                size: 14),
                             label: const Text('رجوع'),
-                            style: TextButton.styleFrom(foregroundColor: const Color(0xFFAAAABB)),
+                            style: TextButton.styleFrom(
+                                foregroundColor: const Color(0xFFAAAABB)),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  // ─── 1. القسم الأساسي ───
+
+                  // ─── 1. بيانات العميل ───
                   _buildSectionCard(
                     title: "بيانات العميل",
                     icon: Icons.person_outline,
@@ -182,8 +204,12 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
                                 if (idx > 0) ...[
                                   SizedBox(width: 8.w),
                                   IconButton(
-                                    icon: const Icon(Icons.remove_circle, color: Colors.red),
-                                    onPressed: () => setState(() => _phoneControllers.removeAt(idx)),
+                                    icon: const Icon(Icons.remove_circle,
+                                        color: Colors.red),
+                                    onPressed: () => setState(() {
+                                      _phoneControllers.removeAt(idx);
+                                      _phonePrimary.removeAt(idx);
+                                    }),
                                   ),
                                 ],
                               ],
@@ -193,7 +219,10 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton.icon(
-                            onPressed: () => setState(() => _phoneControllers.add(TextEditingController())),
+                            onPressed: () => setState(() {
+                              _phoneControllers.add(TextEditingController());
+                              _phonePrimary.add(false);
+                            }),
                             icon: const Icon(Icons.add),
                             label: const Text("إضافة رقم آخر"),
                           ),
@@ -210,9 +239,21 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
                       children: [
                         Row(
                           children: [
-                            Expanded(child: _buildDropdown("نوع الإعلان", dataManager.getOptions('listing_type'), _selectedListingType, (v) => setState(() => _selectedListingType = v))),
+                            Expanded(
+                                child: _buildDropdown(
+                                    "نوع الإعلان",
+                                    dataManager.getOptions('listing_type'),
+                                    _selectedListingType,
+                                    (v) => setState(
+                                        () => _selectedListingType = v))),
                             SizedBox(width: 16.w),
-                            Expanded(child: _buildDropdown("نوع العقار", dataManager.getOptions('property_type'), _selectedPropertyType, (v) => setState(() => _selectedPropertyType = v))),
+                            Expanded(
+                                child: _buildDropdown(
+                                    "نوع العقار",
+                                    dataManager.getOptions('property_type'),
+                                    _selectedPropertyType,
+                                    (v) => setState(
+                                        () => _selectedPropertyType = v))),
                           ],
                         ),
                         SizedBox(height: 16.h),
@@ -223,12 +264,10 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
                                 label: "المحافظة",
                                 value: _selectedGovId,
                                 items: dataManager.governorates
-                                    .map(
-                                      (g) => DropdownMenuItem<int>(
-                                        value: g.id,
-                                        child: Text(g.name),
-                                      ),
-                                    )
+                                    .map((g) => DropdownMenuItem<int>(
+                                          value: g.id,
+                                          child: Text(g.name),
+                                        ))
                                     .toList(),
                                 onChanged: (v) => setState(() {
                                   _selectedGovId = v;
@@ -245,29 +284,33 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
                                     ? []
                                     : dataManager
                                         .getCitiesByGovId(_selectedGovId!)
-                                        .map(
-                                          (c) => DropdownMenuItem<String>(
-                                            value: c.name,
-                                            child: Text(c.name),
-                                          ),
-                                        )
+                                        .map((c) => DropdownMenuItem<String>(
+                                              value: c.name,
+                                              child: Text(c.name),
+                                            ))
                                         .toList(),
                                 onChanged: _selectedGovId == null
                                     ? null
-                                    : (v) => setState(() => _selectedCityName = v),
+                                    : (v) => setState(
+                                        () => _selectedCityName = v),
                               ),
                             ),
                           ],
                         ),
                         SizedBox(height: 16.h),
-                        RetajTextField(controller: _propertyCodeController, label: "كود عقار محدد (اختياري)"),
+                        RetajTextField(
+                            controller: _propertyCodeController,
+                            label: "كود عقار محدد (اختياري)"),
                         SizedBox(height: 16.h),
-                        RetajTextField(controller: _descController, label: "وصف الاحتياج (اختياري)", maxLines: 3),
+                        RetajTextField(
+                            controller: _descController,
+                            label: "وصف الاحتياج (اختياري)",
+                            maxLines: 3),
                       ],
                     ),
                   ),
 
-                  // ─── 3. المصدر والإدارة ───
+                  // ─── 3. المنصة والحالة ───
                   _buildSectionCard(
                     title: "المنصة والحالة",
                     icon: Icons.admin_panel_settings_outlined,
@@ -275,49 +318,66 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
                       children: [
                         Row(
                           children: [
-                            Expanded(child: _buildDropdown("المنصة القادم منها", dataManager.getOptions('platform'), _selectedPlatform, (v) => setState(() => _selectedPlatform = v))),
+                            Expanded(
+                                child: _buildDropdown(
+                                    "المنصة القادم منها",
+                                    dataManager.getOptions('platform'),
+                                    _selectedPlatform,
+                                    (v) => setState(
+                                        () => _selectedPlatform = v))),
                             SizedBox(width: 16.w),
-                            Expanded(child: _buildDropdown("طريقة التواصل", dataManager.getOptions('communication_channel'), _selectedCommunicationChannel, (v) => setState(() => _selectedCommunicationChannel = v))),
+                            Expanded(
+                                child: _buildDropdown(
+                                    "طريقة التواصل",
+                                    dataManager
+                                        .getOptions('communication_channel'),
+                                    _selectedCommunicationChannel,
+                                    (v) => setState(() =>
+                                        _selectedCommunicationChannel = v))),
                           ],
                         ),
                         SizedBox(height: 16.h),
-                        _buildDropdown("حالة العميل", dataManager.getOptions('lead_status'), _selectedStatus, (v) => setState(() => _selectedStatus = v)),
-                        
-                        if (widget.user.role == 'manager' || widget.user.role == 'admin') ...[
+                        _buildDropdown(
+                            "حالة العميل",
+                            dataManager.getOptions('lead_status'),
+                            _selectedStatus,
+                            (v) => setState(() => _selectedStatus = v)),
+                        if (widget.user.role == 'manager' ||
+                            widget.user.role == 'admin') ...[
                           SizedBox(height: 16.h),
                           (state is LeadLoaded && state.employees.isNotEmpty)
-                            ? RetajDropdown<String>(
-                                label: "الموظف المسؤول (خاص بالمدير)",
-                                value: state.employees.any((e) => e.id == _selectedEmployeeId)
-                                    ? _selectedEmployeeId
-                                    : null,
-                                items: state.employees
-                                    .map(
-                                      (e) => DropdownMenuItem<String>(
-                                        value: e.id,
-                                        child: Text(
-                                          e.firstName != null
-                                              ? "${e.firstName} ${e.lastName}"
-                                              : e.email,
-                                        ),
-                                      ),
-                                    )
-                                    .toList(),
-                                onChanged: (val) => setState(() => _selectedEmployeeId = val),
-                              )
-                            : const CircularProgressIndicator(),
+                              ? RetajDropdown<String>(
+                                  label: "الموظف المسؤول (خاص بالمدير)",
+                                  value: state.employees.any(
+                                          (e) => e.id == _selectedEmployeeId)
+                                      ? _selectedEmployeeId
+                                      : null,
+                                  items: state.employees
+                                      .map((e) => DropdownMenuItem<String>(
+                                            value: e.id,
+                                            child: Text(
+                                              e.firstName != null
+                                                  ? "${e.firstName} ${e.lastName}"
+                                                  : e.email,
+                                            ),
+                                          ))
+                                      .toList(),
+                                  onChanged: (val) => setState(
+                                      () => _selectedEmployeeId = val),
+                                )
+                              : const CircularProgressIndicator(),
                         ],
                       ],
                     ),
                   ),
 
-                  // ─── 4. إضافة تعليق ───
+                  // ─── 4. إضافة ملاحظة ───
                   _buildSectionCard(
-                    title: "إضافة تعليق (اختياري)",
+                    title: "إضافة ملاحظة (اختياري)",
                     icon: Icons.comment_outlined,
                     child: RetajTextField(
-                      controller: _newCommentController,
-                      label: "اكتب تعليقاً يضاف للسجل مباشرة...",
+                      controller: _newNoteController,
+                      label: "اكتب ملاحظة تضاف للسجل مباشرة...",
                       maxLines: 3,
                     ),
                   ),
@@ -336,7 +396,10 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
     );
   }
 
-  Widget _buildSectionCard({required String title, required IconData icon, required Widget child}) {
+  Widget _buildSectionCard(
+      {required String title,
+      required IconData icon,
+      required Widget child}) {
     return Container(
       margin: EdgeInsets.only(bottom: 20.h),
       decoration: BoxDecoration(
@@ -354,7 +417,6 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // عنوان القسم في المنتصف
           Padding(
             padding: EdgeInsets.only(top: 24.h, bottom: 4.h),
             child: Row(
@@ -374,8 +436,11 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
               ],
             ),
           ),
-          Divider(color: const Color(0xFFF0F0F6), thickness: 1, height: 24.h),
-          Padding(padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 24.h), child: child),
+          Divider(
+              color: const Color(0xFFF0F0F6), thickness: 1, height: 24.h),
+          Padding(
+              padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 24.h),
+              child: child),
         ],
       ),
     );
@@ -391,10 +456,7 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
       label: hint,
       value: value,
       items: items
-          .map((e) => DropdownMenuItem<String>(
-                value: e,
-                child: Text(e),
-              ))
+          .map((e) => DropdownMenuItem<String>(value: e, child: Text(e)))
           .toList(),
       onChanged: onChanged,
     );
@@ -408,11 +470,16 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
         gradient: isLoading
             ? null
             : LinearGradient(
-                colors: [AppColors.brandPrimary, AppColors.brandPrimary.withValues(alpha: 0.8)],
+                colors: [
+                  AppColors.brandPrimary,
+                  AppColors.brandPrimary.withValues(alpha: 0.8)
+                ],
                 begin: Alignment.centerRight,
                 end: Alignment.centerLeft,
               ),
-        color: isLoading ? AppColors.brandPrimary.withValues(alpha: 0.5) : null,
+        color: isLoading
+            ? AppColors.brandPrimary.withValues(alpha: 0.5)
+            : null,
         boxShadow: isLoading
             ? []
             : [
@@ -433,16 +500,21 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
             child: Center(
               child: isLoading
                   ? const SizedBox(
-                      height: 26, width: 26,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                      height: 26,
+                      width: 26,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2.5),
                     )
                   : Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.save_rounded, color: Colors.white, size: 22.sp),
+                        Icon(Icons.save_rounded,
+                            color: Colors.white, size: 22.sp),
                         SizedBox(width: 10.w),
                         Text(
-                          isEdit ? 'تحديث بيانات العميل' : 'حفظ البيانات',
+                          isEdit
+                              ? 'تحديث بيانات العميل'
+                              : 'حفظ البيانات',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 18.sp,
@@ -462,37 +534,82 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
       setState(() => _isSubmitting = true);
-      
-      List<String> phones = _phoneControllers.map((c) => c.text).where((t) => t.isNotEmpty).toList();
-      String? govName;
-      if (_selectedGovId != null) {
-        govName = dataManager.governorates.firstWhere((g) => g.id == _selectedGovId).name;
+
+      // بناء قائمة الأرقام كـ LeadPhoneModel
+      final phones = _phoneControllers.asMap().entries
+          .where((e) => e.value.text.trim().isNotEmpty)
+          .map((e) => LeadPhoneModel(
+                phoneNumber: e.value.text.trim(),
+                isPrimary: _phonePrimary.length > e.key
+                    ? _phonePrimary[e.key]
+                    : e.key == 0,
+              ))
+          .toList();
+
+      // تحويل الاختيارات النصية إلى IDs
+      final statusId = _selectedStatus != null
+          ? dataManager.getIdByName('lead_status', _selectedStatus!)
+          : null;
+      final platformId = _selectedPlatform != null
+          ? dataManager.getIdByName('platform', _selectedPlatform!)
+          : null;
+      final propertyTypeId = _selectedPropertyType != null
+          ? dataManager.getIdByName('property_type', _selectedPropertyType!)
+          : null;
+      final listingTypeId = _selectedListingType != null
+          ? dataManager.getIdByName('listing_type', _selectedListingType!)
+          : null;
+      final channelId = _selectedCommunicationChannel != null
+          ? dataManager.getIdByName(
+              'communication_channel', _selectedCommunicationChannel!)
+          : null;
+
+      int? cityId;
+      if (_selectedGovId != null && _selectedCityName != null) {
+        try {
+          final cityObj = dataManager
+              .getCitiesByGovId(_selectedGovId!)
+              .firstWhere((c) => c.name == _selectedCityName);
+          cityId = cityObj.id;
+        } catch (_) {}
       }
 
       final leadData = LeadModel(
         id: widget.lead?.id,
         clientName: _nameController.text,
-        clientPhone: phones,
+        phones: phones,
         propertyCode: _propertyCodeController.text,
         descLeadNeed: _descController.text,
-        budgetFrom: null,
-        budgetTo: null,
         platform: _selectedPlatform,
         listingType: _selectedListingType,
         propertyType: _selectedPropertyType,
         communicationChannel: _selectedCommunicationChannel,
-        governorate: govName,
         city: _selectedCityName,
         leadStatus: _selectedStatus,
+        statusId: statusId,
+        platformId: platformId,
+        propertyTypeId: propertyTypeId,
+        listingTypeId: listingTypeId,
+        channelId: channelId,
+        governorateId: _selectedGovId,
+        cityId: cityId,
         createdBy: widget.lead?.createdBy ?? widget.user.id,
         assignedTo: _selectedEmployeeId ?? widget.user.id,
         createdAt: widget.lead?.createdAt ?? DateTime.now(),
       );
 
       if (widget.lead == null) {
-        context.read<LeadCubit>().addLead(leadData, newComment: _newCommentController.text);
+        context.read<LeadCubit>().addLead(
+              leadData,
+              phones,
+              newNote: _newNoteController.text,
+            );
       } else {
-        context.read<LeadCubit>().updateFullLead(leadData, newComment: _newCommentController.text);
+        context.read<LeadCubit>().updateFullLead(
+              leadData,
+              phones,
+              newNote: _newNoteController.text,
+            );
       }
     }
   }
