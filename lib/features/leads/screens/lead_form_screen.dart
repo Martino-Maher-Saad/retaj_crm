@@ -199,6 +199,12 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
                                     controller: entry.value,
                                     label: "رقم الهاتف ${idx + 1}",
                                     keyboardType: TextInputType.phone,
+                                    forceLtr: true,
+                                    validator: idx == 0
+                                        ? (v) => (v == null || v.trim().isEmpty)
+                                            ? 'رقم الهاتف الأساسي مطلوب'
+                                            : null
+                                        : null,
                                   ),
                                 ),
                                 if (idx > 0) ...[
@@ -320,11 +326,12 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
                           children: [
                             Expanded(
                                 child: _buildDropdown(
-                                    "المنصة القادم منها",
+                                    "المنصة القادم منها *",
                                     dataManager.getOptions('platform'),
                                     _selectedPlatform,
                                     (v) => setState(
-                                        () => _selectedPlatform = v))),
+                                        () => _selectedPlatform = v),
+                                    required: true)),
                             SizedBox(width: 16.w),
                             Expanded(
                                 child: _buildDropdown(
@@ -450,8 +457,9 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
     String hint,
     List<String> items,
     String? value,
-    ValueChanged<String?> onChanged,
-  ) {
+    ValueChanged<String?> onChanged, {
+    bool required = false,
+  }) {
     return RetajDropdown<String>(
       label: hint,
       value: value,
@@ -459,6 +467,9 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
           .map((e) => DropdownMenuItem<String>(value: e, child: Text(e)))
           .toList(),
       onChanged: onChanged,
+      validator: required
+          ? (v) => (v == null || v.isEmpty) ? 'هذا الحقل مطلوب' : null
+          : null,
     );
   }
 
