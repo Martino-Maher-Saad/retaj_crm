@@ -1,11 +1,10 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../data/models/property_model.dart';
+import 'property_cache_manager.dart';
 
 class WhatsappShareHelper {
   static String buildPublicMessage(PropertyModel property) {
@@ -58,33 +57,25 @@ class WhatsappShareHelper {
       final List<XFile> imageFiles = [];
 
       if (property.images.isNotEmpty) {
-        Directory? tempDir;
-        if (!kIsWeb) {
-          tempDir = await getTemporaryDirectory();
-        }
-        
         final imagesToShare = property.images.toList();
         
         for (int i = 0; i < imagesToShare.length; i++) {
           final imageUrl = imagesToShare[i].original; 
           if (imageUrl.isNotEmpty) {
             try {
-              final response = await http.get(Uri.parse(imageUrl));
-              if (response.statusCode == 200) {
-                if (kIsWeb) {
-                  imageFiles.add(XFile.fromData(
-                    response.bodyBytes,
-                    name: 'property_img_$i.jpg',
-                    mimeType: 'image/jpeg',
-                  ));
-                } else {
-                  final file = File('${tempDir!.path}/property_img_$i.jpg');
-                  await file.writeAsBytes(response.bodyBytes);
-                  imageFiles.add(XFile(file.path));
-                }
+              final file = await PropertyCacheManager.instance.getSingleFile(imageUrl);
+              if (kIsWeb) {
+                final bytes = await file.readAsBytes();
+                imageFiles.add(XFile.fromData(
+                  bytes,
+                  name: 'property_img_$i.jpg',
+                  mimeType: 'image/jpeg',
+                ));
+              } else {
+                imageFiles.add(XFile(file.path));
               }
             } catch (e) {
-              debugPrint('Error downloading image for share: $e');
+              debugPrint('Error loading image from cache: $e');
             }
           }
         }
@@ -95,14 +86,44 @@ class WhatsappShareHelper {
         isDialogShowing = false;
       }
 
-      if (imageFiles.isNotEmpty) {
-        await Share.shareXFiles(
-          imageFiles,
-          text: message,
-          subject: 'تفاصيل العقار',
-        );
+      if (kIsWeb) {
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (ctx) => AlertDialog(
+              title: const Text('تم تحضير الصور بنجاح'),
+              content: const Text('الصور جاهزة الآن. اضغط على الزر بالأسفل لفتح المشاركة (الواتساب).'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('إلغاء'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    if (imageFiles.isNotEmpty) {
+                      Share.shareXFiles(imageFiles, text: message, subject: 'تفاصيل العقار');
+                    } else {
+                      Share.share(message, subject: 'تفاصيل العقار');
+                    }
+                  },
+                  child: const Text('مشاركة الآن', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          );
+        }
       } else {
-        await Share.share(message, subject: 'تفاصيل العقار');
+        if (imageFiles.isNotEmpty) {
+          await Share.shareXFiles(
+            imageFiles,
+            text: message,
+            subject: 'تفاصيل العقار',
+          );
+        } else {
+          await Share.share(message, subject: 'تفاصيل العقار');
+        }
       }
     } catch (e, stack) {
       print('======================================================');
