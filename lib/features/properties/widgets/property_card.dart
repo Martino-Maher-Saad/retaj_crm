@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/property_cache_manager.dart';
 import '../../../data/models/property_model.dart';
+import 'property_share_sheet.dart';
 
 class PropertyCard extends StatefulWidget {
   final PropertyModel property;
@@ -266,11 +268,17 @@ class _PropertyCardState extends State<PropertyCard> {
                       ),
 
                       // ─── أزرار التحكم ───
-                      if (isMine || isManagerOrAdmin) ...[
-                        SizedBox(width: 14.w),
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: [
+                      SizedBox(width: 14.w),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          _actionButton(
+                            FontAwesomeIcons.whatsapp,
+                            const Color(0xFF25D366),
+                            () => showPropertyShareSheet(context, widget.property, canShareInternal: isMine || isManagerOrAdmin),
+                          ),
+                          if (isMine || isManagerOrAdmin) ...[
+                            SizedBox(height: 14.h),
                             _actionButton(
                               Icons.edit_note_rounded,
                               AppColors.info,
@@ -283,8 +291,8 @@ class _PropertyCardState extends State<PropertyCard> {
                               widget.onDelete,
                             ),
                           ],
-                        ),
-                      ],
+                        ],
+                      ),
                     ],
                   ),
                 ),
