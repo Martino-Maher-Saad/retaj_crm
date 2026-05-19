@@ -49,7 +49,7 @@ class LeadService {
     DateTime? fromDate,
     DateTime? toDate,
   }) async {
-    var query = _supabase.from('leads').select(_selectList);
+    var query = _supabase.from('leads_view').select(_selectList);
 
     if (role != 'manager' && role != 'admin') {
       query = query.eq('assigned_to', userId);
@@ -166,13 +166,11 @@ class LeadService {
 
   /// تحديث حالة العميل فقط (يشغّل الـ Trigger تلقائياً لتسجيل التغيير)
   Future<LeadModel> updateLeadStatus(String leadId, String statusId) async {
-    final response = await _supabase
+    await _supabase
         .from('leads')
-        .update({'status_id': statusId, 'updated_at': DateTime.now().toIso8601String()})
-        .eq('id', leadId)
-        .select(_selectList)
-        .single();
-    return LeadModel.fromJson(response);
+        .update({'status_id': statusId})
+        .eq('id', leadId);
+    return await getLeadById(leadId);
   }
 
   /// إضافة ملاحظة من شاشة التفاصيل — عملية واحدة لا تحتاج RPC
@@ -187,7 +185,7 @@ class LeadService {
 
   Future<LeadModel> getLeadById(String id) async {
     final response = await _supabase
-        .from('leads')
+        .from('leads_view')
         .select(_selectDetail)
         .eq('id', id)
         .single();

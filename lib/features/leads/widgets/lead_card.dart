@@ -208,15 +208,30 @@ class _LeadCardState extends State<LeadCard> {
                           isOutlined: true,
                         ),
 
-                      // تاريخ الإضافة
+                      // تاريخ الإنشاء
                       if (widget.lead.createdAt != null)
                         _buildBadge(
-                          label: DateFormat('dd/MM/yyyy').format(widget.lead.createdAt!),
-                          color: const Color(0xFF6B7280),
+                          label: 'إنشاء: ${DateFormat('EEE dd/MM/yyyy – hh:mm a', 'ar').format(widget.lead.createdAt!)}',
+                          color: AppColors.info,
                           icon: Icons.calendar_today_outlined,
                           iconSize: 14,
-                          isOutlined: true,
+                          isOutlined: false,
                         ),
+
+                      // آخر تعديل للحالة
+                      _buildBadge(
+                        label: widget.lead.statusUpdatedAt != null
+                            ? 'آخر تعديل: ${DateFormat('EEE dd/MM/yyyy – hh:mm a', 'ar').format(widget.lead.statusUpdatedAt!)}'
+                            : 'لم يتم تعديل الحالة',
+                        color: widget.lead.statusUpdatedAt != null
+                            ? AppColors.warning
+                            : AppColors.textSecondary,
+                        icon: widget.lead.statusUpdatedAt != null
+                            ? Icons.update_rounded
+                            : Icons.history_toggle_off_rounded,
+                        iconSize: 14,
+                        isOutlined: widget.lead.statusUpdatedAt == null,
+                      ),
 
                       // الموظف المسؤول
                       if (isManagerOrAdmin && widget.lead.assignedToName != null)
@@ -268,25 +283,25 @@ class _LeadCardState extends State<LeadCard> {
     bool isOutlined = false,
   }) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 7.h),
       decoration: BoxDecoration(
-        color: isOutlined ? Colors.transparent : color.withValues(alpha: 0.08),
+        color: isOutlined ? Colors.transparent : color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(30.r),
         border: Border.all(
-          color: color.withValues(alpha: isOutlined ? 0.3 : 0.15),
-          width: 1.2,
+          color: color.withValues(alpha: isOutlined ? 0.5 : 0.2),
+          width: 1.5,
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: iconSize.sp, color: color),
-          SizedBox(width: 5.w),
+          SizedBox(width: 6.w),
           Text(
             label,
             style: TextStyle(
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w600,
+              fontSize: 15.sp,
+              fontWeight: FontWeight.w700,
               color: color,
             ),
           ),

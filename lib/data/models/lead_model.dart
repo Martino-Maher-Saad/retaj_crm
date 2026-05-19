@@ -76,6 +76,7 @@ class LeadModel {
   final String assignedTo;
   final String? assignedToName;
   final DateTime? createdAt;
+  final DateTime? statusUpdatedAt; // آخر تغيير للحالة — من leads_view
 
   // حقول العرض النصية (من JOINs مع جداول الـ lookup)
   final String? listingType;
@@ -111,6 +112,7 @@ class LeadModel {
     required this.assignedTo,
     this.assignedToName,
     this.createdAt,
+    this.statusUpdatedAt,
     this.listingType,
     this.propertyType,
     this.governorate,
@@ -141,6 +143,7 @@ class LeadModel {
     String? assignedTo,
     String? assignedToName,
     DateTime? createdAt,
+    DateTime? statusUpdatedAt,
     String? listingType,
     String? propertyType,
     String? governorate,
@@ -170,6 +173,7 @@ class LeadModel {
       assignedTo: assignedTo ?? this.assignedTo,
       assignedToName: assignedToName ?? this.assignedToName,
       createdAt: createdAt ?? this.createdAt,
+      statusUpdatedAt: statusUpdatedAt ?? this.statusUpdatedAt,
       listingType: listingType ?? this.listingType,
       propertyType: propertyType ?? this.propertyType,
       governorate: governorate ?? this.governorate,
@@ -238,6 +242,9 @@ class LeadModel {
       assignedToName: assignedToName?.isNotEmpty == true ? assignedToName : null,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at']).toLocal()
+          : null,
+      statusUpdatedAt: json['status_updated_at'] != null
+          ? DateTime.parse(json['status_updated_at']).toLocal()
           : null,
       leadStatus:           leadStatusMap?['name_ar'] ?? json['lead_status'],
       platform:             platformMap?['name_ar'] ?? json['platform'],
