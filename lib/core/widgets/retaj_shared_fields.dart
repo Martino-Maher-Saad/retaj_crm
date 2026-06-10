@@ -9,9 +9,8 @@ import '../constants/app_text_styles.dart';
 //     هذه المكتبة للـ UI/UX فقط.
 // ══════════════════════════════════════════════════════════════
 
-// ─── ألوان الـ Neon Glow ───────────────────────────────────────
 const Color _kNeonBlue = AppColors.brandPrimary;
-const Color _kBorderDefault = AppColors.borderSubtle;
+const Color _kBorderDefault = Colors.black45; // أسود مخفف
 const Color _kBorderFocused = AppColors.brandPrimary;
 const Color _kFillColor = AppColors.bgSurface;
 const Color _kLabelColor = AppColors.textSecondary;
@@ -45,15 +44,15 @@ InputDecoration _buildDecoration({
       labelText: isRequired ? '$label *' : label,
       labelStyle: TextStyle(
         fontFamily: 'Cairo',
-        fontSize: 22.sp,
+        fontSize: 24.sp,
         color: isFocused ? _kNeonBlue : _kLabelColor,
-        fontWeight: FontWeight.w500,
+        fontWeight: FontWeight.w700,
       ),
       floatingLabelStyle: TextStyle(
         fontFamily: 'Cairo',
-        fontSize: 16.sp,
+        fontSize: 18.sp,
         color: _kNeonBlue,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w700,
       ),
       hintTextDirection: TextDirection.rtl,
       filled: true,
@@ -70,15 +69,15 @@ InputDecoration _buildDecoration({
       ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(_kRadius),
-        borderSide: const BorderSide(color: _kBorderDefault),
+        borderSide: BorderSide(color: _kBorderDefault, width: 1.5.w),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(_kRadius),
-        borderSide: const BorderSide(color: _kBorderDefault),
+        borderSide: BorderSide(color: _kBorderDefault, width: 1.5.w),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(_kRadius),
-        borderSide: BorderSide(color: _kBorderFocused, width: 2.w),
+        borderSide: BorderSide(color: _kBorderFocused, width: 2.0.w),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(_kRadius),
@@ -174,8 +173,9 @@ class _RetajTextAreaState extends State<RetajTextArea> {
         selectionControls: MaterialTextSelectionControls(),
         style: TextStyle(
           fontFamily: 'Cairo',
-          fontSize: 14.sp,
+          fontSize: 24.sp,
           color: _kTextColor,
+          fontWeight: FontWeight.w700,
           height: 1.5,
         ),
         validator: widget.validator ??
@@ -285,7 +285,7 @@ class _RetajNumberStepperState extends State<RetajNumberStepper> {
           textAlign: TextAlign.center,
           style: TextStyle(
             fontFamily: 'Cairo',
-            fontSize: 15.sp,
+            fontSize: 24.sp,
             fontWeight: FontWeight.w700,
             color: _kTextColor,
           ),
@@ -329,6 +329,7 @@ class RetajCopyableDisplay extends StatelessWidget {
   final bool isNumeric; // أرقام → LTR
   final IconData? leadingIcon;
   final Color? iconColor;
+  final bool enabled;
 
   const RetajCopyableDisplay({
     super.key,
@@ -337,6 +338,7 @@ class RetajCopyableDisplay extends StatelessWidget {
     this.isNumeric = false,
     this.leadingIcon,
     this.iconColor,
+    this.enabled = true,
   });
 
   TextDirection _detectDirection(String text) {
@@ -377,26 +379,26 @@ class RetajCopyableDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 22.w, vertical: 18.h),
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: enabled ? Colors.white : Colors.grey.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(_kRadius),
-        border: Border.all(color: _kBorderDefault),
+        border: Border.all(color: _kBorderDefault, width: 1.5.w),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           if (leadingIcon != null) ...[
             Container(
-              padding: EdgeInsets.all(10.r),
+              padding: EdgeInsets.all(8.r),
               decoration: BoxDecoration(
                 color: (iconColor ?? _kNeonBlue).withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(leadingIcon, size: 28.sp,
+              child: Icon(leadingIcon, size: 22.sp,
                   color: iconColor ?? _kNeonBlue),
             ),
-            SizedBox(width: 14.w),
+            SizedBox(width: 12.w),
           ],
           Expanded(
             child: Column(
@@ -406,12 +408,12 @@ class RetajCopyableDisplay extends StatelessWidget {
                   label,
                   style: TextStyle(
                     fontFamily: 'Cairo',
-                    fontSize: 16.sp,
-                    color: _kLabelColor,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 24.sp,
+                    color: enabled ? _kTextColor : Colors.grey[500],
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                SizedBox(height: 4.h),
+                SizedBox(height: 2.h),
                 Directionality(
                   textDirection: _detectDirection(value),
                   child: Container(
@@ -422,7 +424,7 @@ class RetajCopyableDisplay extends StatelessWidget {
                       textAlign: _detectDirection(value) == TextDirection.rtl ? TextAlign.right : TextAlign.left,
                       style: TextStyle(
                         fontFamily: 'Cairo',
-                        fontSize: 22.sp,
+                        fontSize: 24.sp,
                         color: value.isEmpty ? _kLabelColor : _kTextColor,
                         fontWeight: FontWeight.w700,
                         height: 1.5,
@@ -500,7 +502,7 @@ class RetajSectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = iconColor ?? _kNeonBlue;
     return Container(
-      margin: EdgeInsets.only(bottom: 16.h),
+      margin: EdgeInsets.only(bottom: 32.h),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16.r),
@@ -544,7 +546,7 @@ class RetajSectionCard extends StatelessWidget {
                   title,
                   style: TextStyle(
                     fontFamily: 'Cairo',
-                    fontSize: 14.sp,
+                    fontSize: 24.sp,
                     fontWeight: FontWeight.w700,
                     color: color,
                   ),
@@ -571,7 +573,7 @@ class RetajSectionCard extends StatelessWidget {
     final result = <Widget>[];
     for (int i = 0; i < widgets.length; i++) {
       result.add(widgets[i]);
-      if (i < widgets.length - 1) result.add(SizedBox(height: 12.h));
+      if (i < widgets.length - 1) result.add(SizedBox(height: 32.h));
     }
     return result;
   }
@@ -721,7 +723,13 @@ class _RetajTextFieldState extends State<RetajTextField> {
         textAlignVertical: TextAlignVertical.top,
         textDirection: _textDirection,
         inputFormatters: widget.inputFormatters,
-        style: AppTextStyles.inputText,
+        style: TextStyle(
+          fontFamily: 'Cairo',
+          fontSize: 24.sp,
+          color: _kTextColor,
+          fontWeight: FontWeight.w700,
+          height: 1.5,
+        ),
         validator: widget.validator,
         enableInteractiveSelection: true,
         selectionControls: MaterialTextSelectionControls(),
@@ -738,24 +746,86 @@ class _RetajTextFieldState extends State<RetajTextField> {
         decoration: InputDecoration(
           labelText: widget.label,
           hintText: widget.hint,
-          hintStyle: AppTextStyles.tableCellSub.copyWith(
+          hintStyle: TextStyle(
+            fontFamily: 'Cairo',
+            fontSize: 24.sp,
             color: AppColors.textDisabled,
+            fontWeight: FontWeight.w700,
           ),
           hintTextDirection: TextDirection.rtl,
-          labelStyle: AppTextStyles.inputLabel.copyWith(
-            color: _isFocused ? AppColors.brandPrimary : AppColors.textSecondary,
+          labelStyle: TextStyle(
+            fontFamily: 'Cairo',
+            fontSize: 24.sp,
+            color: _isFocused ? _kBorderFocused : _kLabelColor,
+            fontWeight: FontWeight.w700,
           ),
-          floatingLabelStyle: AppTextStyles.inputLabel.copyWith(
-            color: AppColors.brandPrimary,
-            fontSize: 12.sp,
+          floatingLabelStyle: TextStyle(
+            fontFamily: 'Cairo',
+            fontSize: 24.sp,
+            color: _kBorderFocused,
+            fontWeight: FontWeight.w700,
           ),
           filled: widget.filled,
           fillColor: widget.fillColor ?? Colors.white,
           prefixIcon: widget.prefixIcon != null
               ? Icon(
                   widget.prefixIcon,
-                  size: 20.sp,
-                  color: _isFocused ? AppColors.brandPrimary : AppColors.textSecondary,
+                  size: 28.sp,
+                  color: _isFocused ? _kBorderFocused : _kLabelColor,
+                )
+              : null,
+          suffixIcon: (widget.maxLines == null || (widget.maxLines ?? 1) > 1) && !widget.readOnly
+              ? IconButton(
+                  icon: Icon(Icons.fullscreen, color: _kNeonBlue, size: 30.sp),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => Dialog(
+                        insetPadding: EdgeInsets.all(16.w),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                        child: Container(
+                          padding: EdgeInsets.all(16.w),
+                          width: double.infinity,
+                          height: MediaQuery.of(context).size.height * 0.7,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(widget.label ?? 'النص', style: TextStyle(fontSize: 24.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: _kTextColor)),
+                              SizedBox(height: 16.h),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: widget.controller,
+                                  maxLines: null,
+                                  autofocus: true,
+                                  style: TextStyle(fontFamily: 'Cairo', fontSize: 24.sp, fontWeight: FontWeight.w700, color: _kTextColor, height: 1.5),
+                                  textAlign: _textAlign,
+                                  textDirection: _textDirection,
+                                  onChanged: (val) {
+                                    widget.onChanged?.call(val);
+                                  },
+                                  decoration: InputDecoration(
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.r), borderSide: BorderSide(color: _kBorderDefault, width: 1.5.w)),
+                                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8.r), borderSide: BorderSide(color: _kBorderDefault, width: 1.5.w)),
+                                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8.r), borderSide: BorderSide(color: _kBorderFocused, width: 2.0.w)),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: 16.h),
+                              ElevatedButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.brandPrimary,
+                                  padding: EdgeInsets.symmetric(vertical: 12.h),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+                                ),
+                                child: Text('حفظ وإغلاق', style: TextStyle(fontSize: 22.sp, color: Colors.white, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 )
               : null,
           suffix: widget.suffix,
@@ -765,19 +835,19 @@ class _RetajTextFieldState extends State<RetajTextField> {
           ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8.r),
-            borderSide: const BorderSide(color: AppColors.borderSubtle),
+            borderSide: BorderSide(color: _kBorderDefault, width: 1.5.w),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8.r),
-            borderSide: const BorderSide(color: AppColors.borderSubtle),
+            borderSide: BorderSide(color: _kBorderDefault, width: 1.5.w),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8.r),
-            borderSide: BorderSide(color: AppColors.brandPrimary, width: 2.w),
+            borderSide: BorderSide(color: _kBorderFocused, width: 2.0.w),
           ),
           disabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8.r),
-            borderSide: const BorderSide(color: AppColors.borderSubtle),
+            borderSide: BorderSide(color: _kBorderDefault.withValues(alpha: 0.5), width: 1.5.w),
           ),
           errorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8.r),

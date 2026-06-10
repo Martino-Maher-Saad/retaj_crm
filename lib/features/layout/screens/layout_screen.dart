@@ -21,6 +21,11 @@ import '../../leads/screens/leads_management_screen.dart';
 import '../../properties/screens/properties_list_screen.dart';
 import '../../profile/screens/user_profile_screen.dart';
 import '../../profile/cubit/profile_cubit.dart';
+import '../../tasks/screens/tasks_screen.dart';
+import '../../tasks/screens/manager_approvals_screen.dart';
+import '../../archive/screens/archive_screen.dart';
+import '../../duplicates/screens/duplicates_screen.dart';
+import '../../properties/screens/property_shares_screen.dart';
 
 class LayoutScreen extends StatefulWidget {
   final ProfileModel user;
@@ -30,24 +35,38 @@ class LayoutScreen extends StatefulWidget {
   State<LayoutScreen> createState() => _LayoutScreenState();
 }
 
+class _NavItemData {
+  final String label;
+  final IconData icon;
+  final Widget page;
+  _NavItemData(this.label, this.icon, this.page);
+}
+
 class _LayoutScreenState extends State<LayoutScreen> {
   late PageController _pageController;
 
-  List<Widget> _getPagesByRole(ProfileModel user) {
-    return [
-      DashboardScreen(key: const PageStorageKey('dashboard_page'), user: user),
-      PropertiesListScreen(userId: user.id, role: user.role, key: const PageStorageKey('properties_page')),
-      LeadsManagementScreen(user: user, key: const PageStorageKey('leads_page')),
-      const DesignsListScreen(key: PageStorageKey('designs_page')),
-      if (user.role == 'admin')
-        BlocProvider(
-          key: const PageStorageKey('accounts_page'),
-          create: (_) => di.sl<AdminUsersCubit>(),
-          child: const AdminUsersScreen(),
-        ),
-      if (user.role == 'manager' || user.role == 'admin')
-        const DropdownManagementScreen(key: PageStorageKey('dropdown_page')),
-    ];
+  List<_NavItemData> _getNavItems(ProfileModel user) {
+    final dashboard = _NavItemData("لوحة القيادة", Icons.dashboard_outlined, DashboardScreen(key: const PageStorageKey('dashboard_page'), user: user));
+    final tasks = _NavItemData("المهام", Icons.assignment_late_rounded, TasksScreen(user: user, key: const PageStorageKey('tasks_page')));
+    final properties = _NavItemData("مخزون العقارات", Icons.home_work_outlined, PropertiesListScreen(userId: user.id, role: user.role, key: const PageStorageKey('properties_page')));
+    final shares = _NavItemData("مشاركات العقارات", Icons.share_rounded, PropertySharesScreen(user: user, key: const PageStorageKey('shares_page')));
+    final leads = _NavItemData("مخزون العملاء", Icons.people_outline_rounded, LeadsManagementScreen(user: user, key: const PageStorageKey('leads_page')));
+    final designs = _NavItemData("مكتبة التصاميم", Icons.format_paint_outlined, const DesignsListScreen(key: PageStorageKey('designs_page')));
+    final archive = _NavItemData("الأرشيف", Icons.archive_outlined, ArchiveScreen(user: user, key: const PageStorageKey('archive_page')));
+    final duplicates = _NavItemData("سجل التكرارات", Icons.control_point_duplicate, DuplicatesScreen(user: user, key: const PageStorageKey('duplicates_page')));
+    final approvals = _NavItemData("موافقات الإدارة", Icons.admin_panel_settings_outlined, ManagerApprovalsScreen(user: user, key: const PageStorageKey('approvals_page')));
+    final accounts = _NavItemData("إدارة الحسابات", Icons.manage_accounts_outlined, BlocProvider(key: const PageStorageKey('accounts_page'), create: (_) => di.sl<AdminUsersCubit>(), child: const AdminUsersScreen()));
+    final dropdowns = _NavItemData("إدارة القوائم", Icons.list_alt_rounded, const DropdownManagementScreen(key: PageStorageKey('dropdown_page')));
+
+    if (user.role == 'sales') {
+      return [dashboard, properties, leads, tasks, archive, shares];
+    } else if (user.role == 'manager') {
+      return [dashboard, properties, leads, tasks, archive, shares, duplicates];
+    } else if (user.role == 'ceo') {
+      return [dashboard, approvals, properties, leads, tasks, archive, shares, duplicates, designs];
+    } else { // admin
+      return [dashboard, tasks, properties, shares, leads, designs, archive, duplicates, approvals, accounts, dropdowns];
+    }
   }
 
   @override
@@ -68,45 +87,41 @@ class _LayoutScreenState extends State<LayoutScreen> {
       create: (context) => di.sl<LayoutCubit>(),
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F5FB),
-        body: BlocListener<LayoutCubit, LayoutState>(
-          listener: (context, state) {
+        body: BlocBuilder<LayoutCubit, LayoutState>(
+          builder: (context, state) {
+            int selectedIndex = 0;
             if (state is LayoutNavigationChanged) {
-              _pageController.animateToPage(
-                state.selectedIndex,
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-              );
+              selectedIndex = state.selectedIndex;
             }
-          },
-          child: ResponsiveDebouncerWrapper(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minWidth: AppConstants.minDesktopWidth,
-                  maxWidth: MediaQuery.of(context).size.width > AppConstants.minDesktopWidth
-                      ? MediaQuery.of(context).size.width
-                      : AppConstants.minDesktopWidth,
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    RepaintBoundary(
-                      child: _buildCustomSidebar(widget.user),
-                    ),
-                    // المحتوى الرئيسي بدون TopHeader
-                    Expanded(
-                      child: PageView(
-                        controller: _pageController,
-                        physics: const NeverScrollableScrollPhysics(),
-                        children: _getPagesByRole(widget.user),
+            return ResponsiveDebouncerWrapper(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minWidth: AppConstants.minDesktopWidth,
+                    maxWidth: MediaQuery.of(context).size.width > AppConstants.minDesktopWidth
+                        ? MediaQuery.of(context).size.width
+                        : AppConstants.minDesktopWidth,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      RepaintBoundary(
+                        child: _buildCustomSidebar(widget.user),
                       ),
-                    ),
-                  ],
+                      // المحتوى الرئيسي
+                      Expanded(
+                        child: IndexedStack(
+                          index: selectedIndex,
+                          children: _getNavItems(widget.user).map((e) => e.page).toList(),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
@@ -116,6 +131,8 @@ class _LayoutScreenState extends State<LayoutScreen> {
     switch (role) {
       case 'admin':
         return 'مسؤول النظام';
+      case 'ceo':
+        return 'المدير التنفيذي';
       case 'manager':
         return 'مدير';
       case 'sales':
@@ -243,16 +260,14 @@ class _LayoutScreenState extends State<LayoutScreen> {
               Expanded(
                 child: ListView(
                   padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
-                  children: [
-                    _CustomNavItem(icon: Icons.dashboard_outlined,            label: "لوحة القيادة",       index: 0, currentIndex: currentIndex),
-                    _CustomNavItem(icon: Icons.home_work_outlined,             label: "العقارات",           index: 1, currentIndex: currentIndex),
-                    _CustomNavItem(icon: Icons.people_outline_rounded,         label: "العملاء المحتملين",  index: 2, currentIndex: currentIndex),
-                    _CustomNavItem(icon: Icons.format_paint_outlined,          label: "مكتبة التصاميم",     index: 3, currentIndex: currentIndex),
-                    if (widget.user.role == 'admin')
-                      _CustomNavItem(icon: Icons.admin_panel_settings_outlined, label: "إدارة الحسابات",   index: 4, currentIndex: currentIndex),
-                    if (widget.user.role == 'manager' || widget.user.role == 'admin')
-                      _CustomNavItem(icon: Icons.list_alt_rounded,             label: "إدارة القوائم",      index: widget.user.role == 'admin' ? 5 : 4, currentIndex: currentIndex),
-                  ],
+                  children: _getNavItems(widget.user).asMap().entries.map((entry) {
+                    return _CustomNavItem(
+                      icon: entry.value.icon,
+                      label: entry.value.label,
+                      index: entry.key,
+                      currentIndex: currentIndex,
+                    );
+                  }).toList(),
                 ),
               ),
 

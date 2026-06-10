@@ -3,12 +3,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/models/lead_model.dart';
 import '../../../data/models/profile_model.dart';
 import '../../../data/repositories/lead_repository.dart';
+import '../../../core/utils/lead_sync_notifier.dart';
 import 'leads_state.dart';
 
 class LeadCubit extends Cubit<LeadState> {
   final LeadRepository _repository;
+  final LeadSyncNotifier _sync;
 
-  LeadCubit(this._repository) : super(LeadInitial());
+  LeadCubit(this._repository, this._sync) : super(LeadInitial());
 
   @override
   void emit(LeadState state) {
@@ -25,6 +27,23 @@ class LeadCubit extends Cubit<LeadState> {
   DateTime? _currentFromDate;
   DateTime? _currentToDate;
   String? _currentFilterByEmployeeId;
+  bool? _currentIsArchived;
+  bool? _currentIsStagnant;
+  bool? _currentIsForTasks;
+
+  // Public Getters for Filters
+  String? get currentPlatformId => _currentPlatformId;
+  String? get currentLeadStatusId => _currentLeadStatusId;
+  String? get currentPropertyTypeId => _currentPropertyTypeId;
+  String? get currentListingTypeId => _currentListingTypeId;
+  int? get currentGovernorateId => _currentGovernorateId;
+  int? get currentCityId => _currentCityId;
+  DateTime? get currentFromDate => _currentFromDate;
+  DateTime? get currentToDate => _currentToDate;
+  String? get currentFilterByEmployeeId => _currentFilterByEmployeeId;
+  bool? get currentIsArchived => _currentIsArchived;
+  bool? get currentIsStagnant => _currentIsStagnant;
+  bool? get currentIsForTasks => _currentIsForTasks;
 
   Future<void> getAllLeads({
     required String role,
@@ -39,6 +58,9 @@ class LeadCubit extends Cubit<LeadState> {
     int? cityId,
     DateTime? fromDate,
     DateTime? toDate,
+    bool? isArchived = false,
+    bool? isStagnant,
+    bool? isForTasks,
   }) async {
     final currentState = state is LeadLoaded ? state as LeadLoaded : null;
 
@@ -53,6 +75,9 @@ class LeadCubit extends Cubit<LeadState> {
     _currentCityId = cityId;
     _currentFromDate = fromDate;
     _currentToDate = toDate;
+    _currentIsArchived = isArchived;
+    _currentIsStagnant = isStagnant;
+    _currentIsForTasks = isForTasks;
 
     try {
       final totalCount = await _repository.getLeadsCount(
@@ -67,6 +92,9 @@ class LeadCubit extends Cubit<LeadState> {
         cityId: cityId,
         fromDate: fromDate,
         toDate: toDate,
+        isArchived: isArchived,
+        isStagnant: isStagnant,
+        isForTasks: isForTasks,
       );
       final leads = await _repository.getAllLeads(
         role: role,
@@ -82,9 +110,12 @@ class LeadCubit extends Cubit<LeadState> {
         cityId: cityId,
         fromDate: fromDate,
         toDate: toDate,
+        isArchived: isArchived,
+        isStagnant: isStagnant,
+        isForTasks: isForTasks,
       );
 
-      final employees = (role == 'manager' || role == 'admin')
+      final employees = (role == 'manager' || role == 'admin' || role == 'ceo')
           ? await _repository.getAllEmployees()
           : <ProfileModel>[];
 
@@ -97,6 +128,90 @@ class LeadCubit extends Cubit<LeadState> {
       ));
     } catch (e) {
       emit(LeadError(e.toString()));
+    }
+  }
+
+  Future<void> loadSingleLeadAndEmployees(LeadModel lead, String role) async {
+    emit(LeadLoading());
+    try {
+      final employees = (role == 'manager' || role == 'admin' || role == 'ceo')
+          ? await _repository.getAllEmployees()
+          : <ProfileModel>[];
+
+      emit(LeadLoaded(
+        allLeads: [lead],
+        filteredLeads: [lead],
+        totalCount: 1,
+        currentFilter: 'الكل',
+        employees: employees,
+      ));
+    } catch (e) {
+      emit(LeadError(e.toString()));
+    }
+  }
+
+  Future<void> search(String query, {required String role, required String userId, String type = 'phone'}) async {
+    final currentState = state is LeadLoaded ? state as LeadLoaded : null;
+    if (currentState == null) return;
+    
+    if (query.isEmpty) { clearSearch(); return; }
+    
+    emit(LeadLoading());
+    try {
+      final results = await _repository.searchLeads(query, type: type, role: role, userId: userId);
+      
+      emit(currentState.copyWith(
+        filteredLeads: results,
+        isSearching: true,
+      ));
+    } catch (e) {
+      emit(LeadError(e.toString()));
+      emit(currentState);
+    }
+  }
+
+  void clearSearch() {
+    if (state is LeadLoaded) {
+      final current = state as LeadLoaded;
+      emit(current.copyWith(filteredLeads: current.allLeads, isSearching: false));
+    }
+  }
+
+  Future<void> smartSearch(
+    String query, {
+    String? propertyTypeId,
+    String? listingTypeId,
+    int? governorateId,
+    int? cityId,
+  }) async {
+    final currentState = state is LeadLoaded ? state as LeadLoaded : null;
+    if (currentState == null) return;
+
+    if (query.isEmpty) { clearSearch(); return; }
+    
+    // حفظ الـ filteredLeads القديمة عشان لو حصل خطأ نرجعها؟ لا الـ isSearching بتعرض filteredLeads.
+    emit(LeadLoading());
+    try {
+      final useFilters = currentState.currentFilter != 'الكل';
+      final results = await _repository.searchLeadsWithAi(
+        query: query,
+        propertyTypeId: propertyTypeId ?? (useFilters ? _currentPropertyTypeId : null),
+        listingTypeId: listingTypeId ?? (useFilters ? _currentListingTypeId : null),
+        governorateId: governorateId ?? (useFilters ? _currentGovernorateId : null),
+        cityId: cityId ?? (useFilters ? _currentCityId : null),
+      );
+      emit(currentState.copyWith(filteredLeads: results, isSearching: true));
+    } catch (e) {
+      emit(LeadError(e.toString()));
+      emit(currentState);
+    }
+  }
+
+  Future<List<LeadModel>> checkDuplicates(List<String> phones) async {
+    try {
+      return await _repository.checkDuplicateLeadPhones(phones);
+    } catch (e) {
+      return [];
     }
   }
 
@@ -127,6 +242,9 @@ class LeadCubit extends Cubit<LeadState> {
           cityId: _currentCityId,
           fromDate: _currentFromDate,
           toDate: _currentToDate,
+          isArchived: _currentIsArchived,
+          isStagnant: _currentIsStagnant,
+          isForTasks: _currentIsForTasks,
         );
 
         final updatedAll = [...currentState.allLeads, ...nextLeads];
@@ -174,13 +292,97 @@ class LeadCubit extends Cubit<LeadState> {
       final currentState = state as LeadLoaded;
       try {
         final updatedLead = await _repository.updateLeadStatus(id, statusId);
-        final updatedAll = currentState.allLeads.map((l) {
-          return l.id == id ? updatedLead : l;
-        }).toList();
-        emit(currentState.copyWith(allLeads: updatedAll, filteredLeads: updatedAll));
+        final index = currentState.allLeads.indexWhere((l) => l.id == id);
+        if (index != -1) {
+          final updatedList = List<LeadModel>.from(currentState.allLeads);
+          updatedList[index] = updatedLead;
+          emit(currentState.copyWith(
+            allLeads: updatedList,
+            filteredLeads: updatedList,
+          ));
+          _sync.notifyUpdated(updatedLead);
+        }
+      } catch (e) {
+        emit(LeadError(e.toString()));
+      }
+    }
+  }
+
+  Future<void> updateLeadStatusAndEmployee(String id, String statusId, String employeeId) async {
+    if (state is LeadLoaded) {
+      final currentState = state as LeadLoaded;
+      try {
+        final updatedLead = await _repository.updateLeadStatusAndEmployee(id, statusId, employeeId);
+        final index = currentState.allLeads.indexWhere((l) => l.id == id);
+        if (index != -1) {
+          final updatedList = List<LeadModel>.from(currentState.allLeads);
+          updatedList[index] = updatedLead;
+          emit(currentState.copyWith(
+            allLeads: updatedList,
+            filteredLeads: updatedList,
+          ));
+          _sync.notifyUpdated(updatedLead);
+        }
+      } catch (e) {
+        emit(LeadError(e.toString()));
+      }
+    }
+  }
+
+  /// استعادة عميل من الأرشيف — يُزيله فوراً من قائمة الأرشيف
+  Future<void> restoreLeadFromArchive(String id, String statusId, {String? employeeId}) async {
+    if (state is LeadLoaded) {
+      final currentState = state as LeadLoaded;
+      try {
+        final LeadModel updatedLead;
+        if (employeeId != null) {
+          updatedLead = await _repository.updateLeadStatusAndEmployee(id, statusId, employeeId);
+        } else {
+          updatedLead = await _repository.updateLeadStatus(id, statusId);
+        }
+        // يُزيل العميل من قائمة الأرشيف فوراً لأنه لم يعد ينتمي إليها
+        final updatedList = currentState.allLeads.where((l) => l.id != id).toList();
+        emit(currentState.copyWith(
+          allLeads: updatedList,
+          filteredLeads: updatedList,
+          totalCount: currentState.totalCount > 0 ? currentState.totalCount - 1 : 0,
+        ));
+        _sync.notifyUpdated(updatedLead);
       } catch (e) {
         emit(LeadError(e.toString()));
         emit(currentState);
+      }
+    }
+  }
+
+  Future<void> toggleLeadPin(LeadModel lead) async {
+    if (state is LeadLoaded) {
+      final currentState = state as LeadLoaded;
+      try {
+        final updatedLead = await _repository.togglePin(lead.id!, !lead.isPinned);
+        final index = currentState.allLeads.indexWhere((l) => l.id == lead.id);
+        if (index != -1) {
+          final updatedList = List<LeadModel>.from(currentState.allLeads);
+          updatedList[index] = updatedLead;
+          
+          // إعادة الترتيب حتى يظهر المثبت في الأعلى
+          updatedList.sort((a, b) {
+            if (a.isPinned && !b.isPinned) return -1;
+            if (!a.isPinned && b.isPinned) return 1;
+            // إذا كانا متساويين، نرتب بالأحدث
+            final dateA = a.createdAt ?? DateTime.now();
+            final dateB = b.createdAt ?? DateTime.now();
+            return dateB.compareTo(dateA);
+          });
+
+          emit(currentState.copyWith(
+            allLeads: updatedList,
+            filteredLeads: updatedList,
+          ));
+          _sync.notifyUpdated(updatedLead);
+        }
+      } catch (e) {
+        emit(LeadError(e.toString()));
       }
     }
   }
@@ -218,6 +420,8 @@ class LeadCubit extends Cubit<LeadState> {
           return l.id == updatedLead.id ? newLead : l;
         }).toList();
         emit(currentState.copyWith(allLeads: updatedAll, filteredLeads: updatedAll));
+        _sync.notifyUpdated(newLead);
+        _sync.notifyUpdated(newLead);
       } catch (e) {
         emit(LeadError(e.toString()));
         emit(currentState);
@@ -234,6 +438,7 @@ class LeadCubit extends Cubit<LeadState> {
           return l.id == id ? updatedLead : l;
         }).toList();
         emit(currentState.copyWith(allLeads: updatedAll, filteredLeads: updatedAll));
+        _sync.notifyUpdated(updatedLead);
       } catch (e) {
         emit(LeadError(e.toString()));
         emit(currentState);
@@ -247,6 +452,25 @@ class LeadCubit extends Cubit<LeadState> {
       final currentState = state as LeadLoaded;
       try {
         await _repository.deleteLeadById(id);
+        final updatedAll = currentState.allLeads.where((l) => l.id != id).toList();
+        emit(currentState.copyWith(
+          allLeads: updatedAll,
+          filteredLeads: updatedAll,
+          totalCount: currentState.totalCount - 1,
+        ));
+      } catch (e) {
+        emit(LeadError(e.toString()));
+        emit(currentState);
+      }
+    }
+  }
+
+  Future<void> archiveLead(String id, bool isArchived) async {
+    if (state is LeadLoaded) {
+      final currentState = state as LeadLoaded;
+      try {
+        await _repository.archiveLead(id, isArchived);
+        // Remove from current list because its archive state changed
         final updatedAll = currentState.allLeads.where((l) => l.id != id).toList();
         emit(currentState.copyWith(
           allLeads: updatedAll,

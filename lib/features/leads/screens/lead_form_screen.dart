@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/number_formatter.dart';
 import '../../../core/utils/static_data_manager.dart';
 import '../../../data/models/lead_model.dart';
 import '../../../data/models/profile_model.dart';
@@ -28,6 +30,8 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
   late TextEditingController _propertyCodeController;
   late TextEditingController _descController;
   late TextEditingController _newNoteController;
+  late TextEditingController _budgetFromController;
+  late TextEditingController _budgetToController;
 
   // كل controller بيقابل LeadPhoneModel (phoneNumber + isPrimary)
   List<TextEditingController> _phoneControllers = [];
@@ -42,6 +46,7 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
   String? _selectedCommunicationChannel;
   String? _selectedStatus;
   String? _selectedEmployeeId;
+  String? _selectedExclusionReason;
   bool _isSubmitting = false;
 
   @override
@@ -55,9 +60,14 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
     _propertyCodeController = TextEditingController(text: widget.lead?.propertyCode);
     _descController = TextEditingController(text: widget.lead?.descLeadNeed);
     _newNoteController = TextEditingController();
+    final budgetFromStr = widget.lead?.budgetFrom != null ? widget.lead!.budgetFrom!.toCurrency() : '';
+    final budgetToStr = widget.lead?.budgetTo != null ? widget.lead!.budgetTo!.toCurrency() : '';
+    _budgetFromController = TextEditingController(text: budgetFromStr);
+    _budgetToController = TextEditingController(text: budgetToStr);
 
-    _selectedStatus = widget.lead?.leadStatus ?? 'جديد';
+    _selectedStatus = widget.lead?.leadStatus ?? 'تم التواصل اول مرة';
     _selectedEmployeeId = widget.lead?.assignedTo ?? widget.user.id;
+    _selectedExclusionReason = widget.lead?.exclusionReasonName;
 
     _selectedPlatform = widget.lead?.platform;
     _selectedListingType = widget.lead?.listingType;
@@ -99,6 +109,8 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
     _propertyCodeController.dispose();
     _descController.dispose();
     _newNoteController.dispose();
+    _budgetFromController.dispose();
+    _budgetToController.dispose();
     for (var c in _phoneControllers) { c.dispose(); }
     super.dispose();
   }
@@ -187,7 +199,7 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
                           controller: _nameController,
                           label: "الاسم بالكامل",
                         ),
-                        SizedBox(height: 16.h),
+                        SizedBox(height: 24.h),
                         ..._phoneControllers.asMap().entries.map((entry) {
                           int idx = entry.key;
                           return Padding(
@@ -247,29 +259,28 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
                           children: [
                             Expanded(
                                 child: _buildDropdown(
-                                    "نوع الإعلان",
-                                    dataManager.getOptions('listing_type'),
+                                    "نوع الإعلان *",
+                                    dataManager.getActiveOptions('listing_type', includeValue: _selectedListingType),
                                     _selectedListingType,
-                                    (v) => setState(
-                                        () => _selectedListingType = v))),
+                                    (v) => setState(() => _selectedListingType = v),
+                                    required: true)),
                             SizedBox(width: 16.w),
                             Expanded(
                                 child: _buildDropdown(
                                     "نوع العقار",
-                                    dataManager.getOptions('property_type'),
+                                    dataManager.getActiveOptions('property_type', includeValue: _selectedPropertyType),
                                     _selectedPropertyType,
-                                    (v) => setState(
-                                        () => _selectedPropertyType = v))),
+                                    (v) => setState(() => _selectedPropertyType = v))),
                           ],
                         ),
-                        SizedBox(height: 16.h),
+                        SizedBox(height: 24.h),
                         Row(
                           children: [
                             Expanded(
                               child: RetajDropdown<int>(
                                 label: "المحافظة",
                                 value: _selectedGovId,
-                                items: dataManager.governorates
+                                items: dataManager.getActiveGovernorates(includeId: _selectedGovId)
                                     .map((g) => DropdownMenuItem<int>(
                                           value: g.id,
                                           child: Text(g.name),
@@ -285,11 +296,15 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
                             Expanded(
                               child: RetajDropdown<String>(
                                 label: "المدينة",
-                                value: _selectedCityName,
+                                value: _selectedCityName != null &&
+                                            dataManager.getActiveCitiesByGovId(_selectedGovId ?? -1, includeName: _selectedCityName)
+                                                .any((c) => c.name == _selectedCityName)
+                                        ? _selectedCityName
+                                        : null,
                                 items: _selectedGovId == null
                                     ? []
                                     : dataManager
-                                        .getCitiesByGovId(_selectedGovId!)
+                                        .getActiveCitiesByGovId(_selectedGovId!, includeName: _selectedCityName)
                                         .map((c) => DropdownMenuItem<String>(
                                               value: c.name,
                                               child: Text(c.name),
@@ -303,15 +318,44 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
                             ),
                           ],
                         ),
-                        SizedBox(height: 16.h),
+                        SizedBox(height: 24.h),
                         RetajTextField(
                             controller: _propertyCodeController,
                             label: "كود عقار محدد (اختياري)"),
-                        SizedBox(height: 16.h),
+                        SizedBox(height: 24.h),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: RetajTextField(
+                                controller: _budgetFromController,
+                                label: "الميزانية من (اختياري)",
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  NumberFormatter(),
+                                ],
+                              ),
+                            ),
+                            SizedBox(width: 16.w),
+                            Expanded(
+                              child: RetajTextField(
+                                controller: _budgetToController,
+                                label: "الميزانية إلى (اختياري)",
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  NumberFormatter(),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 24.h),
                         RetajTextField(
                             controller: _descController,
                             label: "وصف الاحتياج (اختياري)",
-                            maxLines: 3),
+                            maxLines: null,
+                            minLines: 3),
                       ],
                     ),
                   ),
@@ -327,31 +371,44 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
                             Expanded(
                                 child: _buildDropdown(
                                     "المنصة القادم منها *",
-                                    dataManager.getOptions('platform'),
+                                    dataManager.getActiveOptions('platform', includeValue: _selectedPlatform),
                                     _selectedPlatform,
-                                    (v) => setState(
-                                        () => _selectedPlatform = v),
+                                    (v) => setState(() => _selectedPlatform = v),
                                     required: true)),
                             SizedBox(width: 16.w),
                             Expanded(
                                 child: _buildDropdown(
                                     "طريقة التواصل",
-                                    dataManager
-                                        .getOptions('communication_channel'),
+                                    dataManager.getActiveOptions('communication_channel', includeValue: _selectedCommunicationChannel),
                                     _selectedCommunicationChannel,
-                                    (v) => setState(() =>
-                                        _selectedCommunicationChannel = v))),
+                                    (v) => setState(() => _selectedCommunicationChannel = v))),
                           ],
                         ),
-                        SizedBox(height: 16.h),
+                        SizedBox(height: 24.h),
                         _buildDropdown(
                             "حالة العميل",
-                            dataManager.getOptions('lead_status'),
+                            dataManager.getActiveOptions('lead_status', includeValue: _selectedStatus),
                             _selectedStatus,
-                            (v) => setState(() => _selectedStatus = v)),
+                            (v) {
+                              setState(() {
+                                _selectedStatus = v;
+                                if (v != 'مستبعد') {
+                                  _selectedExclusionReason = null;
+                                }
+                              });
+                            }),
+                        if (_selectedStatus == 'مستبعد') ...[
+                          SizedBox(height: 24.h),
+                          _buildDropdown(
+                              "سبب الاستبعاد *",
+                              dataManager.getActiveOptions('lead_exclusion_reasons', includeValue: _selectedExclusionReason),
+                              _selectedExclusionReason,
+                              (v) => setState(() => _selectedExclusionReason = v),
+                              required: true),
+                        ],
                         if (widget.user.role == 'manager' ||
                             widget.user.role == 'admin') ...[
-                          SizedBox(height: 16.h),
+                          SizedBox(height: 24.h),
                           (state is LeadLoaded && state.employees.isNotEmpty)
                               ? RetajDropdown<String>(
                                   label: "الموظف المسؤول (خاص بالمدير)",
@@ -385,7 +442,8 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
                     child: RetajTextField(
                       controller: _newNoteController,
                       label: "اكتب ملاحظة تضاف للسجل مباشرة...",
-                      maxLines: 3,
+                      maxLines: null,
+                      minLines: 3,
                     ),
                   ),
 
@@ -460,10 +518,15 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
     ValueChanged<String?> onChanged, {
     bool required = false,
   }) {
+    final List<String> validItems = items.toSet().toList();
+    if (value != null && !validItems.contains(value)) {
+      validItems.insert(0, value);
+    }
+
     return RetajDropdown<String>(
       label: hint,
       value: value,
-      items: items
+      items: validItems
           .map((e) => DropdownMenuItem<String>(value: e, child: Text(e)))
           .toList(),
       onChanged: onChanged,
@@ -542,7 +605,7 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
     );
   }
 
-  void _submitForm() {
+  Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isSubmitting = true);
 
@@ -585,6 +648,33 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
         } catch (_) {}
       }
 
+      final exclusionReasonId = _selectedExclusionReason != null
+          ? dataManager.getIdByName('lead_exclusion_reasons', _selectedExclusionReason!)
+          : null;
+
+      final bool isExcluded = _selectedStatus == 'مستبعد';
+      final bool isArchived = isExcluded || (widget.lead?.isArchived ?? false);
+
+      final newAssignee = _selectedEmployeeId ?? widget.user.id;
+      String? transferredFrom;
+      String? finalStatus = _selectedStatus;
+      String? finalStatusId = statusId;
+
+      if (widget.lead != null) {
+        if (newAssignee != widget.lead!.assignedTo) {
+          // المدير قام بتغيير الموظف: نحتفظ بالموظف القديم ونجبر الحالة لتم التواصل أول مرة
+          transferredFrom = widget.lead!.assignedTo;
+          finalStatus = 'تم التواصل اول مرة';
+          finalStatusId = '460be748-7685-49ef-abcf-c4dd49511ab7';
+        } else if (_selectedStatus != widget.lead!.leadStatus) {
+          // الموظف قام بتغيير الحالة: نزيل المحول منه لأنه أتم المهمة
+          transferredFrom = null;
+        } else {
+          // لم يحدث نقل ولم تتغير الحالة: نحتفظ بالقيمة القديمة
+          transferredFrom = widget.lead!.transferredFrom;
+        }
+      }
+
       final leadData = LeadModel(
         id: widget.lead?.id,
         clientName: _nameController.text,
@@ -596,25 +686,146 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
         propertyType: _selectedPropertyType,
         communicationChannel: _selectedCommunicationChannel,
         city: _selectedCityName,
-        leadStatus: _selectedStatus,
-        statusId: statusId,
+        leadStatus: finalStatus,
+        statusId: finalStatusId,
         platformId: platformId,
         propertyTypeId: propertyTypeId,
         listingTypeId: listingTypeId,
         channelId: channelId,
         governorateId: _selectedGovId,
         cityId: cityId,
+        exclusionReasonId: exclusionReasonId,
+        budgetFrom: num.tryParse(_budgetFromController.text.replaceAll(',', '').trim()),
+        budgetTo: num.tryParse(_budgetToController.text.replaceAll(',', '').trim()),
+        isActive: widget.lead?.isActive ?? true,
+        isArchived: isArchived,
+        isPinned: widget.lead?.isPinned ?? false,
         createdBy: widget.lead?.createdBy ?? widget.user.id,
-        assignedTo: _selectedEmployeeId ?? widget.user.id,
+        assignedTo: newAssignee,
+        transferredFrom: transferredFrom,
         createdAt: widget.lead?.createdAt ?? DateTime.now(),
       );
 
+      // Smart Sync: منع التعديل الوهمي للموظفين
+      if (widget.lead != null) {
+        bool hasChanges = false;
+        
+        // هل تم تغيير حالة العميل؟
+        if (widget.lead!.statusId != leadData.statusId) {
+          hasChanges = true;
+        }
+
+        // هل تم تغيير باقي البيانات؟
+        if (!hasChanges) {
+          if (widget.lead!.clientName != leadData.clientName ||
+              widget.lead!.descLeadNeed != leadData.descLeadNeed ||
+              widget.lead!.platformId != leadData.platformId ||
+              widget.lead!.listingTypeId != leadData.listingTypeId ||
+              widget.lead!.propertyTypeId != leadData.propertyTypeId ||
+              widget.lead!.channelId != leadData.channelId ||
+              widget.lead!.cityId != leadData.cityId ||
+              widget.lead!.governorateId != leadData.governorateId ||
+              widget.lead!.exclusionReasonId != leadData.exclusionReasonId ||
+              widget.lead!.budgetFrom != leadData.budgetFrom ||
+              widget.lead!.budgetTo != leadData.budgetTo ||
+              widget.lead!.assignedTo != leadData.assignedTo ||
+              widget.lead!.propertyCode != leadData.propertyCode) {
+            hasChanges = true;
+          }
+        }
+
+        // هل تم تغيير الأرقام؟
+        if (!hasChanges) {
+          if (widget.lead!.phones.length != phones.length) {
+            hasChanges = true;
+          } else {
+            for (int i = 0; i < phones.length; i++) {
+              if (widget.lead!.phones[i].phoneNumber != phones[i].phoneNumber ||
+                  widget.lead!.phones[i].isPrimary != phones[i].isPrimary) {
+                hasChanges = true;
+                break;
+              }
+            }
+          }
+        }
+
+        if (!hasChanges) {
+          // لم يحدث أي تغيير حقيقي، نقفل الشاشة بدون إرسال للباك إيند
+          setState(() => _isSubmitting = false);
+          if (mounted) Navigator.pop(context);
+          return;
+        }
+      }
+
       if (widget.lead == null) {
-        context.read<LeadCubit>().addLead(
-              leadData,
-              phones,
-              newNote: _newNoteController.text,
-            );
+        final phonesList = phones.map((e) => e.phoneNumber).toList();
+        final duplicates = await context.read<LeadCubit>().checkDuplicates(phonesList);
+        final myDuplicates = duplicates.where((d) => d.createdBy == widget.user.id).toList();
+
+        if (myDuplicates.isNotEmpty) {
+          setState(() => _isSubmitting = false);
+          final dup = myDuplicates.first;
+          final dupPhones = dup.phones.map((p) => p.phoneNumber).join(' - ');
+          
+          final bool? confirm = await showDialog<bool>(
+            context: context,
+            barrierDismissible: false,
+            builder: (ctx) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
+              title: Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 30),
+                  SizedBox(width: 10.w),
+                  const Text('تحذير: رقم مكرر!', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("يوجد عميل آخر مضاف بواسطتك يمتلك نفس الأرقام (أو يتطابق في آخر 6 أرقام).", style: TextStyle(fontSize: 16.sp)),
+                  SizedBox(height: 15.h),
+                  Container(
+                    padding: EdgeInsets.all(12.w),
+                    decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10.r)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("اسم العميل: ${dup.clientName}", style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w900)),
+                        SizedBox(height: 5.h),
+                        Text("الأرقام: $dupPhones", style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold, color: AppColors.brandPrimary)),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 15.h),
+                  Text("هل أنت متأكد أنك تريد إضافة هذا العميل كعميل جديد على أي حال؟", style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text('إلغاء', style: TextStyle(color: Colors.grey, fontSize: 16.sp)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.brandPrimary),
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: Text('إضافة على أي حال', style: TextStyle(color: Colors.white, fontSize: 16.sp)),
+                ),
+              ],
+            ),
+          );
+
+          if (confirm != true) return;
+          setState(() => _isSubmitting = true);
+        }
+
+        if (mounted) {
+          context.read<LeadCubit>().addLead(
+                leadData,
+                phones,
+                newNote: _newNoteController.text,
+              );
+        }
       } else {
         context.read<LeadCubit>().updateFullLead(
               leadData,

@@ -1,6 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/lead_model.dart';
 import '../models/profile_model.dart';
+import '../../../core/di/injection_container.dart' as di;
+import '../services/ai_service.dart';
 import '../services/lead_service.dart';
 
 class LeadRepository {
@@ -22,6 +24,9 @@ class LeadRepository {
     int? cityId,
     DateTime? fromDate,
     DateTime? toDate,
+    bool? isArchived = false,
+    bool? isStagnant,
+    bool? isForTasks,
   }) async {
     try {
       return await _leadService.fetchAllLeads(
@@ -38,6 +43,9 @@ class LeadRepository {
         cityId: cityId,
         fromDate: fromDate,
         toDate: toDate,
+        isArchived: isArchived,
+        isStagnant: isStagnant,
+        isForTasks: isForTasks,
       );
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
@@ -58,6 +66,9 @@ class LeadRepository {
     int? cityId,
     DateTime? fromDate,
     DateTime? toDate,
+    bool? isArchived = false,
+    bool? isStagnant,
+    bool? isForTasks,
   }) async {
     try {
       return await _leadService.getLeadsCount(
@@ -72,6 +83,9 @@ class LeadRepository {
         cityId: cityId,
         fromDate: fromDate,
         toDate: toDate,
+        isArchived: isArchived,
+        isStagnant: isStagnant,
+        isForTasks: isForTasks,
       );
     } catch (e) {
       return 0;
@@ -101,8 +115,10 @@ class LeadRepository {
     try {
       return await _leadService.updateLead(id, lead, phones, newNote: newNote);
     } on PostgrestException catch (e) {
+      print('🚀 Supabase Error in updateLeadData: ${e.message} \n Details: ${e.details} \n Hint: ${e.hint}');
       throw _handlePostgrestError(e);
     } catch (e) {
+      print('🚀 Unknown Error in updateLeadData: $e');
       throw 'فشل تحديث البيانات، حاول مرة أخرى';
     }
   }
@@ -111,9 +127,41 @@ class LeadRepository {
     try {
       return await _leadService.updateLeadStatus(id, statusId);
     } on PostgrestException catch (e) {
+      print('🚀 Supabase Error in updateLeadStatus: ${e.message} \n Details: ${e.details} \n Hint: ${e.hint}');
       throw _handlePostgrestError(e);
     } catch (e) {
+      print('🚀 Unknown Error in updateLeadStatus: $e');
       throw 'فشل تحديث الحالة، حاول مرة أخرى';
+    }
+  }
+
+  Future<LeadModel> updateLeadStatusAndEmployee(String id, String statusId, String employeeId) async {
+    try {
+      return await _leadService.updateLeadStatusAndEmployee(id, statusId, employeeId);
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
+    } catch (e) {
+      throw 'فشل تحديث الحالة والموظف';
+    }
+  }
+
+  Future<LeadModel> togglePin(String id, bool isPinned) async {
+    try {
+      return await _leadService.togglePin(id, isPinned);
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
+    } catch (e) {
+      throw 'فشل تحديث حالة التثبيت';
+    }
+  }
+
+  Future<void> archiveLead(String id, bool isArchived) async {
+    try {
+      await _leadService.archiveLead(id, isArchived);
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
+    } catch (e) {
+      throw 'فشل أرشفة العميل';
     }
   }
 
@@ -133,6 +181,38 @@ class LeadRepository {
     } catch (e) {
       throw 'لم يتم الحذف، حدث خطأ تقني';
     }
+  }
+
+  Future<List<LeadModel>> searchLeadsWithAi({
+    required String query,
+    String? propertyTypeId,
+    String? listingTypeId,
+    int? governorateId,
+    int? cityId,
+  }) async {
+    try {
+      final aiService = di.sl<AiService>();
+      final vector = await aiService.generateEmbedding(query);
+      if (vector == null) throw 'فشل في حساب دلالات البحث من سيرفر الذكاء الاصطناعي';
+      
+      return await _leadService.searchLeadsByAi(
+        vector: vector,
+        propertyTypeId: propertyTypeId,
+        listingTypeId: listingTypeId,
+        governorateId: governorateId,
+        cityId: cityId,
+      );
+    } catch (e) {
+      throw 'حدث خطأ أثناء البحث الذكي';
+    }
+  }
+
+  Future<List<LeadModel>> searchLeads(String query, {String type = 'phone', required String role, required String userId}) async {
+    return await _leadService.searchLeads(query, type: type, role: role, userId: userId);
+  }
+
+  Future<List<LeadModel>> checkDuplicateLeadPhones(List<String> phones) async {
+    return await _leadService.checkDuplicateLeadPhones(phones);
   }
 
   Future<List<ProfileModel>> getAllEmployees() async {

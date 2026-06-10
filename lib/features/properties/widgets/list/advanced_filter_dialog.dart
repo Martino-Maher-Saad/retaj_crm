@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/retaj_shared_fields.dart';
 import '../../../../core/utils/static_data_manager.dart';
+import '../../../../core/utils/number_formatter.dart';
 import '../../../../core/di/injection_container.dart' as di;
 import '../../cubit/properties_cubit.dart';
 
@@ -37,9 +38,58 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
   DateTime? _fromDate;
   DateTime? _toDate;
 
+  bool _searchAll = false;
+
+  final TextEditingController _minPriceCtrl = TextEditingController();
+  final TextEditingController _maxPriceCtrl = TextEditingController();
+
   @override
   void initState() {
     super.initState();
+    final cubit = context.read<PropertiesCubit>();
+    _selectedGovId = cubit.filterGovernorateId;
+    
+    // Reverse lookup for string representations
+    if (cubit.filterPropertyTypeId != null) {
+      try {
+        _selectedPropertyType = dataManager.getOptionModels('property_type').firstWhere((o) => o.id == cubit.filterPropertyTypeId!).nameAr;
+      } catch (_) {}
+    }
+    
+    if (cubit.filterListingTypeId != null) {
+      try {
+        _selectedListingType = dataManager.getOptionModels('listing_type').firstWhere((o) => o.id == cubit.filterListingTypeId!).nameAr;
+      } catch (_) {}
+    }
+    
+    if (cubit.filterCityId != null) {
+      try {
+        final allCities = dataManager.allCities;
+        final city = allCities.firstWhere((c) => c.id == cubit.filterCityId);
+        _selectedCityName = city.name;
+        _selectedGovId ??= city.governorateId;
+      } catch (_) {}
+    }
+
+    _selectedEmployee = cubit.filterAssignedTo;
+    if (cubit.filterMinPrice != null) {
+      _minPrice = cubit.filterMinPrice!.toDouble();
+      _minPriceCtrl.text = _minPrice.toStringAsFixed(0);
+    }
+    if (cubit.filterMaxPrice != null) {
+      _maxPrice = cubit.filterMaxPrice!.toDouble();
+      _maxPriceCtrl.text = _maxPrice.toStringAsFixed(0);
+    }
+
+    _fromDate = cubit.filterFromDate;
+    _toDate = cubit.filterToDate;
+  }
+
+  @override
+  void dispose() {
+    _minPriceCtrl.dispose();
+    _maxPriceCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _pickDateTime({required bool isFrom}) async {
@@ -104,7 +154,7 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
               Text(
                 "الفلاتر المتقدمة",
                 style: TextStyle(
-                  fontSize: 22.sp,
+                  fontSize: 26.sp,
                   fontWeight: FontWeight.bold,
                   color: AppColors.brandPrimary,
                 ),
@@ -170,24 +220,39 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
               ),
 
               SizedBox(height: 24.h),
-              Text("اختر نطاق السعر:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.sp)),
-              RangeSlider(
-                values: RangeValues(_minPrice, _maxPrice),
-                min: 0,
-                max: 100000000,
-                divisions: 100,
-                labels: RangeLabels(_minPrice.toStringAsFixed(0), _maxPrice.toStringAsFixed(0)),
-                activeColor: AppColors.brandPrimary,
-                onChanged: (values) {
-                  setState(() {
-                    _minPrice = values.start;
-                    _maxPrice = values.end;
-                  });
-                },
+              SizedBox(height: 24.h),
+              Text("نطاق السعر:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.sp)),
+              SizedBox(height: 10.h),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _minPriceCtrl,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [NumberFormatter()],
+                      decoration: const InputDecoration(
+                        labelText: "السعر من",
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 14.w),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _maxPriceCtrl,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [NumberFormatter()],
+                      decoration: const InputDecoration(
+                        labelText: "السعر إلى",
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                ],
               ),
 
               SizedBox(height: 24.h),
-              Text("تاريخ الإضافة:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.sp)),
+              Text("تاريخ الإضافة:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.sp)),
               SizedBox(height: 10.h),
               Row(
                 children: [
@@ -213,10 +278,19 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
                 ],
               ),
               
-              // خاصية المدير للبحث باسم الموظف
+              if (widget.role == 'sales') ...[
+                SizedBox(height: 20.h),
+                SwitchListTile(
+                  title: Text("البحث في كل العقارات (وليس عقاراتي فقط)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.sp)),
+                  value: _searchAll,
+                  activeColor: AppColors.brandPrimary,
+                  onChanged: (val) => setState(() => _searchAll = val),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ],
               if (widget.role == 'manager' || widget.role == 'admin') ...[
                 SizedBox(height: 24.h),
-                Text("الموظف (للمديرين فقط):", style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.brandPrimary, fontSize: 16.sp)),
+                Text("الموظف (للمديرين فقط):", style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.brandPrimary, fontSize: 18.sp)),
                 SizedBox(height: 10.h),
                 _buildDropdown(
                   "كل الموظفين",
@@ -252,7 +326,7 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
                       ),
                       onPressed: () => Navigator.pop(context),
-                      child: Text("إلغاء", style: TextStyle(color: Colors.red, fontSize: 16.sp, fontWeight: FontWeight.bold)),
+                      child: Text("إلغاء", style: TextStyle(color: Colors.red, fontSize: 20.sp, fontWeight: FontWeight.bold)),
                     ),
                   ),
                   SizedBox(width: 14.w),
@@ -281,6 +355,9 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
                           } catch (_) {}
                         }
 
+                        final parsedMinPrice = double.tryParse(_minPriceCtrl.text.replaceAll(',', ''));
+                        final parsedMaxPrice = double.tryParse(_maxPriceCtrl.text.replaceAll(',', ''));
+
                         context.read<PropertiesCubit>().applyAdvancedFilters(
                           role: widget.role,
                           currentUserId: widget.currentUserId,
@@ -288,15 +365,16 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
                           propertyTypeId: propertyTypeId,
                           cityId: cityId,
                           governorateId: _selectedGovId,
-                          minPrice: _minPrice,
-                          maxPrice: _maxPrice,
+                          minPrice: parsedMinPrice,
+                          maxPrice: parsedMaxPrice,
                           selectedEmployee: _selectedEmployee,
                           fromDate: _fromDate,
                           toDate: _toDate,
+                          searchAll: _searchAll,
                         );
                         Navigator.pop(context);
                       },
-                      child: Text("تطبيق", style: TextStyle(color: Colors.white, fontSize: 16.sp, fontWeight: FontWeight.bold)),
+                      child: Text("تطبيق", style: TextStyle(color: Colors.white, fontSize: 20.sp, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],

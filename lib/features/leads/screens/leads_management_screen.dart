@@ -14,9 +14,11 @@ import '../cubit/leads_cubit.dart';
 import '../cubit/leads_state.dart';
 import '../widgets/lead_card.dart';
 import '../widgets/list/lead_delete_dialog.dart';
+import '../widgets/list/lead_archive_dialog.dart';
 import '../widgets/list/lead_empty_state.dart';
 import '../widgets/list/lead_top_actions_bar.dart';
 import '../widgets/list/lead_filter_dialog.dart';
+import '../widgets/list/lead_search_bar.dart';
 import 'lead_details_screen.dart';
 import 'lead_form_screen.dart';
 
@@ -134,6 +136,19 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                       },
                     ),
 
+                    // شريط البحث الذكي
+                    LeadSearchBar(
+                      onSearch: (query, type) {
+                        if (type == 'general') {
+                          _cubit.smartSearch(query);
+                        } else {
+                          _cubit.search(query, type: type, role: widget.user.role, userId: widget.user.id);
+                        }
+                      },
+                      onClear: () => _cubit.clearSearch(),
+                      isSearching: (state is LeadLoaded) ? state.isSearching : false,
+                    ),
+
                     // شريط "فلاتر نشطة"
                     if (_isFiltering)
                       Container(
@@ -215,13 +230,24 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                       return const LeadEmptyState();
                     }
 
-                    return RefreshIndicator(
-                      onRefresh: () => _cubit.getAllLeads(
-                        role: widget.user.role,
-                        userId: widget.user.id,
-                        isRefresh: true,
-                      ),
-                      child: ListView.builder(
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 0),
+                          child: Text(
+                            "عدد النتائج: ${state.isSearching ? state.filteredLeads.length : state.totalCount}",
+                            style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold, color: Colors.grey[700]),
+                          ),
+                        ),
+                        Expanded(
+                          child: RefreshIndicator(
+                            onRefresh: () => _cubit.getAllLeads(
+                              role: widget.user.role,
+                              userId: widget.user.id,
+                              isRefresh: true,
+                            ),
+                            child: ListView.builder(
                         controller: _scrollController,
                         padding: EdgeInsets.only(bottom: 20.h, top: 10.h),
                         itemCount: state.filteredLeads.length +
@@ -248,9 +274,20 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                               lead,
                               () => _cubit.deleteLead(lead.id!, widget.user.role),
                             ),
+                            onArchive: widget.user.role != 'admin'
+                              ? () => LeadArchiveDialog.show(
+                                  context,
+                                  lead,
+                                  () => _cubit.archiveLead(lead.id!, true),
+                                )
+                              : null,
+                            onPinToggle: () => _cubit.toggleLeadPin(lead),
                           );
                         },
-                      ),
+                            ),
+                          ),
+                        ),
+                      ],
                     );
                   }
                   return const SizedBox.shrink();

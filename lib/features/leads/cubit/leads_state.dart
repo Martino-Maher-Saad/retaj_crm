@@ -22,14 +22,15 @@ class LeadLoaded extends LeadState {
   final String currentFilter;
   final int totalCount;
   final bool isLoadingMore;
+  final bool isSearching;
   final List<ProfileModel> employees;
-
   const LeadLoaded({
     required this.allLeads,
     required this.filteredLeads,
     this.currentFilter = 'الكل',
     this.totalCount = 0,
     this.isLoadingMore = false,
+    this.isSearching = false,
     this.employees = const [],
   });
 
@@ -39,6 +40,7 @@ class LeadLoaded extends LeadState {
     String? currentFilter,
     int? totalCount,
     bool? isLoadingMore,
+    bool? isSearching,
     List<ProfileModel>? employees,
   }) {
     return LeadLoaded(
@@ -47,12 +49,13 @@ class LeadLoaded extends LeadState {
       currentFilter: currentFilter ?? this.currentFilter,
       totalCount: totalCount ?? this.totalCount,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      isSearching: isSearching ?? this.isSearching,
       employees: employees ?? this.employees,
     );
   }
 
   @override
-  List<Object?> get props => [allLeads, filteredLeads, currentFilter, totalCount, isLoadingMore, employees];
+  List<Object?> get props => [allLeads, filteredLeads, currentFilter, totalCount, isLoadingMore, isSearching, employees];
 }
 
 // حالة الخطأ

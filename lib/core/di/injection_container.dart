@@ -29,6 +29,10 @@ import '../../features/leads/cubit/leads_cubit.dart';
 import '../../features/profile/cubit/profile_cubit.dart';
 import '../../features/properties/cubit/properties_cubit.dart';
 import '../../features/dashboard/cubit/dashboard_cubit.dart';
+import '../../features/tasks/cubit/property_tasks_cubit.dart';
+import '../../features/tasks/cubit/lead_tasks_cubit.dart';
+import '../../core/utils/property_sync_notifier.dart';
+import '../../core/utils/lead_sync_notifier.dart';
 
 final sl = GetIt.instance;
 
@@ -38,12 +42,16 @@ Future<void> init() async {
   // أو registerLazySingleton إذا أردنا الاحتفاظ بنفس الـ State عبر التطبيق
   sl.registerFactory(() => AuthCubit(sl()));
   sl.registerFactory(() => PropertiesCubit(sl()));
-  sl.registerFactory(() => LeadCubit(sl()));
+  sl.registerFactory(() => LeadCubit(sl(), sl()));
   sl.registerFactory(() => DesignsCubit(sl()));
   sl.registerFactory(() => AdminUsersCubit(sl()));
   sl.registerFactory(() => ProfileCubit(sl()));
   sl.registerFactory(() => LayoutCubit());
   sl.registerFactory(() => DashboardCubit(sl()));
+  sl.registerLazySingleton(() => PropertySyncNotifier());
+  sl.registerLazySingleton(() => LeadSyncNotifier());
+  sl.registerLazySingleton(() => PropertyTasksCubit(sl(), sl()));
+  sl.registerLazySingleton(() => LeadTasksCubit(sl()));
 
   // ─── Repositories ───
   sl.registerLazySingleton(() => AuthRepository(sl()));

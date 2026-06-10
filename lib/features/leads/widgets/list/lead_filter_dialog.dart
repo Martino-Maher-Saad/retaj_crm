@@ -34,6 +34,8 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
   String? _selectedEmployee;
   DateTime? _fromDate;
   DateTime? _toDate;
+  bool _isStagnant = false;
+  bool _isArchived = false;
 
   // حالة الـ leads تُجلب من dataManager (لا hardcode)
   List<String> get _statuses => dataManager.getOptions('lead_status');
@@ -53,6 +55,47 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
           _toDate = date;
         }
       });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final cubit = context.read<LeadCubit>();
+    _selectedGovId = cubit.currentGovernorateId;
+    _isStagnant = cubit.currentIsStagnant ?? false;
+    _isArchived = cubit.currentIsArchived ?? false;
+    _selectedEmployee = cubit.currentFilterByEmployeeId;
+    _fromDate = cubit.currentFromDate;
+    _toDate = cubit.currentToDate;
+
+    if (cubit.currentLeadStatusId != null) {
+      try {
+        _selectedLeadStatus = dataManager.getOptionModels('lead_status').firstWhere((o) => o.id == cubit.currentLeadStatusId!).nameAr;
+      } catch (_) {}
+    }
+    if (cubit.currentPlatformId != null) {
+      try {
+        _selectedPlatform = dataManager.getOptionModels('platform').firstWhere((o) => o.id == cubit.currentPlatformId!).nameAr;
+      } catch (_) {}
+    }
+    if (cubit.currentPropertyTypeId != null) {
+      try {
+        _selectedPropertyType = dataManager.getOptionModels('property_type').firstWhere((o) => o.id == cubit.currentPropertyTypeId!).nameAr;
+      } catch (_) {}
+    }
+    if (cubit.currentListingTypeId != null) {
+      try {
+        _selectedListingType = dataManager.getOptionModels('listing_type').firstWhere((o) => o.id == cubit.currentListingTypeId!).nameAr;
+      } catch (_) {}
+    }
+    if (cubit.currentCityId != null) {
+      try {
+        final allCities = dataManager.allCities;
+        final city = allCities.firstWhere((c) => c.id == cubit.currentCityId);
+        _selectedCityName = city.name;
+        _selectedGovId ??= city.governorateId;
+      } catch (_) {}
     }
   }
 
@@ -89,7 +132,7 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
                       SizedBox(width: 10.w),
                       Text(
                         'فلترة العملاء',
-                        style: TextStyle(color: Colors.white, fontSize: 18.sp, fontWeight: FontWeight.bold),
+                        style: TextStyle(color: Colors.white, fontSize: 24.sp, fontWeight: FontWeight.bold),
                       ),
                       const Spacer(),
                       GestureDetector(
@@ -222,6 +265,41 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
                             },
                           ),
                         ],
+                        SizedBox(height: 14.h),
+                        
+                        // ─── فلاتر إضافية (أكثر من يومين + الأرشيف) ───
+                        _sectionLabel('حالة متقدمة', Icons.local_fire_department_outlined),
+                        SizedBox(height: 8.h),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: CheckboxListTile(
+                                title: Text('لم تتغير حالتهم منذ أكثر من يومين', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold)),
+                                value: _isStagnant,
+                                contentPadding: EdgeInsets.zero,
+                                controlAffinity: ListTileControlAffinity.leading,
+                                dense: true,
+                                activeColor: AppColors.brandPrimary,
+                                onChanged: (v) => setState(() => _isStagnant = v ?? false),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: CheckboxListTile(
+                                title: Text('العملاء المؤرشفين فقط', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold)),
+                                value: _isArchived,
+                                contentPadding: EdgeInsets.zero,
+                                controlAffinity: ListTileControlAffinity.leading,
+                                dense: true,
+                                activeColor: AppColors.brandPrimary,
+                                onChanged: (v) => setState(() => _isArchived = v ?? false),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -245,10 +323,12 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
                               _selectedEmployee = null;
                               _fromDate = null;
                               _toDate = null;
+                              _isStagnant = false;
+                              _isArchived = false;
                             });
                           },
                           icon: Icon(Icons.clear_all, size: 18.sp),
-                          label: Text('مسح الكل', style: TextStyle(fontSize: 14.sp)),
+                          label: Text('مسح الكل', style: TextStyle(fontSize: 18.sp)),
                           style: OutlinedButton.styleFrom(
                             padding: EdgeInsets.symmetric(vertical: 14.h),
                             side: const BorderSide(color: Colors.grey),
@@ -296,11 +376,13 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
                               filterByEmployeeId: _selectedEmployee,
                               fromDate: _fromDate,
                               toDate: _toDate,
+                              isStagnant: _isStagnant ? true : null,
+                              isArchived: _isArchived,
                             );
                             Navigator.pop(context);
                           },
                           icon: Icon(Icons.search, size: 18.sp),
-                          label: Text('تطبيق الفلاتر', style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold)),
+                          label: Text('تطبيق الفلاتر', style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold)),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.brandPrimary,
                             foregroundColor: Colors.white,

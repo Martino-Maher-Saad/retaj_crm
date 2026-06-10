@@ -5,12 +5,15 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../core/utils/responsive_debouncer_wrapper.dart';
 import '../../../data/models/property_model.dart';
 import '../../../core/di/injection_container.dart' as di;
+import '../../../core/utils/property_sync_notifier.dart';
 import '../cubit/properties_cubit.dart';
 import '../cubit/properties_state.dart';
 import '../widgets/list/property_delete_dialog.dart';
+import '../widgets/list/property_archive_dialog.dart';
 import '../widgets/list/property_list_header.dart';
 import '../widgets/list/property_search_bar.dart';
 import '../widgets/list/property_shimmer_list.dart';
+import '../widgets/list/internal_share_dialog.dart' as import_helper;
 import '../widgets/property_card.dart';
 import '../widgets/list/advanced_filter_dialog.dart';
 import 'property_details_screen.dart';
@@ -33,10 +36,24 @@ class PropertiesListScreen extends StatefulWidget {
 class _PropertiesListScreenState extends State<PropertiesListScreen>
     with AutomaticKeepAliveClientMixin {
   late PropertiesCubit _cubit;
+  late PropertySyncNotifier _sync;
   final ScrollController _scrollController = ScrollController();
+  bool _searchAll = false;
 
   @override
   bool get wantKeepAlive => true;
+
+  void _onPropertySync() {
+    final updated = _sync.consumeUpdate();
+    if (updated != null) {
+      _cubit.patchProperty(updated);
+      return;
+    }
+    final deletedId = _sync.consumeDeletion();
+    if (deletedId != null) {
+      _cubit.removeProperty(deletedId);
+    }
+  }
 
   @override
   void initState() {
@@ -46,8 +63,16 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
         role: widget.role, 
         isRefresh: true,
       );
+    _sync = di.sl<PropertySyncNotifier>()..addListener(_onPropertySync);
 
     _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _sync.removeListener(_onPropertySync);
+    _scrollController.dispose();
+    super.dispose();
   }
 
   void _onScroll() {
@@ -72,12 +97,6 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
   }
 
   @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     super.build(context);
     return BlocProvider.value(
@@ -97,7 +116,14 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
               }
             },
             builder: (context, state) {
-              final total = state is PropertiesSuccess ? state.myTotalCount : 0;
+              int total = 0;
+              if (state is PropertiesSuccess) {
+                total = state.isSearching 
+                  ? state.searchedProperties.length 
+                  : state.isFiltering 
+                      ? state.filteredTotalCount 
+                      : state.myTotalCount;
+              }
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -107,7 +133,28 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
                     onFilter: () => _openAdvancedFilter(context),
                   ),
                   PropertySearchBar(
-                    onSearch: (v) => _cubit.smartSearch(v),
+                    showToggle: widget.role == 'sales',
+                    searchAll: _searchAll,
+                    onToggleSearchAll: (val) {
+                      setState(() {
+                        _searchAll = val;
+                      });
+                      // If there is an active search, re-trigger it with new scope
+                      if (_cubit.state is PropertiesSuccess && (_cubit.state as PropertiesSuccess).isSearching) {
+                        // Assuming clear search for simplicity or keep track of last query
+                        _cubit.clearSearch();
+                      }
+                    },
+                    onSearch: (val, type) {
+                      final assignedToFilter = _searchAll ? null : widget.userId;
+                      if (type == 'general') {
+                        _cubit.smartSearch(val, assignedTo: assignedToFilter);
+                      } else {
+                        // For 'phone' type, it should always be restricted to user's properties for 'sales'
+                        final actualAssignedTo = (type == 'phone' && widget.role == 'sales') ? widget.userId : assignedToFilter;
+                        _cubit.search(val, type: type, assignedTo: actualAssignedTo);
+                      }
+                    },
                     onFilterTap: () => _openAdvancedFilter(context),
                     onClear: () => _cubit.clearSearch(),
                     isSearching: state is PropertiesSuccess ? state.isSearching : false,
@@ -166,46 +213,72 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
               ? state.filteredTotalCount 
               : state.myTotalCount;
 
-      return ListView.builder(
-        controller: _scrollController,
-        padding: EdgeInsets.symmetric(horizontal: 10.w),
-        itemCount:
-            properties.length +
-            (properties.length < totalCount ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == properties.length) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(8.0),
-                child: CircularProgressIndicator(),
-              ),
-            );
-          }
-          final property = properties[index];
-          return PropertyCard(
-            key: ValueKey(property.id),
-            property: property,
-            currentUserId: widget.userId,
-            role: widget.role,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => PropertyDetailsScreen(
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 8.h),
+            child: Text(
+              "عدد النتائج: $totalCount",
+              style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold, color: Colors.grey[700]),
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollController,
+              padding: EdgeInsets.symmetric(horizontal: 10.w),
+              itemCount:
+                  properties.length +
+                  (properties.length < totalCount ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (index == properties.length) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+                final property = properties[index];
+                return PropertyCard(
+                  key: ValueKey(property.id),
                   property: property,
                   currentUserId: widget.userId,
                   role: widget.role,
-                ),
-              ),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PropertyDetailsScreen(
+                        property: property,
+                        currentUserId: widget.userId,
+                        role: widget.role,
+                      ),
+                    ),
+                  ),
+                  onEdit: () =>
+                      _openForm(context: context, cubit: _cubit, property: property),
+                  onArchive: () => PropertyArchiveDialog.show(
+                    context,
+                    property,
+                    () => _cubit.archiveProperty(property.id, true),
+                  ),
+                  onDelete: () => PropertyDeleteDialog.show(
+                    context,
+                    property,
+                    () => _cubit.deleteFullProperty(property.id),
+                  ),
+                  onShareInternal: () => import_helper.InternalShareDialog.show(
+                    context,
+                    property,
+                    widget.userId,
+                    _cubit,
+                  ),
+                  onPinToggle: () => _cubit.togglePropertyPin(property),
+                );
+              },
             ),
-            onEdit: () =>
-                _openForm(context: context, cubit: _cubit, property: property),
-            onDelete: () => PropertyDeleteDialog.show(
-              context,
-              property,
-              () => _cubit.deleteFullProperty(property.id),
-            ),
-          );
-        },
+          ),
+        ],
       );
     }
     return const Center(child: CircularProgressIndicator());
@@ -221,7 +294,11 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
       MaterialPageRoute(
         builder: (_) => BlocProvider.value(
           value: cubit,
-          child: PropertyFormScreen(property: property, userId: widget.userId),
+          child: PropertyFormScreen(
+            property: property,
+            userId: widget.userId,
+            userRole: widget.role,
+          ),
         ),
       ),
     );

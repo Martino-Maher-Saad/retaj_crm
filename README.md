@@ -18,15 +18,17 @@ In the fast-paced real estate market, managing client relationships and massive 
 ## ✨ Key Features
 
 - **🛡️ Secure Role-Based Authentication**: Integrated with Supabase Auth for fine-grained access control.
-- **📊 Real-time Dashboard**: Overview of key performance indicators and recent activities.
+- **📊 Real-time Smart Dashboards**: 
+  - **Employee View**: Tracks personal pipeline, conversion rates, and recent leads.
+  - **Manager View**: Tracks team performance, top governorates, platform conversions, and period-over-period growth via Supabase RPCs.
 - **📑 Comprehensive Lead Management**: 
-  - Tracks status, source, and communication channels.
+  - Tracks status, source, communication channels, notes, and multiple phone numbers.
   - Advanced filtering and assignment logic.
 - **🏠 Advanced Property Engine**:
-  - Complex data models supporting multiple image uploads.
+  - Complex data models supporting multiple image uploads and multi-platform advertising tracking.
   - Full-text search using PostgreSQL `search_vector`.
   - Dynamic filtering by city and property type.
-- **🎨 Design Catalog**: Management of architectural and interior designs.
+- **⚙️ Dynamic System Management**: Admins can manage dropdown options (cities, property types, sources, etc.) and user accounts directly from the UI.
 - **📱 Responsive Desktop UI**: Optimized for high-resolution displays (1920x1080) with a premium Arabic-first design.
 
 ---
@@ -36,6 +38,7 @@ In the fast-paced real estate market, managing client relationships and massive 
 - **Frontend**: 
   - **Framework**: [Flutter](https://flutter.dev/) (Material 3)
   - **State Management**: [BLoC / Cubit](https://pub.dev/packages/flutter_bloc) for predictable state transitions.
+  - **Dependency Injection**: [GetIt](https://pub.dev/packages/get_it) for centralized dependency management.
   - **Responsiveness**: `flutter_screenutil` for pixel-perfect scaling.
   - **Typography**: [Google Fonts (Cairo)](https://fonts.google.com/specimen/Cairo) for professional Arabic rendering.
 - **Backend / Infrastructure**:
@@ -80,8 +83,11 @@ lib/
 │   ├── services/       # Raw Supabase API interaction
 │   └── repositories/   # Error handling and data transformation
 ├── features/           # Self-contained business modules
+│   ├── admin_users/    # User creation and role management
 │   ├── auth/           # Login and session management
+│   ├── dashboard/      # Employee and Manager analytics screens
 │   ├── leads/          # Leads board and forms
+│   ├── profile/        # Current user profile management
 │   ├── properties/     # Advanced property inventory entries
 │   └── designs/        # Architectural design management
 └── main.dart           # App bootstrap and provider initialization

@@ -1,9 +1,12 @@
 import 'dart:typed_data';
 
 import '../models/property_model.dart';
+import '../models/property_share_model.dart';
 import '../services/ai_service.dart';
 import '../services/property_service.dart';
 import '../services/storage_service.dart';
+import '../../core/di/injection_container.dart' as di;
+import '../../core/utils/static_data_manager.dart';
 
 class PropertyRepository {
   final PropertyService _pService;
@@ -19,10 +22,19 @@ class PropertyRepository {
   }) async {
     String? newId;
     try {
-      final text =
-          '${model.descAr} ${model.governorateAr} ${model.cityAr} ${model.regionAr ?? ''} ${model.locationInDetails ?? ''}';
+      final text = model.descAr;
       final vector = await _aiService.generateEmbedding(text, isSearch: false);
-      model = model.copyWith(embedding: vector);
+      
+      // تعيين حالة "قيد المراجعة" كحالة افتراضية
+      String? pendingStatusId = model.approvalStatusId;
+      if (pendingStatusId == null) {
+        pendingStatusId = '634f7e69-6161-4535-b409-d1ea1bbbdcd3';
+      }
+      
+      model = model.copyWith(
+        embedding: vector,
+        approvalStatusId: pendingStatusId,
+      );
 
       final data = await _pService.insertProperty(model.toJson());
       newId = data['id'].toString();
@@ -54,6 +66,22 @@ class PropertyRepository {
     return data.map((e) => PropertyModel.fromJson(e)).toList();
   }
 
+  /// يجيب عقارات صفحة المهمات فقط (مش published)
+  Future<List<PropertyModel>> fetchTaskProperties({
+    String? assignedTo,
+    required String excludeApprovalStatusId,
+    int from = 0,
+    int to = 200,
+  }) async {
+    final data = await _pService.fetchTaskProperties(
+      from: from,
+      to: to,
+      assignedTo: assignedTo,
+      excludeApprovalStatusId: excludeApprovalStatusId,
+    );
+    return data.map((e) => PropertyModel.fromJson(e)).toList();
+  }
+
   /// الفلترة — تستخدم IDs بدلاً من نصوص
   Future<List<PropertyModel>> filterProperties(
     int f,
@@ -67,6 +95,8 @@ class PropertyRepository {
     String? assignedTo,
     DateTime? fromDate,
     DateTime? toDate,
+    String? approvalStatusId,
+    bool? isArchived,
   }) async {
     final data = await _pService.filterProperties(
       from: f,
@@ -80,12 +110,19 @@ class PropertyRepository {
       assignedTo: assignedTo,
       fromDate: fromDate,
       toDate: toDate,
+      approvalStatusId: approvalStatusId,
+      isArchived: isArchived,
     );
     return data.map((e) => PropertyModel.fromJson(e)).toList();
   }
 
-  Future<List<PropertyModel>> searchProperties(String q) async {
-    final data = await _pService.searchProperties(q);
+  Future<List<PropertyModel>> searchProperties(String q, {String type = 'general', String? assignedTo}) async {
+    final data = await _pService.searchProperties(q, type: type, assignedTo: assignedTo);
+    return data.map((e) => PropertyModel.fromJson(e)).toList();
+  }
+
+  Future<List<PropertyModel>> checkDuplicatePropertyPhone(String ownerPhone) async {
+    final data = await _pService.checkDuplicatePropertyPhone(ownerPhone);
     return data.map((e) => PropertyModel.fromJson(e)).toList();
   }
 
@@ -101,6 +138,8 @@ class PropertyRepository {
     String? assignedTo,
     DateTime? fromDate,
     DateTime? toDate,
+    String? approvalStatusId,
+    bool? isArchived,
   }) =>
       _pService.getFilterCount(
         cityId: cityId,
@@ -112,6 +151,8 @@ class PropertyRepository {
         assignedTo: assignedTo,
         fromDate: fromDate,
         toDate: toDate,
+        approvalStatusId: approvalStatusId,
+        isArchived: isArchived,
       );
 
   Future<void> deleteFullProperty(String id) async {
@@ -127,8 +168,7 @@ class PropertyRepository {
     List<String> platformIds = const [],
   }) async {
     try {
-      final text =
-          '${p.descAr} ${p.governorateAr} ${p.cityAr} ${p.regionAr ?? ''} ${p.locationInDetails ?? ''}';
+      final text = p.descAr;
       final vector = await _aiService.generateEmbedding(text, isSearch: false);
       p = p.copyWith(embedding: vector);
 
@@ -161,13 +201,117 @@ class PropertyRepository {
     }
   }
 
-  Future<List<PropertyModel>> searchWithAi(String query) async {
+  Future<PropertyModel> updateProperty({
+    required String id,
+    required Map<String, dynamic> data,
+    List<String> platformIds = const [],
+  }) async {
+    try {
+      await _pService.updateProperty(id, data);
+      
+      if (platformIds.isNotEmpty) {
+        await _pService.deletePlatforms(id);
+        await _pService.insertPlatforms(id, platformIds);
+      }
+
+      final fresh = await _pService.getPropertyById(id);
+      return PropertyModel.fromJson(fresh);
+    } catch (e) {
+      throw Exception("فشل تحديث العقار: $e");
+    }
+  }
+
+  Future<void> sharePropertyInternal({
+    required String propertyId,
+    required String senderId,
+    required String receiverId,
+    String? note,
+  }) async {
+    await _pService.sharePropertyInternal(
+      propertyId: propertyId,
+      senderId: senderId,
+      receiverId: receiverId,
+      note: note,
+    );
+  }
+
+  Future<List<PropertyShareModel>> fetchReceivedShares(String userId) async {
+    final data = await _pService.fetchReceivedShares(userId);
+    return data.map((e) => PropertyShareModel.fromJson(e)).toList();
+  }
+
+  Future<List<PropertyShareModel>> fetchSentShares(String userId) async {
+    final data = await _pService.fetchSentShares(userId);
+    return data.map((e) => PropertyShareModel.fromJson(e)).toList();
+  }
+
+  Future<void> deleteShare(String shareId, bool isSender) async {
+    await _pService.deleteShare(shareId, isSender);
+  }
+
+  Future<List<Map<String, dynamic>>> fetchAllEmployees() async {
+    return await _pService.fetchAllEmployees();
+  }
+
+  Future<List<PropertyModel>> searchWithAi(
+    String query, {
+    String? propertyTypeId,
+    String? listingTypeId,
+    int? governorateId,
+    int? cityId,
+    num? minPrice,
+    num? maxPrice,
+    String? assignedTo,
+  }) async {
     try {
       final vector = await _aiService.generateEmbedding(query, isSearch: true);
-      final data = await _pService.searchPropertiesByAi(vector);
+      final data = await _pService.searchPropertiesByAi(
+        vector: vector,
+        propertyTypeId: propertyTypeId,
+        listingTypeId: listingTypeId,
+        governorateId: governorateId,
+        cityId: cityId,
+        minPrice: minPrice,
+        maxPrice: maxPrice,
+        assignedTo: assignedTo,
+      );
       return data.map((e) => PropertyModel.fromJson(e)).toList();
     } catch (e) {
-      throw 'فشل الاتصال بخدمات الذكاء الاصطناعي، تأكد من الإنترنت';
+      throw 'فشل الذكاء الاصطناعي: $e';
     }
+  }
+
+  Future<PropertyModel> togglePin(String propertyId, bool isPinned) async {
+    try {
+      final fresh = await _pService.togglePin(propertyId, isPinned);
+      return PropertyModel.fromJson(fresh);
+    } catch (e) {
+      throw 'فشل التثبيت، حاول مرة أخرى';
+    }
+  }
+
+  Future<void> archiveProperty(String propertyId, bool isArchived) async {
+    try {
+      await _pService.archiveProperty(propertyId, isArchived);
+    } catch (e) {
+      throw Exception("فشل تحديث الأرشيف: $e");
+    }
+  }
+
+  Future<void> publishPropertyPlatforms(String propertyId, List<String> platformIds) async {
+    await _pService.publishPlatforms(propertyId, platformIds);
+  }
+
+  Future<void> insertPropertyPlatforms(String propertyId, List<String> platformIds) async {
+    await _pService.insertPlatforms(propertyId, platformIds);
+  }
+
+  Future<void> resetPlatformsPublished(String propertyId) async {
+    await _pService.resetPlatformsPublished(propertyId);
+  }
+
+  Future<PropertyModel> getPropertyById(String id) async {
+    final data = await _pService.getPropertyById(id);
+    return PropertyModel.fromJson(data);
   }
 }

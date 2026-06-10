@@ -1,12 +1,15 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/widgets/retaj_shared_fields.dart';
 import '../../../../core/di/injection_container.dart' as di;
-import '../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/utils/number_formatter.dart';
 import '../../../core/utils/static_data_manager.dart';
+import '../../../core/utils/number_formatter.dart';
 import '../../../data/models/property_model.dart';
 import '../../../data/models/property_image_model.dart';
 import '../cubit/properties_cubit.dart';
@@ -18,8 +21,14 @@ import '../widgets/form_sections/image_section.dart';
 class PropertyFormScreen extends StatefulWidget {
   final PropertyModel? property;
   final String userId;
+  final String userRole;
 
-  const PropertyFormScreen({super.key, this.property, required this.userId});
+  const PropertyFormScreen({
+    super.key,
+    this.property,
+    required this.userId,
+    required this.userRole,
+  });
 
   @override
   State<PropertyFormScreen> createState() => _PropertyFormScreenState();
@@ -53,6 +62,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
 
   void _initData() {
     final p = widget.property;
+    final priceStr = p?.price != null ? p!.price.toCurrency() : '';
     _controllers = {
       'propertyCode': TextEditingController(text: p?.propertyCode),
       'titleAr': TextEditingController(text: p?.titleAr),
@@ -60,7 +70,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
       'regionAr': TextEditingController(text: p?.regionAr),
       'locDetails': TextEditingController(text: p?.locationInDetails),
       'locMap': TextEditingController(text: p?.locationMap),
-      'price': TextEditingController(text: p?.price.toString() ?? ""),
+      'price': TextEditingController(text: priceStr),
       'ownerName': TextEditingController(text: p?.ownerName),
       'ownerPhone': TextEditingController(text: p?.ownerPhone),
       'internalNotes': TextEditingController(text: p?.internalNotes),
@@ -184,33 +194,46 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                           label: "عنوان الإعلان بالعربي",
                           hint: "مثال: شقة سوبر لوكس للبيع",
                         ),
-                        SizedBox(height: 14.h),
+                        SizedBox(height: 24.h),
                         RetajTextField(
                           controller: _controllers['descAr']!,
-                          label: "الوصف التفصيلي",
+                          label: "الوصف التفصيلي *",
                           hint: "اكتب وصف العقار...",
-                          maxLines: 4,
+                          maxLines: null,
+                          minLines: 3,
+                          validator: (val) {
+                            if (val == null || val.isEmpty) return 'يرجى إدخال وصف العقار';
+                            return null;
+                          },
                         ),
-                        SizedBox(height: 14.h),
+                        SizedBox(height: 24.h),
                         RetajTextField(
                           controller: _controllers['propertyCode']!,
                           label: "كود العقار (اختياري)",
                           hint: "مثال: PR-1234",
                         ),
-                        SizedBox(height: 14.h),
+                        SizedBox(height: 24.h),
                         RetajTextField(
                           controller: _controllers['price']!,
-                          label: "السعر",
-                          hint: "مثال: 1500000",
+                          label: "السعر *",
+                          hint: "مثال: 1,500,000",
                           keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            NumberFormatter(),
+                          ],
+                          validator: (val) {
+                            if (val == null || val.isEmpty) return 'يرجى إدخال السعر';
+                            return null;
+                          },
                         ),
-                        SizedBox(height: 14.h),
+                        SizedBox(height: 24.h),
                         Row(
                           children: [
                             Expanded(
                               child: _buildDropdown(
                                 "نوع الإعلان",
-                                dataManager.getOptions('listing_type'),
+                                dataManager.getActiveOptions('listing_type', includeValue: selectedListingType),
                                 selectedListingType,
                                 (v) => setState(() => selectedListingType = v),
                               ),
@@ -219,7 +242,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                             Expanded(
                               child: _buildDropdown(
                                 "نوع العقار",
-                                dataManager.getOptions('property_type'),
+                                dataManager.getActiveOptions('property_type', includeValue: selectedPropertyType),
                                 selectedPropertyType,
                                 (v) => setState(() => selectedPropertyType = v),
                               ),
@@ -242,11 +265,11 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                               child: RetajDropdown<int>(
                                 label: "المحافظة",
                                 value: selectedGovId,
-                                items: dataManager.governorates
+                                items: dataManager.getActiveGovernorates(includeId: selectedGovId)
                                     .map(
-                                      (g) => DropdownMenuItem<int>(
-                                        value: g.id,
-                                        child: Text(g.name),
+                                      (gov) => DropdownMenuItem<int>(
+                                        value: gov.id,
+                                        child: Text(gov.name),
                                       ),
                                     )
                                     .toList(),
@@ -263,11 +286,16 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                             Expanded(
                               child: RetajDropdown<String>(
                                 label: "المدينة",
-                                value: selectedCityName,
+                                value: selectedCityName != null &&
+                                            dataManager
+                                                .getActiveCitiesByGovId(selectedGovId!, includeName: selectedCityName)
+                                                .any((c) => c.name == selectedCityName)
+                                        ? selectedCityName
+                                        : null,
                                 items: selectedGovId == null
                                     ? []
                                     : dataManager
-                                        .getCitiesByGovId(selectedGovId!)
+                                        .getActiveCitiesByGovId(selectedGovId!, includeName: selectedCityName)
                                         .map((c) => c.name)
                                         .toSet()
                                         .map(
@@ -285,19 +313,19 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                             ),
                           ],
                         ),
-                        SizedBox(height: 14.h),
+                        SizedBox(height: 24.h),
                         RetajTextField(
                           controller: _controllers['regionAr']!,
                           label: "المنطقة (اختياري)",
                           hint: "مثال: الحي المتميز",
                         ),
-                        SizedBox(height: 14.h),
+                        SizedBox(height: 24.h),
                         RetajTextField(
                           controller: _controllers['locDetails']!,
                           label: "العنوان التفصيلي (اختياري - للإدارة فقط)",
                           hint: "مثال: شارع التسعين، عمارة 5",
                         ),
-                        SizedBox(height: 14.h),
+                        SizedBox(height: 24.h),
                         RetajTextField(
                           controller: _controllers['locMap']!,
                           label: "رابط خريطة جوجل (اختياري)",
@@ -318,21 +346,26 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                           label: "اسم المالك",
                           hint: "مثال: أحمد محمد",
                         ),
-                        SizedBox(height: 14.h),
+                        SizedBox(height: 24.h),
                         RetajTextField(
                           controller: _controllers['ownerPhone']!,
-                          label: "رقم هاتف المالك",
+                          label: "رقم هاتف المالك *",
                           hint: "مثال: 01000000000",
                           keyboardType: TextInputType.phone,
+                          validator: (val) {
+                            if (val == null || val.isEmpty) return 'يرجى إدخال رقم هاتف المالك';
+                            return null;
+                          },
                         ),
-                        SizedBox(height: 14.h),
+                        SizedBox(height: 24.h),
                         RetajTextField(
                           controller: _controllers['internalNotes']!,
                           label: "ملاحظات إدارية (اختياري)",
                           hint: "أرقام هواتف إضافية، ملاحظات خاصة...",
-                          maxLines: 3,
+                          maxLines: null,
+                          minLines: 3,
                         ),
-                        SizedBox(height: 14.h),
+                        SizedBox(height: 24.h),
                         SwitchListTile(
                           title: const Text("حالة العقار (متاح؟)"),
                           value: status,
@@ -352,57 +385,59 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                       children: [
                         _buildDropdown(
                           "مصدر العقار (اختياري)",
-                          dataManager.getOptions('property_source'),
+                          dataManager.getActiveOptions('property_source', includeValue: selectedSource),
                           selectedSource,
                           (v) => setState(() => selectedSource = v),
                           required: false,
                         ),
-                        SizedBox(height: 14.h),
-                        Text(
-                          "منصات الإعلان (اختياري)",
-                          style: TextStyle(
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF555566),
+                        if (widget.userRole == 'admin' || widget.userRole == 'ceo') ...[
+                          SizedBox(height: 24.h),
+                          Text(
+                            "منصات الإعلان (اختياري)",
+                            style: TextStyle(
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF555566),
+                            ),
                           ),
-                        ),
-                        SizedBox(height: 10.h),
-                        Wrap(
-                          spacing: 10.w,
-                          runSpacing: 8.h,
-                          children: dataManager.getOptions('advertising_platform').map((platform) {
-                            final isSelected = selectedPlatforms.contains(platform);
-                            return FilterChip(
-                              label: Text(
-                                platform,
-                                style: TextStyle(
-                                  fontSize: 13.sp,
-                                  fontWeight: FontWeight.w600,
-                                  color: isSelected ? Colors.white : const Color(0xFF555566),
+                          SizedBox(height: 10.h),
+                          Wrap(
+                            spacing: 10.w,
+                            runSpacing: 8.h,
+                            children: dataManager.getActiveOptions('advertising_platforms').map((platform) {
+                              final isSelected = selectedPlatforms.contains(platform);
+                              return FilterChip(
+                                label: Text(
+                                  platform,
+                                  style: TextStyle(
+                                    fontSize: 13.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: isSelected ? Colors.white : const Color(0xFF555566),
+                                  ),
                                 ),
-                              ),
-                              selected: isSelected,
-                              onSelected: (selected) {
-                                setState(() {
-                                  if (selected) {
-                                    selectedPlatforms.add(platform);
-                                  } else {
-                                    selectedPlatforms.remove(platform);
-                                  }
-                                });
-                              },
-                              selectedColor: AppColors.brandPrimary,
-                              backgroundColor: const Color(0xFFF0F0F8),
-                              checkmarkColor: Colors.white,
-                              side: BorderSide(
-                                color: isSelected ? AppColors.brandPrimary : const Color(0xFFDDDDEE),
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20.r),
-                              ),
-                            );
-                          }).toList(),
-                        ),
+                                selected: isSelected,
+                                onSelected: (selected) {
+                                  setState(() {
+                                    if (selected) {
+                                      selectedPlatforms.add(platform);
+                                    } else {
+                                      selectedPlatforms.remove(platform);
+                                    }
+                                  });
+                                },
+                                selectedColor: AppColors.brandPrimary,
+                                backgroundColor: const Color(0xFFF0F0F8),
+                                checkmarkColor: Colors.white,
+                                side: BorderSide(
+                                  color: isSelected ? AppColors.brandPrimary : const Color(0xFFDDDDEE),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20.r),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -427,10 +462,15 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
     ValueChanged<String?> onChanged, {
     bool required = true,
   }) {
+    final List<String> validItems = items.toSet().toList();
+    if (value != null && !validItems.contains(value)) {
+      validItems.insert(0, value);
+    }
+
     return RetajDropdown<String>(
       label: hint,
       value: value,
-      items: items
+      items: validItems
           .map((e) => DropdownMenuItem<String>(
                 value: e,
                 child: Text(e),
@@ -519,7 +559,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
     );
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (_newImagesBytes.isEmpty && _existingImages.isEmpty) {
@@ -641,6 +681,10 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
         internalNotes: _controllers['internalNotes']!.text,
         images: _existingImages,
         advertisingPlatforms: const [],
+        // تعيين حالة الاعتماد عند الإضافة
+        approvalStatusId: widget.property == null 
+            ? '634f7e69-6161-4535-b409-d1ea1bbbdcd3'
+            : widget.property!.approvalStatusId,
       );
 
       // حل أسماء المنصات إلى IDs
@@ -651,7 +695,69 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
           .toList();
 
       if (widget.property == null) {
-        context.read<PropertiesCubit>().addProperty(model, _newImagesBytes, platformIds: platformIds);
+        final phone = _controllers['ownerPhone']!.text;
+        final duplicates = await context.read<PropertiesCubit>().checkDuplicates(phone);
+        final myDuplicates = duplicates.where((d) => d.createdBy == widget.userId).toList();
+
+        if (myDuplicates.isNotEmpty) {
+          setState(() => _isLoading = false);
+          final dup = myDuplicates.first;
+          
+          final bool? confirm = await showDialog<bool>(
+            context: context,
+            barrierDismissible: false,
+            builder: (ctx) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
+              title: Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 30),
+                  SizedBox(width: 10.w),
+                  const Text('تحذير: رقم مكرر!', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("يوجد عقار آخر مضاف بواسطتك يمتلك نفس رقم المالك (أو يتطابق في آخر 6 أرقام).", style: TextStyle(fontSize: 16.sp)),
+                  SizedBox(height: 15.h),
+                  Container(
+                    padding: EdgeInsets.all(12.w),
+                    decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10.r)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("عنوان العقار: ${dup.titleAr}", style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w900)),
+                        SizedBox(height: 5.h),
+                        Text("رقم المالك: ${dup.ownerPhone}", style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold, color: AppColors.brandPrimary)),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 15.h),
+                  Text("هل أنت متأكد أنك تريد إضافة هذا العقار كعقار جديد على أي حال؟", style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text('إلغاء', style: TextStyle(color: Colors.grey, fontSize: 16.sp)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.brandPrimary),
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: Text('إضافة على أي حال', style: TextStyle(color: Colors.white, fontSize: 16.sp)),
+                ),
+              ],
+            ),
+          );
+
+          if (confirm != true) return;
+          setState(() => _isLoading = true);
+        }
+
+        if (mounted) {
+          context.read<PropertiesCubit>().addProperty(model, _newImagesBytes, platformIds: platformIds);
+        }
       } else {
         context.read<PropertiesCubit>().updateProperty(
           property: model,

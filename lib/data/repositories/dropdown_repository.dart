@@ -21,6 +21,8 @@ class DropdownRepository {
       _service.fetchCommunicationChannels(),     // 5
       _service.fetchPropertySources(),           // 6
       _service.fetchAdvertisingPlatforms(),      // 7
+      _service.fetchLeadExclusionReasons(),      // 8
+      _service.fetchPropertyApprovalStatuses(),  // 9
     ]);
 
     final govRaw = results[0] as List<Map<String, dynamic>>;
@@ -47,6 +49,8 @@ class DropdownRepository {
         'communication_channel': results[5] as List<LookupOptionModel>,
         'property_source':       results[6] as List<LookupOptionModel>,
         'advertising_platform':  results[7] as List<LookupOptionModel>,
+        'lead_exclusion_reasons': results[8] as List<LookupOptionModel>,
+        'property_approval_statuses': results[9] as List<LookupOptionModel>,
       },
     );
   }

@@ -34,13 +34,10 @@ class DropdownService {
     final response = await _client
         .from('governorates')
         .select('id, name, is_active, cities(id, name, governorate_id, is_active)')
-        .eq('is_active', true)
         .order('id', ascending: true);
 
     return (response as List).map((gov) {
-      final cities = (gov['cities'] as List? ?? [])
-          .where((c) => c['is_active'] == true)
-          .toList();
+      final cities = (gov['cities'] as List? ?? []).toList();
       return {...gov as Map<String, dynamic>, 'cities': cities};
     }).toList();
   }
@@ -49,7 +46,6 @@ class DropdownService {
     final response = await _client
         .from(tableName)
         .select('id, name_ar, is_active')
-        .eq('is_active', true)
         .order('created_at', ascending: true);
     return (response as List).map((e) => LookupOptionModel.fromJson(e)).toList();
   }
@@ -61,6 +57,8 @@ class DropdownService {
   Future<List<LookupOptionModel>> fetchCommunicationChannels() => _fetchFromTable('communication_channels');
   Future<List<LookupOptionModel>> fetchPropertySources() => _fetchFromTable('property_sources');
   Future<List<LookupOptionModel>> fetchAdvertisingPlatforms() => _fetchFromTable('advertising_platforms');
+  Future<List<LookupOptionModel>> fetchLeadExclusionReasons() => _fetchFromTable('lead_exclusion_reasons');
+  Future<List<LookupOptionModel>> fetchPropertyApprovalStatuses() => _fetchFromTable('property_approval_statuses');
 
   // ────────────────────────────────────────────────
   //  للـ Admin Screen: كل القيم (Active + Inactive)

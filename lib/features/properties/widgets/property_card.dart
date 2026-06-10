@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/property_cache_manager.dart';
+import '../../../core/utils/number_formatter.dart';
+import '../../../core/utils/whatsapp_share_helper.dart';
 import '../../../data/models/property_model.dart';
 import 'property_share_sheet.dart';
 
@@ -13,18 +15,26 @@ class PropertyCard extends StatefulWidget {
   final PropertyModel property;
   final String currentUserId;
   final String role;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+  final VoidCallback? onArchive;
+  final VoidCallback? onRestore;
+  final VoidCallback? onShareInternal;
   final VoidCallback onTap;
+  final VoidCallback? onPinToggle;
 
   const PropertyCard({
     super.key,
     required this.property,
     required this.currentUserId,
     required this.role,
-    required this.onEdit,
-    required this.onDelete,
+    this.onEdit,
+    this.onDelete,
+    this.onArchive,
+    this.onRestore,
+    this.onShareInternal,
     required this.onTap,
+    this.onPinToggle,
   });
 
   @override
@@ -160,8 +170,45 @@ class _PropertyCardState extends State<PropertyCard> {
                           Positioned(
                             top: 12.h,
                             right: 12.w,
-                            child: _buildStatusBadge(),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                _buildStatusBadge(),
+                                if (widget.property.approvalStatusName != null) ...[
+                                  SizedBox(height: 5.h),
+                                  Container(
+                                    padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blueAccent.withValues(alpha: 0.88),
+                                      borderRadius: BorderRadius.circular(8.r),
+                                    ),
+                                    child: Text(
+                                      widget.property.approvalStatusName!,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12.sp,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
+                          if (widget.property.isPinned)
+                            Positioned(
+                              top: 12.h,
+                              left: 12.w,
+                              child: Container(
+                                padding: EdgeInsets.all(6.r),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                                ),
+                                child: Icon(Icons.push_pin_rounded, color: AppColors.brandPrimary, size: 20.sp),
+                              ),
+                            ),
                         ],
                       ),
                       SizedBox(width: 20.w),
@@ -185,7 +232,7 @@ class _PropertyCardState extends State<PropertyCard> {
                                   child: Text(
                                     "${widget.property.listingTypeAr} — ${widget.property.propertyTypeAr}",
                                     style: AppTextStyles.tableCellSub.copyWith(
-                                      fontSize: 16.sp,
+                                      fontSize: 18.sp,
                                       color: AppColors.brandPrimary,
                                       fontWeight: FontWeight.w800,
                                     ),
@@ -194,7 +241,7 @@ class _PropertyCardState extends State<PropertyCard> {
                                 Text(
                                   "#${widget.property.propertyCode ?? '---'}",
                                   style: AppTextStyles.tableCellSub.copyWith(
-                                    fontSize: 16.sp,
+                                    fontSize: 18.sp,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -202,9 +249,9 @@ class _PropertyCardState extends State<PropertyCard> {
                             ),
                             SizedBox(height: 14.h),
                             Text(
-                              "${widget.property.price.toStringAsFixed(0)} ج.م",
+                              "${widget.property.price.toCurrency()} ج.م",
                               style: AppTextStyles.h2.copyWith(
-                                fontSize: 30.sp,
+                                fontSize: 34.sp,
                                 fontWeight: FontWeight.w900,
                                 color: const Color(0xFF10B981),
                               ),
@@ -219,7 +266,7 @@ class _PropertyCardState extends State<PropertyCard> {
                                   child: Text(
                                     "${widget.property.governorateAr} — ${widget.property.cityAr}",
                                     style: AppTextStyles.tableCellSub.copyWith(
-                                      fontSize: 18.sp,
+                                      fontSize: 20.sp,
                                       color: AppColors.textPrimary,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -238,7 +285,7 @@ class _PropertyCardState extends State<PropertyCard> {
                                 Text(
                                   formattedDate,
                                   style: AppTextStyles.tableCellSub.copyWith(
-                                    fontSize: 16.sp,
+                                    fontSize: 18.sp,
                                     color: AppColors.textSecondary,
                                   ),
                                 ),
@@ -269,28 +316,97 @@ class _PropertyCardState extends State<PropertyCard> {
 
                       // ─── أزرار التحكم ───
                       SizedBox(width: 14.w),
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.start,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _actionButton(
-                            FontAwesomeIcons.whatsapp,
-                            const Color(0xFF25D366),
-                            () => showPropertyShareSheet(context, widget.property, canShareInternal: isMine || isManagerOrAdmin),
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              _actionButton(
+                                FontAwesomeIcons.whatsapp,
+                                const Color(0xFF25D366),
+                                "مشاركة",
+                                () => showPropertyShareSheet(context, widget.property, canShareInternal: isMine || isManagerOrAdmin),
+                              ),
+                              if (widget.onPinToggle != null) ...[
+                                SizedBox(height: 14.h),
+                                _actionButton(
+                                  widget.property.isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
+                                  widget.property.isPinned ? AppColors.brandPrimary : Colors.grey,
+                                  "تثبيت العقار",
+                                  widget.onPinToggle!,
+                                ),
+                              ],
+                              SizedBox(height: 14.h),
+                              _actionButton(
+                                Icons.download_rounded,
+                                AppColors.success,
+                                "تحميل الصور",
+                                () {
+                                  WhatsappShareHelper.downloadImages(context, widget.property);
+                                },
+                              ),
+                              SizedBox(height: 14.h),
+                              _actionButton(
+                                Icons.copy_all_rounded,
+                                Colors.blueAccent,
+                                "نسخ التفاصيل",
+                                () {
+                                  WhatsappShareHelper.copyToClipboard(context, widget.property);
+                                },
+                              ),
+                            ],
                           ),
-                          if (isMine || isManagerOrAdmin) ...[
-                            SizedBox(height: 14.h),
-                            _actionButton(
-                              Icons.edit_note_rounded,
-                              AppColors.info,
-                              widget.onEdit,
-                            ),
-                            SizedBox(height: 14.h),
-                            _actionButton(
-                              Icons.delete_outline_rounded,
-                              AppColors.brandAccent,
-                              widget.onDelete,
-                            ),
-                          ],
+                          SizedBox(width: 8.w),
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              if (widget.onEdit != null) ...[
+                                _actionButton(
+                                  Icons.edit_note_rounded,
+                                  AppColors.info,
+                                  "تعديل العقار",
+                                  widget.onEdit!,
+                                ),
+                                SizedBox(height: 14.h),
+                              ],
+                              if (widget.onShareInternal != null) ...[
+                                _actionButton(
+                                  Icons.ios_share_rounded,
+                                  AppColors.brandPrimary,
+                                  "مشاركة مع زميل",
+                                  widget.onShareInternal!,
+                                ),
+                                SizedBox(height: 14.h),
+                              ],
+                              if (widget.onArchive != null) ...[
+                                _actionButton(
+                                  Icons.archive_outlined,
+                                  Colors.orange,
+                                  "نقل للأرشيف",
+                                  widget.onArchive!,
+                                ),
+                                SizedBox(height: 14.h),
+                              ],
+                              if (widget.onRestore != null) ...[
+                                _actionButton(
+                                  Icons.restore_page_outlined,
+                                  Colors.green,
+                                  "استعادة العقار",
+                                  widget.onRestore!,
+                                ),
+                                SizedBox(height: 14.h),
+                              ],
+                              if (widget.onDelete != null) ...[
+                                _actionButton(
+                                  Icons.delete_outline_rounded,
+                                  AppColors.brandAccent,
+                                  "حذف نهائي",
+                                  widget.onDelete!,
+                                ),
+                              ],
+                            ],
+                          ),
                         ],
                       ),
                     ],
@@ -304,18 +420,27 @@ class _PropertyCardState extends State<PropertyCard> {
     );
   }
 
-  Widget _actionButton(IconData icon, Color color, VoidCallback onPressed) {
-    return InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(12.r),
-      child: Container(
-        padding: EdgeInsets.all(12.w),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12.r),
-          border: Border.all(color: color.withValues(alpha: 0.15)),
+  Widget _actionButton(IconData icon, Color color, String tooltipMsg, VoidCallback onPressed) {
+    return Tooltip(
+      message: tooltipMsg,
+      decoration: BoxDecoration(
+        color: AppColors.brandPrimary,
+        borderRadius: BorderRadius.circular(8.r),
+      ),
+      textStyle: TextStyle(color: Colors.white, fontSize: 12.sp, fontWeight: FontWeight.bold),
+      preferBelow: false,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(12.r),
+        child: Container(
+          padding: EdgeInsets.all(12.w),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(color: color.withValues(alpha: 0.15)),
+          ),
+          child: Icon(icon, color: color, size: 28.sp),
         ),
-        child: Icon(icon, color: color, size: 28.sp),
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
+import '../../../../core/utils/number_formatter.dart';
 import '../../../../data/models/property_model.dart';
 
 /// بطاقة المعلومات الرئيسية للعقار — تظهر مباشرة أسفل معرض الصور
@@ -115,7 +116,7 @@ class PropertyMainInfoCard extends StatelessWidget {
               children: [
                 // السعر بخط ضخم بارز
                 Text(
-                  "${property.price.toStringAsFixed(0)} EGP",
+                  "${property.price.toCurrency()} EGP",
                   style: TextStyle(
                     fontSize: 26.sp,
                     fontWeight: FontWeight.w900,

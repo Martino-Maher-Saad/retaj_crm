@@ -4,6 +4,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/whatsapp_share_helper.dart';
 import '../../../data/models/property_model.dart';
+import 'package:flutter/services.dart';
 
 class PropertyShareSheet extends StatelessWidget {
   final BuildContext originalContext;
@@ -56,6 +57,38 @@ class PropertyShareSheet extends StatelessWidget {
             onTap: () {
               Navigator.of(context).pop();
               WhatsappShareHelper.sharePublic(originalContext, property);
+            },
+          ),
+          
+          SizedBox(height: 16.h),
+          _buildShareOption(
+            context: context,
+            icon: Icons.download_rounded,
+            title: 'تحميل الصور',
+            subtitle: 'حفظ جميع صور العقار',
+            color: AppColors.success,
+            onTap: () {
+              Navigator.of(context).pop();
+              WhatsappShareHelper.downloadImages(originalContext, property);
+            },
+          ),
+          
+          SizedBox(height: 16.h),
+          _buildShareOption(
+            context: context,
+            icon: Icons.copy_rounded,
+            title: 'نسخ التفاصيل',
+            subtitle: 'نسخ نص الإعلان للحافظة',
+            color: AppColors.textPrimary,
+            onTap: () async {
+              Navigator.of(context).pop();
+              final text = WhatsappShareHelper.buildPublicMessage(property);
+              await Clipboard.setData(ClipboardData(text: text));
+              if (originalContext.mounted) {
+                ScaffoldMessenger.of(originalContext).showSnackBar(
+                  const SnackBar(content: Text('تم نسخ التفاصيل للحافظة')),
+                );
+              }
             },
           ),
           

@@ -20,3 +20,9 @@ class NumberFormatter extends TextInputFormatter {
     );
   }
 }
+
+extension CurrencyFormatter on num {
+  String toCurrency() {
+    return NumberFormat("#,##0", "en_US").format(this);
+  }
+}

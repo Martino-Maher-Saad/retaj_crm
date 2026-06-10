@@ -21,7 +21,7 @@
 | **Responsive Grid** | `responsive_grid_list` | ^1.4.1 | Responsive grid layouts |
 
 **No routing package** — uses `Navigator.push` with `MaterialPageRoute` directly.
-**No dependency injection package** — dependencies are manually composed in `initState` or `main.dart`.
+**Dependency Injection** — uses `get_it` via `injection_container.dart` for centralized service location.
 
 ---
 
@@ -54,6 +54,8 @@ lib/
 │   │   ├── app_constants.dart      # AppConstants — border radii, spacing, padding values
 │   │   ├── app_strings.dart        # AppStrings — hardcoded string literals (Arabic)
 │   │   └── app_text_styles.dart    # AppTextStyles class — all static TextStyle getters
+│   ├── di/
+│   │   └── injection_container.dart # GetIt setup (sl) for all services, repos, cubits
 │   ├── error/
 │   │   └── app_exceptions.dart     # AppException, NetworkException, ServerException, AuthCustomException
 │   ├── theme/
@@ -68,7 +70,7 @@ lib/
 │   └── widgets/                    # Reusable, generic UI components (no business logic)
 │       ├── custom_button.dart
 │       ├── custom_search_bar.dart
-│       ├── custom_text_form_field.dart
+│       ├── retaj_shared_fields.dart # SINGLE SOURCE OF TRUTH for TextFields/Dropdowns
 │       └── form_toggle_tile.dart
 │
 ├── data/                           # Data layer — Supabase interaction + models
@@ -94,6 +96,7 @@ lib/
 │       └── design_repository.dart
 │
 ├── features/                       # Feature modules — each is self-contained
+│   ├── admin_users/                # Admin user creation and access management
 │   ├── auth/
 │   │   ├── cubit/                  # auth_cubit.dart + auth_states.dart
 │   │   ├── screens/                # LoginWebScreen
@@ -108,6 +111,7 @@ lib/
 │   │   ├── cubit/                  # leads_cubit.dart + leads_state.dart
 │   │   ├── screens/                # LeadsManagementScreen, LeadFormScreen, LeadDetailsScreen
 │   │   └── widgets/                # LeadCard + sub-widget folders (list/, details/)
+│   ├── profile/                    # User Profile and password reset
 │   ├── properties/
 │   │   ├── cubit/
 │   │   ├── screens/
@@ -134,6 +138,7 @@ lib/
 | Cubit classes | `[Feature]Cubit` | `LeadCubit`, `PropertiesCubit` |
 
 ### 4.2 Widget Preferences
+- **Unified Form Fields:** ALL inputs MUST use the widgets from `retaj_shared_fields.dart` (`RetajTextField`, `RetajDropdown`, etc.). DO NOT build custom `TextFormField` widgets within features.
 - **`StatelessWidget`** for all pure display widgets (cards, sections, reusable components).
 - **`StatefulWidget`** for screens that own a Cubit instance or have `ScrollController` / form state.
 - Screens that own a Cubit use **`AutomaticKeepAliveClientMixin`** to preserve state across tab navigations. Must call `super.build(context)` and set `wantKeepAlive => true`.
@@ -540,6 +545,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/di/injection_container.dart' as di;
 import '../../../data/repositories/feature_repository.dart';
 import '../../../data/services/feature_service.dart';
 import '../cubit/feature_cubit.dart';
@@ -564,8 +570,8 @@ class _FeatureScreenState extends State<FeatureScreen>
   @override
   void initState() {
     super.initState();
-    // Manual DI — compose dependencies here
-    _cubit = FeatureCubit(FeatureRepository(FeatureService()))..loadItems();
+    // Dependency Injection — resolve via GetIt
+    _cubit = di.sl<FeatureCubit>()..loadItems();
     _scrollController.addListener(_onScroll);
   }
 
@@ -649,8 +655,10 @@ class _FeatureScreenState extends State<FeatureScreen>
 
 ## 8. Critical Rules — DO NOT VIOLATE
 
-1. **No `context.read<Cubit>()` inside `initState`** — use `late Cubit _cubit` + manual DI.
-2. **BlocProvider.value** when navigating to sub-screens that share the parent's Cubit.
+1. **Use `GetIt` for all dependencies.** Inject via `di.sl<FeatureCubit>()`. No manual instantiation.
+2. **Unified Fields:** All inputs MUST use the widgets from `retaj_shared_fields.dart` (`RetajTextField`, `RetajDropdown`, etc.). No bespoke `TextFormField` styling.
+3. **No `context.read<Cubit>()` inside `initState`** — use `late Cubit _cubit` + GetIt DI.
+4. **BlocProvider.value** when navigating to sub-screens that share the parent's Cubit.
 3. **Never use `setState`** for data fetching — only Cubit/emit drives state changes.
 4. **Every mutation is "surgical"** — modify the in-memory list, never re-fetch the full list.
 5. **After `emit(FeatureError(...))` in a mutation**, always immediately `emit(currentState)` to roll back.

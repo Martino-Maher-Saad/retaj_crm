@@ -43,6 +43,8 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
     'listing_types':          _CategoryConfig(label: 'أنواع الإعلانات',     icon: Icons.list_alt_outlined,      tableName: 'listing_types',          color: Color(0xFF0369A1)),
     'property_sources':       _CategoryConfig(label: 'مصادر العقارات',      icon: Icons.source_outlined,        tableName: 'property_sources',       color: Color(0xFF065F46)),
     'advertising_platforms':  _CategoryConfig(label: 'منصات الإعلان',       icon: Icons.ads_click_outlined,     tableName: 'advertising_platforms',  color: Color(0xFFB91C1C)),
+    'lead_exclusion_reasons': _CategoryConfig(label: 'أسباب الاستبعاد',      icon: Icons.block_outlined,         tableName: 'lead_exclusion_reasons', color: Color(0xFFDC2626)),
+    'property_approval_statuses': _CategoryConfig(label: 'حالات الموافقة',     icon: Icons.verified_user_outlined, tableName: 'property_approval_statuses', color: Color(0xFF047857)),
     'locations':              _CategoryConfig(label: 'المحافظات والمدن',    icon: Icons.location_on_outlined,   tableName: '',       isLocation: true, color: Color(0xFF374151)),
   };
 

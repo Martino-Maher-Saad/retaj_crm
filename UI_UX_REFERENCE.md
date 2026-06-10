@@ -24,6 +24,8 @@
    - 4.8 Lead Form Screen (Add/Edit)
    - 4.9 Designs List Screen
    - 4.10 Accounts Management Screen (Admin Only)
+   - 4.11 Dropdown Management Screen
+   - 4.12 User Profile Screen
 5. [Reusable Core Widgets](#5-reusable-core-widgets)
 6. [Web-to-Mobile Adaptation Strategy](#6-web-to-mobile-adaptation-strategy)
 
@@ -302,15 +304,33 @@ Each item is a custom `AnimatedContainer` (200ms duration) with:
 
 **File:** `lib/features/dashboard/screens/dashboard_screen.dart`
 
-> ⚠️ **Status: Placeholder / Under Development.** The screen currently only renders a `CustomSearchBar` and a centered `Text('Dashboard Screen')`. The full implementation with stats widgets is pending.
+Driven by Supabase RPCs (`get_employee_dashboard` / `get_manager_dashboard`), offering two entirely different views based on role.
 
-#### Current Layout
-- `Scaffold` with a `Column`:
-  1. `CustomSearchBar` (horizontal padding 3, vertical 8)
-  2. `Center(child: Text('Dashboard Screen'))`
+#### Employee View (`lib/features/dashboard/screens/employee_dashboard_view.dart`)
+**Target Audience**: Sales Agents.
+**Color Scheme**: Uses `AppColors.brandPrimary` for leads, `AppColors.success` for contracted, `AppColors.warning` for properties, and Cyan (`#0EA5E9`) for Time.
+**Layout & Widgets**:
+- **Welcome Header**: `أهلاً، [Name] 👋`
+- **Time Filter Bar**: Quick toggles for 7, 30, 90, 365 days.
+- **Stale Alert Widget**: A prominent yellow warning (`#FFF8E1` background, `AppColors.warning` border) showing leads that haven't been updated in 7 days.
+- **Summary KPI Cards**: 
+  - My Leads (`Icons.people_outline_rounded`)
+  - My Contracts (`Icons.handshake_outlined`)
+  - Conversion Rate (`Icons.percent_rounded`)
+  - My Properties (`Icons.home_work_outlined`)
+  - **Average Closing Time** (`Icons.timer_rounded`)
+- **Performance Chart**: Uses `fl_chart`. X-axis is time, Y-axis is counts. Solid blue line for leads, dashed green line for contracts.
+- **Sales Funnel**: Visualizes leads by status with horizontal `LinearProgressIndicator` colored by status (New=Purple, Contacted=Blue, Negotiation=Orange, Contracted=Green).
+- **Platform ROI**: Shows conversion rate per advertising platform.
+- **Stage Duration**: Shows the average time leads spend in each funnel stage.
 
-#### Planned Purpose
-Based on text styles defined (e.g., `displayLarge`, `statsNumber`), the dashboard is intended to show KPI stat cards with aggregate numbers like total leads, contracted clients, active properties, etc.
+#### Manager View (`lib/features/dashboard/screens/manager_dashboard_view.dart`)
+**Target Audience**: Managers and Admins.
+**Layout & Widgets**:
+- **Company-Wide Scope**: Same layout as the Employee view but data aggregates the entire company.
+- **Growth Indicators**: KPI cards include small pill-shaped badges (green/red) comparing the selected period to the previous period (e.g., `+15%`).
+- **Team Leaderboard**: A table (`Row` layout) showing every employee's performance (Closing Time, Conversion %, Contracts, Leads). The top 3 get medal emojis 🥇🥈🥉.
+- **Drill-down Capability**: Tapping any employee in the leaderboard seamlessly switches the view to that specific employee's `EmployeeDashboardView` with a "Back to Company View" button at the top.
 
 ---
 
@@ -542,17 +562,69 @@ Related widgets: `design_form.dart`, `design_images_section.dart`.
 
 ### 4.10 Accounts Management Screen (Admin Only)
 
-**File:** `lib/features/auth/screens/accounts_management_screen.dart`
+**File:** `lib/features/admin_users/screens/admin_users_screen.dart`
 
-> ⚠️ **Status: Stub.** The screen is only 293 bytes — essentially an empty placeholder. It is only injected into the page list for users with `role == 'admin'`.
+**Layout Structure:**
+- **List View**: Displays all CRM users in neat cards (`BoxDecoration` with border and soft shadow).
+- **Card Content**: Avatar (profile image or initial), Full Name, Email, Role Chip (Admin=Accent color, Sales/Manager=Primary color), and an Edit Icon button.
+- **Add User Bottom Sheet**: Opened via a `FloatingActionButton.extended`. Form includes First Name, Last Name, Email, Initial Password, and Role Dropdown (`RetajDropdown`).
+- **Edit User Dialog**: Allows changing Email, Password, or Role. Includes a critical **Delete Account** button.
+- **Delete Protection Dialog**: To delete an account (which cascades and deletes all their leads/properties), the admin must type the exact first name of the user to confirm.
+- **Loading State**: Uses `skeletonizer` to show a shimmering placeholder list while data fetches.
 
-**Intended Purpose:** Allow admins to create, view, and manage CRM user accounts (agents).
+---
+
+### 4.11 Dropdown Management Screen
+**File:** `lib/features/admin_users/screens/dropdown_management_screen.dart`
+
+A dynamic control panel allowing Admins to manage standard dropdown lookups without touching the DB directly.
+
+**Layout Structure (Two-Column Desktop View):**
+- **Left Sidebar**: A navigation list of all editable dictionaries (`lead_statuses`, `lead_platforms`, `property_types`, `locations`, etc.).
+  - Each item has an icon, a label, and a badge showing the number of active options.
+  - Selecting an item highlights it with a colored background opacity (e.g., Purple for platforms, Orange for property types).
+- **Main Content Area**:
+  - **Header**: Shows the dictionary name and active/total count.
+  - **Add Field Row**: A text input (`_addCtrl`) and an "Add" button to create new options quickly.
+  - **List View**: Displays existing options.
+  - **Option Tile**: Shows the option name. If inactive, the text has a strikethrough (`TextDecoration.lineThrough`).
+  - **Action Buttons**: Edit (Pencil icon) and Toggle Active (Switch icon).
+- **Special Case (Locations)**: Uses a grouped view (`ExpansionTile`) showing Governorates. Expanding a Governorate shows its nested Cities. Adding a location requires selecting whether it's a Governorate or a City.
+
+---
+
+### 4.12 User Profile Screen
+**File:** `lib/features/profile/screens/user_profile_screen.dart`
+
+**Layout Structure:**
+- **Constraint Box**: Centered layout with a `maxWidth` of 620 to look elegant on desktop.
+- **Profile Image Header**: 
+  - A prominent `CircleAvatar` (radius 70).
+  - Floating Action Buttons overlayed on the avatar: a Camera icon for uploading/changing the image, and a Red Delete icon (if an image exists) to remove it.
+  - Upload handles byte conversion directly to Supabase Storage.
+- **Read-Only Fields**: Email and Role use `RetajTextField` with `readOnly: true` to prevent editing.
+- **Editable Fields**: First Name, Last Name, and Phone (with `TextInputType.phone`).
+- **Save Button**: Large primary button at the bottom that shows a `CircularProgressIndicator` while updating.
 
 ---
 
 ## 5. Reusable Core Widgets
 
 All located in `lib/core/widgets/`. These must be ported to or reused in the mobile app.
+
+---
+
+### 5.0 The Unified Field System
+**File:** `lib/core/widgets/retaj_shared_fields.dart`
+
+This is the **SINGLE SOURCE OF TRUTH** for all form inputs across the app. Do not write bare `TextFormField` widgets anywhere. These widgets handle RTL/LTR detection, Neon Glow focus states, consistent border radii, and standardized error styling.
+
+- **`RetajTextField`**: Smart text field. Automatically detects Arabic/English to set `TextDirection`. Supports Neon Blue focus glow.
+- **`RetajTextArea`**: Multi-line version of the smart text field, used for notes and descriptions. Expands automatically.
+- **`RetajNumberStepper`**: Used for numeric inputs (like bedrooms/bathrooms). Features `+` and `-` arrow icons (`keyboard_arrow_up_rounded` / `down`) inside the suffix to increment/decrement.
+- **`RetajCopyableDisplay`**: A read-only field used in details screens (Lead Details, Property Details). It shows a label and a large value, accompanied by a copy button (`Icons.copy_rounded`) that shows a green `SnackBar` upon success.
+- **`RetajSectionCard`**: A visual wrapper used to group fields logically. Renders a white card with a soft shadow and a colored header row containing an icon and title.
+- **`RetajDropdown`**: A standardized dropdown for relational data (cities, types, statuses).
 
 ---
 

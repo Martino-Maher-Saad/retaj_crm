@@ -8,11 +8,17 @@ abstract class StaticDataManager {
   Future<void> initialize();
   Future<void> refresh();
   List<Governorate> get governorates;
+  List<Governorate> getActiveGovernorates({int? includeId});
+
   List<City> get allCities;
   List<ProfileModel> get employees;
   List<String> getOptions(String category);
+  List<String> getActiveOptions(String category, {String? includeValue});
+
   List<City> getCitiesByGovName(String govName);
   List<City> getCitiesByGovId(int govId);
+  List<City> getActiveCitiesByGovId(int govId, {int? includeId, String? includeName});
+
   List<LookupOptionModel> getOptionModels(String category);
 
   /// يرجع الـ UUID الخاص باسم معين في category معينة
@@ -97,4 +103,21 @@ class StaticDataManagerImpl implements StaticDataManager {
   @override List<City> getCitiesByGovName(String govName) => _citiesByGovName[govName] ?? [];
   @override List<City> getCitiesByGovId(int govId) => _citiesByGovId[govId] ?? [];
   @override String? getIdByName(String category, String name) => _nameToIdMap[category]?[name];
+
+  @override
+  List<Governorate> getActiveGovernorates({int? includeId}) {
+    return _governorates.where((g) => g.isActive || g.id == includeId).toList();
+  }
+
+  @override
+  List<City> getActiveCitiesByGovId(int govId, {int? includeId, String? includeName}) {
+    final cities = _citiesByGovId[govId] ?? [];
+    return cities.where((c) => c.isActive || c.id == includeId || c.name == includeName).toList();
+  }
+
+  @override
+  List<String> getActiveOptions(String category, {String? includeValue}) {
+    final options = _optionModelsMap[category] ?? [];
+    return options.where((o) => o.isActive || o.nameAr == includeValue).map((o) => o.nameAr).toList();
+  }
 }

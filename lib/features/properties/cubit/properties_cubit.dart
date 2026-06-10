@@ -1,7 +1,10 @@
 import 'dart:typed_data';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/di/injection_container.dart' as di;
+import '../../tasks/cubit/property_tasks_cubit.dart';
 import '../../../data/models/property_image_model.dart';
 import '../../../data/models/property_model.dart';
 import '../../../data/repositories/property_repository.dart';
@@ -21,6 +24,19 @@ class PropertiesCubit extends Cubit<PropertiesState> {
   num? _filterMaxPrice;
   DateTime? _filterFromDate;
   DateTime? _filterToDate;
+  bool? _filterIsArchived;
+
+  // Public Getters for Filters
+  int? get filterCityId => _filterCityId;
+  String? get filterPropertyTypeId => _filterPropertyTypeId;
+  int? get filterGovernorateId => _filterGovernorateId;
+  String? get filterListingTypeId => _filterListingTypeId;
+  num? get filterMinPrice => _filterMinPrice;
+  num? get filterMaxPrice => _filterMaxPrice;
+  String? get filterAssignedTo => _filterAssignedTo;
+  DateTime? get filterFromDate => _filterFromDate;
+  DateTime? get filterToDate => _filterToDate;
+  bool? get filterIsArchived => _filterIsArchived;
 
   bool _isLoadingMoreFiltered = false;
 
@@ -41,12 +57,14 @@ class PropertiesCubit extends Cubit<PropertiesState> {
 
     if (!isRefresh &&
         current.myProperties.length >= current.myTotalCount &&
-        current.myTotalCount != 0) return;
+        current.myTotalCount != 0)
+      return;
 
     try {
       if (isRefresh) emit(PropertiesLoading());
 
-      final isManagerOrAdmin = role == 'manager' || role == 'admin';
+      final isManagerOrAdmin =
+          role == 'manager' || role == 'admin' || role == 'ceo';
       final count = isManagerOrAdmin
           ? await _repo.fetchFilterCount()
           : await _repo.fetchMyCount(userId);
@@ -62,10 +80,14 @@ class PropertiesCubit extends Cubit<PropertiesState> {
               (isRefresh ? 0 : current.myProperties.length) + 14,
             );
 
-      emit(current.copyWith(
-        myProperties: isRefresh ? newItems : [...current.myProperties, ...newItems],
-        myTotalCount: count,
-      ));
+      emit(
+        current.copyWith(
+          myProperties: isRefresh
+              ? newItems
+              : [...current.myProperties, ...newItems],
+          myTotalCount: count,
+        ),
+      );
     } catch (e) {
       emit(PropertiesError("فشل تحميل العقارات: $e"));
     }
@@ -82,6 +104,8 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     String? selectedEmployee,
     DateTime? fromDate,
     DateTime? toDate,
+    bool? isArchived,
+    bool searchAll = false,
     required String role,
     required String currentUserId,
   }) async {
@@ -90,8 +114,12 @@ class PropertiesCubit extends Cubit<PropertiesState> {
         : PropertiesSuccess();
     emit(PropertiesLoading());
     try {
-      final filterUserId =
-          (role == 'manager' || role == 'admin') ? selectedEmployee : currentUserId;
+      String? filterUserId;
+      if (role == 'manager' || role == 'admin' || role == 'ceo') {
+        filterUserId = selectedEmployee;
+      } else if (!searchAll) {
+        filterUserId = currentUserId;
+      }
 
       // تخزين الفلاتر بالـ IDs للـ loadMore
       _filterCityId = cityId;
@@ -103,6 +131,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
       _filterFromDate = fromDate;
       _filterToDate = toDate;
       _filterAssignedTo = filterUserId;
+      _filterIsArchived = isArchived;
 
       final count = await _repo.fetchFilterCount(
         cityId: cityId,
@@ -114,9 +143,11 @@ class PropertiesCubit extends Cubit<PropertiesState> {
         assignedTo: filterUserId,
         fromDate: fromDate,
         toDate: toDate,
+        isArchived: isArchived,
       );
       final newItems = await _repo.filterProperties(
-        0, 14,
+        0,
+        14,
         cityId: cityId,
         propertyTypeId: propertyTypeId,
         governorateId: governorateId,
@@ -126,19 +157,70 @@ class PropertiesCubit extends Cubit<PropertiesState> {
         assignedTo: filterUserId,
         fromDate: fromDate,
         toDate: toDate,
+        isArchived: isArchived,
       );
 
-      emit(current.copyWith(
-        myProperties: current.myProperties,
-        searchedProperties: const [],
-        isSearching: false,
-        filteredProperties: newItems,
-        filteredTotalCount: count,
-        isFiltering: true,
-      ));
+      emit(
+        current.copyWith(
+          myProperties: current.myProperties,
+          searchedProperties: const [],
+          isSearching: false,
+          filteredProperties: newItems,
+          filteredTotalCount: count,
+          isFiltering: true,
+        ),
+      );
     } catch (e) {
       emit(PropertiesError("فشل الفلترة: $e"));
     }
+  }
+
+  Future<List<PropertyModel>> checkDuplicates(String ownerPhone) async {
+    try {
+      return await _repo.checkDuplicatePropertyPhone(ownerPhone);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  void patchProperty(PropertyModel updated) {
+    if (state is! PropertiesSuccess) return;
+    final current = state as PropertiesSuccess;
+    emit(
+      current.copyWith(
+        myProperties: current.myProperties
+            .map((e) => e.id == updated.id ? updated : e)
+            .toList(),
+        filteredProperties: current.filteredProperties
+            .map((e) => e.id == updated.id ? updated : e)
+            .toList(),
+        searchedProperties: current.searchedProperties
+            .map((e) => e.id == updated.id ? updated : e)
+            .toList(),
+      ),
+    );
+  }
+
+  void removeProperty(String propertyId) {
+    if (state is! PropertiesSuccess) return;
+    final current = state as PropertiesSuccess;
+    emit(
+      current.copyWith(
+        myProperties: current.myProperties
+            .where((p) => p.id != propertyId)
+            .toList(),
+        filteredProperties: current.filteredProperties
+            .where((p) => p.id != propertyId)
+            .toList(),
+        searchedProperties: current.searchedProperties
+            .where((p) => p.id != propertyId)
+            .toList(),
+        myTotalCount: current.myTotalCount > 0 ? current.myTotalCount - 1 : 0,
+        filteredTotalCount: current.filteredTotalCount > 0
+            ? current.filteredTotalCount - 1
+            : 0,
+      ),
+    );
   }
 
   Future<void> loadMoreFilteredProperties() async {
@@ -148,13 +230,15 @@ class PropertiesCubit extends Cubit<PropertiesState> {
 
     if (_isLoadingMoreFiltered) return;
     if (current.filteredProperties.length >= current.filteredTotalCount &&
-        current.filteredTotalCount != 0) return;
+        current.filteredTotalCount != 0)
+      return;
 
     _isLoadingMoreFiltered = true;
     try {
       final from = current.filteredProperties.length;
       final newItems = await _repo.filterProperties(
-        from, from + 14,
+        from,
+        from + 14,
         cityId: _filterCityId,
         propertyTypeId: _filterPropertyTypeId,
         governorateId: _filterGovernorateId,
@@ -164,10 +248,13 @@ class PropertiesCubit extends Cubit<PropertiesState> {
         assignedTo: _filterAssignedTo,
         fromDate: _filterFromDate,
         toDate: _filterToDate,
+        isArchived: _filterIsArchived,
       );
-      emit(current.copyWith(
-        filteredProperties: [...current.filteredProperties, ...newItems],
-      ));
+      emit(
+        current.copyWith(
+          filteredProperties: [...current.filteredProperties, ...newItems],
+        ),
+      );
     } catch (e) {
       emit(PropertiesError("فشل تحميل المزيد: $e"));
     } finally {
@@ -175,32 +262,64 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     }
   }
 
-  Future<void> search(String term) async {
+  Future<void> search(String term, {String type = 'general', String? assignedTo}) async {
     final current = state is PropertiesSuccess
         ? state as PropertiesSuccess
         : PropertiesSuccess();
     if (term.isEmpty) {
-      emit(current.copyWith(searchedProperties: []));
+      clearSearch();
       return;
     }
+    emit(PropertiesLoading());
     try {
-      final results = await _repo.searchProperties(term);
-      emit(current.copyWith(myProperties: results, myTotalCount: results.length));
+      final results = await _repo.searchProperties(term, type: type, assignedTo: assignedTo);
+      emit(
+        current.copyWith(searchedProperties: results, isSearching: true),
+      );
     } catch (e) {
       emit(PropertiesError("فشل البحث: $e"));
     }
   }
 
-  Future<void> smartSearch(String query) async {
+  Future<void> smartSearch(
+    String query, {
+    String? propertyTypeId,
+    String? listingTypeId,
+    int? governorateId,
+    int? cityId,
+    num? minPrice,
+    num? maxPrice,
+    String? assignedTo,
+  }) async {
     final current = state is PropertiesSuccess
         ? state as PropertiesSuccess
         : PropertiesSuccess();
-    if (query.isEmpty) { clearSearch(); return; }
+    if (query.isEmpty) {
+      clearSearch();
+      return;
+    }
     emit(PropertiesLoading());
     try {
-      final results = await _repo.searchWithAi(query);
+      final useFilters = current.isFiltering;
+      final results = await _repo.searchWithAi(
+        query,
+        propertyTypeId:
+            propertyTypeId ?? (useFilters ? _filterPropertyTypeId : null),
+        listingTypeId:
+            listingTypeId ?? (useFilters ? _filterListingTypeId : null),
+        governorateId:
+            governorateId ?? (useFilters ? _filterGovernorateId : null),
+        cityId: cityId ?? (useFilters ? _filterCityId : null),
+        minPrice: minPrice ?? (useFilters ? _filterMinPrice : null),
+        maxPrice: maxPrice ?? (useFilters ? _filterMaxPrice : null),
+        assignedTo: assignedTo,
+      );
       emit(current.copyWith(searchedProperties: results, isSearching: true));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print("========== SMART SEARCH ERROR ==========");
+      print(e.toString());
+      print(stackTrace.toString());
+      print("========================================");
       emit(PropertiesError(e.toString()));
       emit(current);
     }
@@ -220,16 +339,29 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     }
   }
 
-  Future<void> addProperty(PropertyModel p, List<Uint8List> imgs, {List<String> platformIds = const []}) async {
+  Future<void> addProperty(
+    PropertyModel p,
+    List<Uint8List> imgs, {
+    List<String> platformIds = const [],
+  }) async {
     final current = state is PropertiesSuccess
         ? state as PropertiesSuccess
         : PropertiesSuccess();
     try {
-      final newProp = await _repo.createFullProperty(p, imgs, platformIds: platformIds);
-      emit(current.copyWith(
-        myProperties: [newProp, ...current.myProperties],
-        myTotalCount: current.myTotalCount + 1,
-      ));
+      final newProp = await _repo.createFullProperty(
+        p,
+        imgs,
+        platformIds: platformIds,
+      );
+      di.sl<PropertyTasksCubit>()
+        ..invalidateTasks()
+        ..invalidateApprovals();
+      emit(
+        current.copyWith(
+          myProperties: [newProp, ...current.myProperties],
+          myTotalCount: current.myTotalCount + 1,
+        ),
+      );
     } catch (e) {
       emit(PropertiesError("فشل إضافة العقار: $e"));
       emit(current);
@@ -242,13 +374,58 @@ class PropertiesCubit extends Cubit<PropertiesState> {
         : PropertiesSuccess();
     try {
       await _repo.deleteFullProperty(id);
-      final updatedList = current.myProperties.where((p) => p.id != id).toList();
-      emit(current.copyWith(
-        myProperties: updatedList,
-        myTotalCount: current.myTotalCount - 1,
-      ));
+      final updatedList = current.myProperties
+          .where((p) => p.id != id)
+          .toList();
+      final filteredList = current.filteredProperties
+          .where((p) => p.id != id)
+          .toList();
+      final searchedList = current.searchedProperties
+          .where((p) => p.id != id)
+          .toList();
+      emit(
+        current.copyWith(
+          myProperties: updatedList,
+          filteredProperties: filteredList,
+          searchedProperties: searchedList,
+          myTotalCount: current.myTotalCount > 0 ? current.myTotalCount - 1 : 0,
+          filteredTotalCount: current.filteredTotalCount > 0
+              ? current.filteredTotalCount - 1
+              : 0,
+        ),
+      );
     } catch (e) {
-      emit(PropertiesError("فشل حذف العقار: $e"));
+      emit(PropertiesError("فشل الحذف: $e"));
+      emit(current);
+    }
+  }
+
+  Future<void> togglePropertyPin(PropertyModel p) async {
+    final current = state is PropertiesSuccess
+        ? state as PropertiesSuccess
+        : PropertiesSuccess();
+    try {
+      final updated = await _repo.togglePin(p.id, !p.isPinned);
+
+      final updatedList = List<PropertyModel>.from(current.myProperties);
+      final index = updatedList.indexWhere((x) => x.id == p.id);
+      if (index != -1) {
+        updatedList[index] = updated;
+
+        // إعادة ترتيب القائمة لرفع المثبت للأعلى
+        updatedList.sort((a, b) {
+          if (a.isPinned && !b.isPinned) return -1;
+          if (!a.isPinned && b.isPinned) return 1;
+          final dateA = a.createdAt ?? DateTime.now();
+          final dateB = b.createdAt ?? DateTime.now();
+          return dateB.compareTo(dateA);
+        });
+
+        emit(current.copyWith(myProperties: updatedList));
+      }
+    } catch (e) {
+      emit(PropertiesError(e.toString()));
+      emit(current);
     }
   }
 
@@ -262,8 +439,10 @@ class PropertiesCubit extends Cubit<PropertiesState> {
         ? state as PropertiesSuccess
         : PropertiesSuccess();
     try {
-      final List<String> delIds = imagesToDelete?.map((e) => e.id!).toList() ?? [];
-      final List<String> delUrls = imagesToDelete?.map((e) => e.imageUrl).toList() ?? [];
+      final List<String> delIds =
+          imagesToDelete?.map((e) => e.id!).toList() ?? [];
+      final List<String> delUrls =
+          imagesToDelete?.map((e) => e.imageUrl).toList() ?? [];
 
       final updatedProp = await _repo.updateFullProperty(
         p: property,
@@ -280,5 +459,52 @@ class PropertiesCubit extends Cubit<PropertiesState> {
       emit(PropertiesError("فشل تحديث العقار: $e"));
       emit(current);
     }
+  }
+
+  Future<void> archiveProperty(String propertyId, bool isArchived) async {
+    final current = state is PropertiesSuccess
+        ? state as PropertiesSuccess
+        : PropertiesSuccess();
+    try {
+      await _repo.archiveProperty(propertyId, isArchived);
+
+      // إزالة من القوائم بغض النظر عن الأرشفة أو الاستعادة، لأن في الحالتين العقار بيسيب الصفحة الحالية
+      final myProps = current.myProperties
+          .where((e) => e.id != propertyId)
+          .toList();
+      final filteredProps = current.filteredProperties
+          .where((e) => e.id != propertyId)
+          .toList();
+      final searchedProps = current.searchedProperties
+          .where((e) => e.id != propertyId)
+          .toList();
+
+      emit(
+        current.copyWith(
+          myProperties: myProps,
+          filteredProperties: filteredProps,
+          searchedProperties: searchedProps,
+        ),
+      );
+    } catch (e) {
+      emit(PropertiesError("فشل تحديث الأرشيف: $e"));
+      emit(current);
+    }
+  }
+
+  Future<void> sharePropertyInternal({
+    required String propertyId,
+    required String receiverId,
+    String? note,
+  }) async {
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) throw Exception("U.O3OOO_U. OrUSO1 U.O3O_U, O_OU^U,");
+
+    await _repo.sharePropertyInternal(
+      propertyId: propertyId,
+      senderId: session.user.id,
+      receiverId: receiverId,
+      note: note,
+    );
   }
 }

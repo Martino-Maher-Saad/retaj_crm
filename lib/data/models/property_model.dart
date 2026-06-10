@@ -5,11 +5,13 @@ class PropertyPlatformEntry {
   final String id;
   final String platformId;
   final String nameAr;
+  final bool isPublished;
 
   const PropertyPlatformEntry({
     required this.id,
     required this.platformId,
     required this.nameAr,
+    this.isPublished = false,
   });
 
   factory PropertyPlatformEntry.fromJson(Map<String, dynamic> json) {
@@ -18,6 +20,7 @@ class PropertyPlatformEntry {
       id: json['id']?.toString() ?? '',
       platformId: json['platform_id']?.toString() ?? '',
       nameAr: platformData?['name_ar']?.toString() ?? '',
+      isPublished: json['is_published'] == true,
     );
   }
 }
@@ -29,6 +32,7 @@ class PropertyModel {
   final String? createdByName;
   final DateTime? createdAt;
   final bool status;
+  final bool isPinned;
 
   // حقول العرض النصية
   final String titleAr;
@@ -41,6 +45,7 @@ class PropertyModel {
   final String? locationInDetails;
   final String? locationMap;
   final String? internalNotes;
+  final String? managerNotes;
   final num price;
   final String? ownerName;
   final String? ownerPhone;
@@ -55,6 +60,8 @@ class PropertyModel {
   final String? sourceId;
   final int? cityId;
   final int? governorateId;
+  final String? approvalStatusId;
+  final String? approvalStatusName;
 
   const PropertyModel({
     this.embedding,
@@ -74,6 +81,7 @@ class PropertyModel {
     this.locationInDetails,
     this.locationMap,
     this.internalNotes,
+    this.managerNotes,
     required this.price,
     this.ownerName,
     this.ownerPhone,
@@ -85,6 +93,9 @@ class PropertyModel {
     this.sourceId,
     this.cityId,
     this.governorateId,
+    this.approvalStatusId,
+    this.approvalStatusName,
+    this.isPinned = false,
   });
 
   factory PropertyModel.fromJson(Map<String, dynamic> json) {
@@ -134,6 +145,7 @@ class PropertyModel {
       locationInDetails: json['location_in_details'],
       locationMap: json['location_map'],
       internalNotes: json['internal_notes'],
+      managerNotes: json['manager_notes'],
       price: (json['price'] as num?) ?? 0,
       ownerName: json['owner_name'],
       ownerPhone: json['owner_phone'],
@@ -143,8 +155,11 @@ class PropertyModel {
       propertyTypeId: json['property_type_id']?.toString(),
       listingTypeId:  json['listing_type_id']?.toString(),
       sourceId:       json['source_id']?.toString(),
-      cityId:         json['city_id'] as int?,
-      governorateId:  json['governorate_id'] as int?,
+      cityId:         json['city_id'] != null ? int.tryParse(json['city_id'].toString()) : null,
+      governorateId:  json['governorate_id'] != null ? int.tryParse(json['governorate_id'].toString()) : null,
+      approvalStatusId: json['approval_status_id']?.toString(),
+      approvalStatusName: json['property_approval_statuses']?['name_ar']?.toString(),
+      isPinned:       json['is_pinned'] == true,
     );
   }
 
@@ -162,6 +177,7 @@ class PropertyModel {
       'location_in_details': locationInDetails,
       'location_map': locationMap,
       'internal_notes': internalNotes,
+      'manager_notes': managerNotes,
       'price': price,
       'owner_name': ownerName,
       'owner_phone': ownerPhone,
@@ -170,6 +186,8 @@ class PropertyModel {
       if (sourceId != null) 'source_id': sourceId,
       if (cityId != null) 'city_id': cityId,
       if (governorateId != null) 'governorate_id': governorateId,
+      if (approvalStatusId != null) 'approval_status_id': approvalStatusId,
+      'is_pinned': isPinned,
     };
   }
 
@@ -191,6 +209,7 @@ class PropertyModel {
     String? locationInDetails,
     String? locationMap,
     String? internalNotes,
+    String? managerNotes,
     num? price,
     String? ownerName,
     String? ownerPhone,
@@ -202,6 +221,8 @@ class PropertyModel {
     String? sourceId,
     int? cityId,
     int? governorateId,
+    String? approvalStatusId,
+    String? approvalStatusName,
   }) {
     return PropertyModel(
       embedding: embedding ?? this.embedding,
@@ -221,6 +242,7 @@ class PropertyModel {
       locationInDetails: locationInDetails ?? this.locationInDetails,
       locationMap: locationMap ?? this.locationMap,
       internalNotes: internalNotes ?? this.internalNotes,
+      managerNotes: managerNotes ?? this.managerNotes,
       price: price ?? this.price,
       ownerName: ownerName ?? this.ownerName,
       ownerPhone: ownerPhone ?? this.ownerPhone,
@@ -232,6 +254,8 @@ class PropertyModel {
       sourceId: sourceId ?? this.sourceId,
       cityId: cityId ?? this.cityId,
       governorateId: governorateId ?? this.governorateId,
+      approvalStatusId: approvalStatusId ?? this.approvalStatusId,
+      approvalStatusName: approvalStatusName ?? this.approvalStatusName,
     );
   }
 }
