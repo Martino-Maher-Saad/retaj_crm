@@ -12,6 +12,7 @@ class PropertiesSuccess extends PropertiesState {
   final int filteredTotalCount;
   final bool isSearching;
   final bool isFiltering;
+  final bool hasMoreSmartSearch;
 
   PropertiesSuccess({
     this.myProperties = const [],
@@ -21,6 +22,7 @@ class PropertiesSuccess extends PropertiesState {
     this.filteredTotalCount = 0,
     this.isSearching = false,
     this.isFiltering = false,
+    this.hasMoreSmartSearch = true,
   });
 
   PropertiesSuccess copyWith({
@@ -31,6 +33,7 @@ class PropertiesSuccess extends PropertiesState {
     int? filteredTotalCount,
     bool? isSearching,
     bool? isFiltering,
+    bool? hasMoreSmartSearch,
   }) {
     return PropertiesSuccess(
       myProperties: myProperties ?? this.myProperties,
@@ -40,6 +43,7 @@ class PropertiesSuccess extends PropertiesState {
       filteredTotalCount: filteredTotalCount ?? this.filteredTotalCount,
       isSearching: isSearching ?? this.isSearching,
       isFiltering: isFiltering ?? this.isFiltering,
+      hasMoreSmartSearch: hasMoreSmartSearch ?? this.hasMoreSmartSearch,
     );
   }
 }

@@ -1,155 +1,104 @@
-# Retaj CRM | Enterprise Real Estate Management System
+# Retaj CRM - Project Architecture, Logic, and UI/UX Blueprint 🚀
 
-Retaj CRM is a high-performance, enterprise-grade management system tailored for real estate agencies. Built with **Flutter** and **Supabase**, it provides a robust infrastructure for managing leads, property inventories, and architectural designs with a focus on operational efficiency and a premium user experience.
-
----
-
-## 🚀 Overview
-
-In the fast-paced real estate market, managing client relationships and massive property data requires more than just a simple spreadsheet. **Retaj CRM** solves this by providing a centralized dashboard that bridges the gap between sales teams, property managers, and raw data.
-
-### Key Problem Solved
-- **Lead Fragmentation**: Centralizes leads from various sources (social media, walk-ins, referrals).
-- **Inventory Complexity**: Handles multi-layered property data including location hierarchies, pricing models, and extensive media storage.
-- **Role-Based Workflow**: Ensures that sensitive data is only accessible to authorized personnel (Admin, Manager, Sales).
+> **تنبيه هام للنموذج الذكاء الاصطناعي (AI Model):** هذا الملف هو المرجع الأساسي (Source of Truth) الخاص بـ **المنطق (Logic)**، **تدفق العمليات (Flow)**، و**واجهة المستخدم (UI/UX)** لمشروع Retaj CRM بنسخته الخاصة بالويب. **الهدف الرئيسي** هو استخدام هذا الملف كدليل لبناء نسخة الهاتف المحمول (Mobile App) بحيث تكون متطابقة تماماً في المنطق وتدفق العمليات مع تعديل مساحات وأحجام واجهة المستخدم (Responsive UI) لتناسب شاشات الهواتف. لا تقم بتغيير البنية التحتية أو طريقة عمل الـ Cubit أو الـ Repositories.
 
 ---
 
-## ✨ Key Features
-
-- **🛡️ Secure Role-Based Authentication**: Integrated with Supabase Auth for fine-grained access control.
-- **📊 Real-time Smart Dashboards**: 
-  - **Employee View**: Tracks personal pipeline, conversion rates, and recent leads.
-  - **Manager View**: Tracks team performance, top governorates, platform conversions, and period-over-period growth via Supabase RPCs.
-- **📑 Comprehensive Lead Management**: 
-  - Tracks status, source, communication channels, notes, and multiple phone numbers.
-  - Advanced filtering and assignment logic.
-- **🏠 Advanced Property Engine**:
-  - Complex data models supporting multiple image uploads and multi-platform advertising tracking.
-  - Full-text search using PostgreSQL `search_vector`.
-  - Dynamic filtering by city and property type.
-- **⚙️ Dynamic System Management**: Admins can manage dropdown options (cities, property types, sources, etc.) and user accounts directly from the UI.
-- **📱 Responsive Desktop UI**: Optimized for high-resolution displays (1920x1080) with a premium Arabic-first design.
+## 1️⃣ التكنولوجيا والأساسيات التقنية (Tech Stack) 🛠️
+- **قاعدة البيانات والمصادقة:** `supabase_flutter` (PostgreSQL عبر REST).
+- **إدارة الحالة (State Management):** `flutter_bloc` (BLoC/Cubit) مع `equatable` لمقارنة الحالات.
+- **التصميم المتجاوب (Responsive UI):** `flutter_screenutil` (لضبط الأبعاد والمقاسات).
+- **إدارة الصور:** `image_picker`، `flutter_image_compress`، و `cached_network_image`.
+- **مكتبات مساعدة:** `intl` للتواريخ والأرقام، `shimmer` للتحميل، `responsive_grid_list` للقوائم.
 
 ---
 
-## 🛠️ Tech Stack
-
-- **Frontend**: 
-  - **Framework**: [Flutter](https://flutter.dev/) (Material 3)
-  - **State Management**: [BLoC / Cubit](https://pub.dev/packages/flutter_bloc) for predictable state transitions.
-  - **Dependency Injection**: [GetIt](https://pub.dev/packages/get_it) for centralized dependency management.
-  - **Responsiveness**: `flutter_screenutil` for pixel-perfect scaling.
-  - **Typography**: [Google Fonts (Cairo)](https://fonts.google.com/specimen/Cairo) for professional Arabic rendering.
-- **Backend / Infrastructure**:
-  - **Database**: [Supabase / PostgreSQL](https://supabase.com/).
-  - **Authentication**: Supabase Auth (JWT).
-  - **Storage**: Supabase Storage Buckets for property/design media.
-- **Optimizations**:
-  - `cached_network_image` for aggressive media caching.
-  - `shimmer` for polished loading states.
-  - `image_picker` + `flutter_image_compress` for client-side image optimization before upload.
+## 2️⃣ البنية الهندسية (Architecture Pattern) 🏗️
+يتبع المشروع بنية مخصصة مكونة من طبقات واضحة:
+1. **الواجهة (Presentation Layer):** متواجدة في `features/[feature]/screens` و `features/[feature]/widgets`.
+2. **إدارة الحالة (State Layer):** متواجدة في `features/[feature]/cubit`.
+3. **طبقة البيانات (Data Layer):** 
+   - `data/services/`: تحتوي على أوامر Supabase المباشرة (ترمى أخطاء PostgrestException).
+   - `data/repositories/`: تقوم بالتقاط أخطاء الـ Service وتحويلها إلى رسائل **باللغة العربية** لتظهر للمستخدم، كما تقوم بتحويل البيانات الخام إلى Models.
+   - `data/models/`: نماذج البيانات مع توابع `fromJson` و `toJson` و `copyWith` (ملاحظة: لا ترسل `id` أو `created_at` أبداً في `toJson`).
 
 ---
 
-## 🏗️ Architecture & System Design
-
-The project follows a **Custom Layered Architecture** (simplified Clean Architecture) designed for scalability and maintainability.
-
-### The "Surgical Update" Pattern
-To ensure a high-performance UI, the application implements a **Surgical Update** pattern. Instead of re-fetching entire lists after a mutation (Create/Update/Delete), the Cubit state is mutated in-memory:
-1. **Optimistic UI/Mutation**: The Cubit performs the action via Repository.
-2. **Local State Update**: On success, only the specific item in the list is modified/added/removed.
-3. **Rollback**: If the server fails, the Cubit emits the previous state and triggers a user notification.
-
-### Layers:
-1. **Presentation**: Atomic widgets and feature-specific screens.
-2. **State (Cubit)**: Business logic and UI state orchestration.
-3. **Domain (Repository)**: Data mapping, Arabic error handling, and business rules.
-4. **Data (Service + Model)**: Raw Supabase queries and type-safe Dart models.
+## 3️⃣ تدفق العمليات (Data Flow Logic) 🔄
+- كل عملية جلب بيانات أو تعديل تعتمد على نمط **التحديث الجراحي (Surgical Update)**.
+- **مثال لإضافة عميل:** 
+  1. المستخدم يضغط على "حفظ".
+  2. الـ Cubit يستدعي `repository.addLead()`.
+  3. يتم الإضافة في قاعدة البيانات، وإرجاع الكائن الجديد.
+  4. الـ Cubit **لا يقوم بعمل Fetch لكل القائمة من جديد**، بل يقوم بإضافة الكائن الجديد أول القائمة في الذاكرة `[newLead, ...current.items]` ويفعل `emit` للحالة الجديدة.
+  5. في حالة الفشل (Error)، يقوم الـ Cubit بـ `emit(ErrorState)` لإظهار `SnackBar` أحمر، ثم **فوراً** يعود للحالة السابقة `emit(currentState)`.
+- **نظام التصفح (Pagination):** يتم جلب 15 عنصر في كل مرة باستخدام `ScrollController`.
 
 ---
 
-## 📂 Folder Structure
+## 4️⃣ نظام واجهة المستخدم والتصميم (UI/UX Reference) 🎨
 
-```text
-lib/
-├── core/               # Shared constants, theme, utils, and generic widgets
-│   ├── constants/      # AppColors, AppStrings (Arabic), AppTextStyles
-│   ├── theme/          # Centralized Material 3 ThemeData
-│   └── utils/          # Role helpers, validators, and formatters
-├── data/               # Persistent data layer
-│   ├── models/         # Type-safe objects (LeadModel, PropertyModel, etc.)
-│   ├── services/       # Raw Supabase API interaction
-│   └── repositories/   # Error handling and data transformation
-├── features/           # Self-contained business modules
-│   ├── admin_users/    # User creation and role management
-│   ├── auth/           # Login and session management
-│   ├── dashboard/      # Employee and Manager analytics screens
-│   ├── leads/          # Leads board and forms
-│   ├── profile/        # Current user profile management
-│   ├── properties/     # Advanced property inventory entries
-│   └── designs/        # Architectural design management
-└── main.dart           # App bootstrap and provider initialization
-```
+### الألوان الأساسية (Color Palette)
+- **الأزرق (اللون الرئيسي):** `brandPrimary (#2E3192)`، يُستخدم للأزرار والنصوص الأساسية وخطوط التحديد.
+- **الأحمر (لون التنبيه والخطأ):** `brandAccent (#E31E24)`، يُستخدم لأزرار الحذف ورسائل الخطأ وعملاء قسم "مستبعد".
+- **ألوان الحالات (Status Colors):**
+  - **أخضر (`success`):** العقود، النشط.
+  - **أزرق فاتح (`info`):** عميل جديد، أيقونات المواقع.
+  - **برتقالي (`warning`):** التفاوض.
 
----
+### النصوص (Typography)
+- **الخط المستخدم:** `Cairo` (يدعم العربية بشكل ممتاز).
+- **المقاسات (بـ `.sp`):** 
+  - `h1` و `h2` لأسماء الشاشات (20sp إلى 26sp).
+  - الأزرار (`buttonLarge`) بمقاس 16sp عريض.
+  - الحقول (`inputLabel`) بمقاس 14sp.
 
-## 🗄️ Database Design
-
-Based on **PostgreSQL**, the database uses relational integrity and performance optimizations:
-- **`profiles`**: Stores user metadata and roles (Admin/Manager/Sales).
-- **`properties`**: The core table with `search_vector` for fast full-text searching across Arabic text.
-- **`property_images`**: A one-to-many relationship table for high-res property media.
-- **`leads`**: Tracks customer interactions with relationship links to specific properties.
-- **Pagination**: Implements `range(from, to)` queries (15 items per page) to minimize payload size and memory footprint.
+### المكونات المشتركة (Reusable Core Widgets)
+(متواجدة في `lib/core/widgets`)
+1. **`RetajTextField` و `RetajDropdown`:** يجب استخدامها دائماً بدلاً من الحقول العادية. تدعم اكتشاف اللغة تلقائياً (RTL/LTR) مع إضاءة حواف (Neon Blue).
+2. **`RetajSectionCard`:** كارت أبيض ذو ظل خفيف وتظليل علوي يحتوي على عنوان وأيقونة، يستخدم لتقسيم نماذج البيانات.
+3. **`FormToggleTile`:** بديل احترافي للـ Switch العادي بأسلوب مميز.
+4. **`CustomButton`:** حاوية تستخدم `InkWell` لتكوين الأزرار بدلاً من `ElevatedButton`.
 
 ---
 
-## 🛠️ Installation & Setup
+## 5️⃣ الخصائص والشاشات (Features & Screens) 📱
 
-1. **Clone the project**
-   ```bash
-   git clone https://github.com/Martino-Maher-Saad/retaj_crm.git
-   ```
+### 1. شاشة تسجيل الدخول (Login)
+- مدعومة بـ `AuthCubit`. واجهة بسيطة بمنتصف الشاشة تحوي حقل الإيميل وكلمة المرور. بعد الدخول الناجح يتحكم الـ `RootAuthWrapper` بتوجيه المستخدم للـ Dashboard.
 
-2. **Install dependencies**
-   ```bash
-   flutter pub get
-   ```
+### 2. لوحة التحكم (Dashboard)
+تنقسم لشاشتين حسب الصلاحيات:
+- **الموظف (Employee):** كروت لإحصائيات (العملاء، العقود، نسبة التحويل). رسم بياني `fl_chart`. تنبيهات للعملاء المهملين. مسار التحويل (Sales Funnel).
+- **المدير (Manager):** إحصائيات عامة للشركة مع مقارنات لنسبة النمو (+15%). قائمة (Leaderboard) تظهر الموظفين وتقييمهم، مع إمكانية الدخول لتفاصيل أي موظف.
 
-3. **Supabase Setup**
-   - Create a new project in your [Supabase Dashboard](https://app.supabase.com/).
-   - Run the SQL migrations (found in `/database` if available, or recreate tables based on `/data/models`).
-   - Enable Storage buckets for `property_images` and `designs`.
+### 3. إدارة العقارات (Properties)
+- **القائمة:** بحث حي، فلاتر، سكرول لا نهائي (Infinite Scroll). الكارت يعرض صوره، النوع، السعر ومكان العقار بشكل مرتب.
+- **التفاصيل:** شاشة تعرض المعرض، المواصفات التقنية (غرف/حمامات/مساحة)، والموقع بخاصية `PropertyCopyableField` لنسخ البيانات سريعاً.
+- **النموذج (Add/Edit):** مقسم إلى 7 كروت (`PropertyFormCard`): (الصور، المعلومات الأساسية، الموقع، المواصفات الفنية، حالة العقار، بيانات السعر، الإدارة والمالك). الحقول تتفاعل مع بعضها (مثلاً: حقل "الدور" يختفي إذا كان العقار "فيلا").
 
-4. **Run the app**
-   ```bash
-   flutter run
-   ```
+### 4. إدارة العملاء (Leads)
+- **القائمة:** شريط فلاتر علوي (جديد، تم التواصل، تفاوض، تم التعاقد، مستبعد). الكارت يحوي اسم العميل وأزرار التعديل والحذف.
+- **التفاصيل:** شريط أفقي يوضح حالة العميل (Pipeline Indicator). قائمة بالأرقام وطلبات العميل.
+- **النموذج (Add/Edit):** 3 أقسام رئيسية: (بيانات العميل، تفاصيل الطلب، بيانات النظام/الإدارة). دعم لإضافة أرقام هواتف متعددة ديناميكياً.
 
----
-
-## 🔮 Future Improvements
-
-- **Push Notifications**: Real-time alerts for lead assignments using Supabase Edge Functions.
-- **Advanced Analytics**: Integration of charts/graphs for sales performance metrics.
-- **Offline Mode**: Local caching using `is_sarar` or `sqflite` for field agents with poor connectivity.
-- **Multi-language Support**: Expanding from Arabic-first to a full RTL/LTR localization.
+### 5. ملف المستخدم والإعدادات (Profile & Admin)
+- إمكانية تغيير الصورة الشخصية وتحديث البيانات عبر `UserProfileScreen`.
+- الإدارة (Accounts Management) للمديرين فقط لإضافة موظفين، تغيير كلمات المرور، أو تعديل القوائم المنسدلة (Dropdown Management) للتحكم بقيم (حالات العميل، المواقع، أنواع العقارات) من واجهة المستخدم.
 
 ---
 
-## 📱 Ecosystem Note
-This repository contains the **CRM Management App** (Desktop/Web focus for staff). 
-The project ecosystem also includes:
-- **Retaj Staff Mobile**: A mobile-optimized version for employees on the field.
-- **Retaj Client**: A dedicated mobile application for clients to browse properties and submit leads.
+## 6️⃣ التوجيهات الخاصة بنسخة الموبايل (Mobile Adaptation Rules) 📱⚠️
 
----
+بما أن هذا التصميم مخصص للويب (1920x1080)، عند بناء التطبيق للموبايل **يجب التقيد بالقواعد التالية**:
 
-## 👨‍💻 Author
-
-**Martino Maher Saad**  
-*Senior Flutter Software Engineer*  
-[LinkedIn](https://www.linkedin.com/in/martino-maher-saad/) | [Portfolio](https://github.com/Martino-Maher-Saad)
-
+1. **الـ Sidebar (القائمة الجانبية):** 
+   - لا يمكن أن تظل ثابتة على الشاشة. يجب تحويلها إلى `Drawer` (تفتح من الجنب) أو استخدام `BottomNavigationBar` للأقسام الأربعة الأساسية (الداشبورد، العقارات، العملاء، التصميمات).
+2. **أحجام الخطوط (Fonts):**
+   - الحفاظ على استخدام `.sp`. يجب عدم تكبير الخطوط بشكل مبالغ فيه (مثلاً: عدم استخدام 24sp للنصوص العادية لأنها ستدمر شكل شاشة الموبايل، استخدم 14sp أو 16sp كحد أقصى للبطاقات).
+3. **ترتيب العناصر في البطاقات (Card Layouts):**
+   - أي عناصر مرتبة أفقياً (`Row`) في الويب ويحتمل أن تفيض في الموبايل، يجب تحويلها إلى `Column` أو استخدام `Wrap` مع التأكد من عدم استخدام `Expanded` داخل الـ `Wrap` (لأنه يتسبب في اختفاء العناصر).
+4. **المسافات (Spacing):**
+   - تقليل هوامش `RetajSectionCard` لتصبح `margin: EdgeInsets.only(bottom: 16.h)` لكي تتناسب مع مساحة الهاتف.
+5. **شاشات العرض المجدولة (Grids):**
+   - استخدام عمود به صفوف (Column -> Row -> Expanded) لعرض البيانات المزدوجة بدلاً من الحسابات اليدوية (`MediaQuery.of(context).size.width / 2`).

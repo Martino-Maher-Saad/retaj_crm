@@ -253,8 +253,11 @@ class PropertyRepository {
     return await _pService.fetchAllEmployees();
   }
 
-  Future<List<PropertyModel>> searchWithAi(
-    String query, {
+  Future<List<double>> generateQueryEmbedding(String query) =>
+      _aiService.generateEmbedding(query, isSearch: true);
+
+  Future<List<PropertyModel>> searchWithAi({
+    required List<double> vector,
     String? propertyTypeId,
     String? listingTypeId,
     int? governorateId,
@@ -262,9 +265,10 @@ class PropertyRepository {
     num? minPrice,
     num? maxPrice,
     String? assignedTo,
+    int limit = 10,
+    int offset = 0,
   }) async {
     try {
-      final vector = await _aiService.generateEmbedding(query, isSearch: true);
       final data = await _pService.searchPropertiesByAi(
         vector: vector,
         propertyTypeId: propertyTypeId,
@@ -274,6 +278,8 @@ class PropertyRepository {
         minPrice: minPrice,
         maxPrice: maxPrice,
         assignedTo: assignedTo,
+        limit: limit,
+        offset: offset,
       );
       return data.map((e) => PropertyModel.fromJson(e)).toList();
     } catch (e) {

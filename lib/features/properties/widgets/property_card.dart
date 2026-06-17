@@ -53,7 +53,7 @@ class _PropertyCardState extends State<PropertyCard> {
         "https://upload.wikimedia.org/wikipedia/commons/a/a3/Image-not-found.png";
 
     final bool isMine = widget.property.createdBy == widget.currentUserId;
-    final bool isManagerOrAdmin = widget.role == 'manager' || widget.role == 'admin';
+    final bool isManagerOrAdmin = widget.role == 'manager' || widget.role == 'admin' || widget.role == 'ceo';
     final bool shouldMask = widget.role == 'sales' && !isMine;
 
     // تنسيق التاريخ

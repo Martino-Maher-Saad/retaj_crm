@@ -40,6 +40,22 @@ class PropertiesCubit extends Cubit<PropertiesState> {
 
   bool _isLoadingMoreFiltered = false;
 
+  // Smart Search Pagination & Cache
+  int _smartSearchOffset = 0;
+  String _lastSmartSearchQuery = "";
+  bool _hasMoreSmartSearch = true;
+  bool _isLoadingMoreSmartSearch = false;
+  List<double>? _cachedQueryEmbedding;
+  bool _searchAll = false;
+
+  // Getters for Search
+  bool get searchAll => _searchAll;
+  bool get isLoadingMoreSmartSearch => _isLoadingMoreSmartSearch;
+
+  void toggleSearchAll(bool val) {
+    _searchAll = val;
+  }
+
   @override
   void emit(PropertiesState state) {
     if (!isClosed) super.emit(state);
@@ -132,6 +148,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
       _filterToDate = toDate;
       _filterAssignedTo = filterUserId;
       _filterIsArchived = isArchived;
+      _searchAll = searchAll;
 
       final count = await _repo.fetchFilterCount(
         cityId: cityId,
@@ -274,7 +291,11 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     try {
       final results = await _repo.searchProperties(term, type: type, assignedTo: assignedTo);
       emit(
-        current.copyWith(searchedProperties: results, isSearching: true),
+        current.copyWith(
+          searchedProperties: results, 
+          isSearching: true,
+          hasMoreSmartSearch: false, // Traditional search has no paging
+        ),
       );
     } catch (e) {
       emit(PropertiesError("فشل البحث: $e"));
@@ -290,6 +311,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     num? minPrice,
     num? maxPrice,
     String? assignedTo,
+    bool loadMore = false,
   }) async {
     final current = state is PropertiesSuccess
         ? state as PropertiesSuccess
@@ -298,11 +320,31 @@ class PropertiesCubit extends Cubit<PropertiesState> {
       clearSearch();
       return;
     }
-    emit(PropertiesLoading());
+
+    if (loadMore) {
+      if (_isLoadingMoreSmartSearch || !_hasMoreSmartSearch) return;
+      _smartSearchOffset += 10;
+      _isLoadingMoreSmartSearch = true;
+    } else {
+      _smartSearchOffset = 0;
+      _lastSmartSearchQuery = query;
+      _hasMoreSmartSearch = true;
+      _cachedQueryEmbedding = null;
+      emit(PropertiesLoading());
+    }
+
     try {
+      List<double> vector;
+      if (loadMore && _cachedQueryEmbedding != null) {
+        vector = _cachedQueryEmbedding!;
+      } else {
+        vector = await _repo.generateQueryEmbedding(query);
+        _cachedQueryEmbedding = vector;
+      }
+
       final useFilters = current.isFiltering;
       final results = await _repo.searchWithAi(
-        query,
+        vector: vector,
         propertyTypeId:
             propertyTypeId ?? (useFilters ? _filterPropertyTypeId : null),
         listingTypeId:
@@ -312,9 +354,23 @@ class PropertiesCubit extends Cubit<PropertiesState> {
         cityId: cityId ?? (useFilters ? _filterCityId : null),
         minPrice: minPrice ?? (useFilters ? _filterMinPrice : null),
         maxPrice: maxPrice ?? (useFilters ? _filterMaxPrice : null),
-        assignedTo: assignedTo,
+        assignedTo: assignedTo ?? (useFilters ? _filterAssignedTo : null),
+        limit: 10,
+        offset: _smartSearchOffset,
       );
-      emit(current.copyWith(searchedProperties: results, isSearching: true));
+
+      _hasMoreSmartSearch = results.length == 10;
+      final updatedList = loadMore
+          ? [...current.searchedProperties, ...results]
+          : results;
+
+      emit(
+        current.copyWith(
+          searchedProperties: updatedList,
+          isSearching: true,
+          hasMoreSmartSearch: _hasMoreSmartSearch,
+        ),
+      );
     } catch (e, stackTrace) {
       print("========== SMART SEARCH ERROR ==========");
       print(e.toString());
@@ -322,12 +378,24 @@ class PropertiesCubit extends Cubit<PropertiesState> {
       print("========================================");
       emit(PropertiesError(e.toString()));
       emit(current);
+    } finally {
+      if (loadMore) {
+        _isLoadingMoreSmartSearch = false;
+      }
     }
+  }
+
+  Future<void> loadMoreSmartSearch() async {
+    await smartSearch(_lastSmartSearchQuery, loadMore: true);
   }
 
   void clearSearch() {
     if (state is PropertiesSuccess) {
       final current = state as PropertiesSuccess;
+      _smartSearchOffset = 0;
+      _lastSmartSearchQuery = "";
+      _hasMoreSmartSearch = true;
+      _cachedQueryEmbedding = null;
       emit(current.copyWith(isSearching: false, searchedProperties: []));
     }
   }
@@ -335,6 +403,16 @@ class PropertiesCubit extends Cubit<PropertiesState> {
   void clearFilter() {
     if (state is PropertiesSuccess) {
       final current = state as PropertiesSuccess;
+      _filterCityId = null;
+      _filterPropertyTypeId = null;
+      _filterGovernorateId = null;
+      _filterListingTypeId = null;
+      _filterMinPrice = null;
+      _filterMaxPrice = null;
+      _filterFromDate = null;
+      _filterToDate = null;
+      _filterAssignedTo = null;
+      _filterIsArchived = null;
       emit(current.copyWith(isFiltering: false, filteredProperties: []));
     }
   }

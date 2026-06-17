@@ -263,11 +263,14 @@ class PropertyService {
     num? minPrice,
     num? maxPrice,
     String? assignedTo,
+    int limit = 10,
+    int offset = 0,
   }) async {
     final response = await _client.rpc('match_properties_with_filters', params: {
       'query_embedding': vector,
-      'match_threshold': 0.70,
-      'match_count': 50,
+      'match_count': limit,
+      'filter_offset': offset,
+      'filter_created_by': assignedTo,
       'filter_property_type_id': propertyTypeId,
       'filter_listing_type_id': listingTypeId,
       'filter_governorate_id': governorateId,
@@ -280,13 +283,7 @@ class PropertyService {
     if (rpcResults.isEmpty) return [];
 
     final List<String> ids = rpcResults.map((r) => r['id'].toString()).toList();
-    var query = _client.from('properties').select(_select).inFilter('id', ids);
-    
-    if (assignedTo != null && assignedTo.isNotEmpty) {
-      query = query.eq('created_by', assignedTo);
-    }
-    
-    final fullProperties = await query;
+    final fullProperties = await _client.from('properties').select(_select).inFilter('id', ids);
     final List<Map<String, dynamic>> results = List<Map<String, dynamic>>.from(fullProperties);
     
     results.sort((a, b) {
@@ -295,7 +292,7 @@ class PropertyService {
       return indexA.compareTo(indexB);
     });
     
-    return results.take(10).toList();
+    return results;
   }
 
   /// إضافة منصات إعلانية لعقار (INSERT في property_platforms)

@@ -48,6 +48,7 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
     super.initState();
     final cubit = context.read<PropertiesCubit>();
     _selectedGovId = cubit.filterGovernorateId;
+    _searchAll = cubit.searchAll; // Sync searchAll selection
     
     // Reverse lookup for string representations
     if (cubit.filterPropertyTypeId != null) {
@@ -288,7 +289,7 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
                   contentPadding: EdgeInsets.zero,
                 ),
               ],
-              if (widget.role == 'manager' || widget.role == 'admin') ...[
+              if (widget.role == 'manager' || widget.role == 'admin' || widget.role == 'ceo') ...[
                 SizedBox(height: 24.h),
                 Text("الموظف (للمديرين فقط):", style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.brandPrimary, fontSize: 18.sp)),
                 SizedBox(height: 10.h),

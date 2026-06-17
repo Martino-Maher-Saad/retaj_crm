@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import '../../../core/constants/app_colors.dart';
 
 import '../../../core/utils/responsive_debouncer_wrapper.dart';
 import '../../../data/models/property_model.dart';
@@ -134,19 +135,19 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
                   ),
                   PropertySearchBar(
                     showToggle: widget.role == 'sales',
-                    searchAll: _searchAll,
+                    searchAll: _cubit.searchAll,
                     onToggleSearchAll: (val) {
-                      setState(() {
-                        _searchAll = val;
-                      });
+                      _cubit.toggleSearchAll(val);
                       // If there is an active search, re-trigger it with new scope
                       if (_cubit.state is PropertiesSuccess && (_cubit.state as PropertiesSuccess).isSearching) {
-                        // Assuming clear search for simplicity or keep track of last query
                         _cubit.clearSearch();
                       }
+                      setState(() {});
                     },
                     onSearch: (val, type) {
-                      final assignedToFilter = _searchAll ? null : widget.userId;
+                      final assignedToFilter = widget.role == 'sales'
+                          ? (_cubit.searchAll ? null : widget.userId)
+                          : null;
                       if (type == 'general') {
                         _cubit.smartSearch(val, assignedTo: assignedToFilter);
                       } else {
@@ -199,19 +200,20 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
     }
 
     if (state is PropertiesSuccess) {
-      final properties = state.isSearching 
-          ? state.searchedProperties 
-          : state.isFiltering 
-              ? state.filteredProperties 
-              : state.myProperties;
+      final successState = state;
+      final properties = successState.isSearching 
+          ? successState.searchedProperties 
+          : successState.isFiltering 
+              ? successState.filteredProperties 
+              : successState.myProperties;
               
       if (properties.isEmpty) return const Center(child: Text("لا توجد نتائج"));
 
-      final int totalCount = state.isSearching 
-          ? properties.length // البحث الشامل لا يدعم الـ pagination حالياً
-          : state.isFiltering 
-              ? state.filteredTotalCount 
-              : state.myTotalCount;
+      final int totalCount = successState.isSearching 
+          ? properties.length 
+          : successState.isFiltering 
+              ? successState.filteredTotalCount 
+              : successState.myTotalCount;
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -227,17 +229,49 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
             child: ListView.builder(
               controller: _scrollController,
               padding: EdgeInsets.symmetric(horizontal: 10.w),
-              itemCount:
-                  properties.length +
-                  (properties.length < totalCount ? 1 : 0),
+              itemCount: properties.length +
+                  (successState.isSearching
+                      ? (successState.hasMoreSmartSearch ? 1 : 0)
+                      : (properties.length < totalCount ? 1 : 0)),
               itemBuilder: (context, index) {
                 if (index == properties.length) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
+                  if (successState.isSearching) {
+                    return Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20.h, horizontal: 30.w),
+                        child: _cubit.isLoadingMoreSmartSearch
+                            ? const CircularProgressIndicator()
+                            : OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(color: AppColors.brandPrimary),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+                                  padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 20.w),
+                                ),
+                                onPressed: () {
+                                  _cubit.loadMoreSmartSearch().then((_) {
+                                    setState(() {}); // trigger rebuild to update spinner state
+                                  });
+                                },
+                                icon: const Icon(Icons.refresh_rounded, color: AppColors.brandPrimary),
+                                label: Text(
+                                  "عرض المزيد من نتائج البحث 🔄",
+                                  style: TextStyle(
+                                    color: AppColors.brandPrimary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14.sp,
+                                  ),
+                                ),
+                              ),
+                      ),
+                    );
+                  } else {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
+                  }
                 }
                 final property = properties[index];
                 return PropertyCard(
