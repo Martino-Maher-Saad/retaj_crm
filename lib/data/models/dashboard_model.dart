@@ -310,3 +310,125 @@ class ManagerDashboardModel {
             [],
       );
 }
+
+class ListingTypeStat {
+  final String listingType;
+  final int count;
+
+  const ListingTypeStat({required this.listingType, required this.count});
+
+  factory ListingTypeStat.fromJson(Map<String, dynamic> json) => ListingTypeStat(
+        listingType: json['listing_type'] as String? ?? 'غير محدد',
+        count: (json['count'] as num).toInt(),
+      );
+}
+
+class PropertyTypeStat {
+  final String propertyType;
+  final int count;
+
+  const PropertyTypeStat({required this.propertyType, required this.count});
+
+  factory PropertyTypeStat.fromJson(Map<String, dynamic> json) => PropertyTypeStat(
+        propertyType: json['property_type'] as String? ?? 'غير محدد',
+        count: (json['count'] as num).toInt(),
+      );
+}
+
+class CityStat {
+  final String city;
+  final int count;
+
+  const CityStat({required this.city, required this.count});
+
+  factory CityStat.fromJson(Map<String, dynamic> json) => CityStat(
+        city: json['city'] as String? ?? 'غير محدد',
+        count: (json['count'] as num).toInt(),
+      );
+}
+
+class DashboardStatsModel {
+  final int leadsCount;
+  final int propertiesCount;
+  final int contractedCount;
+  final int staleLeadsCount;
+  final double avgClosingDays;
+  final List<StatusStat> leadsByStatus;
+  final List<ListingTypeStat> leadsByListingType;
+  final List<PropertyTypeStat> leadsByPropertyType;
+  final List<CityStat> leadsByCity;
+  final List<PlatformStat> platformsBreakdown;
+  final List<EmployeeStat> employeesPerformance;
+
+  double get conversionRate =>
+      leadsCount == 0 ? 0.0 : (contractedCount / leadsCount) * 100;
+
+  const DashboardStatsModel({
+    required this.leadsCount,
+    required this.propertiesCount,
+    required this.contractedCount,
+    required this.staleLeadsCount,
+    required this.avgClosingDays,
+    required this.leadsByStatus,
+    required this.leadsByListingType,
+    required this.leadsByPropertyType,
+    required this.leadsByCity,
+    required this.platformsBreakdown,
+    required this.employeesPerformance,
+  });
+
+  factory DashboardStatsModel.fromJson(Map<String, dynamic> json) =>
+      DashboardStatsModel(
+        leadsCount: (json['leads_count'] as num?)?.toInt() ?? 0,
+        propertiesCount: (json['properties_count'] as num?)?.toInt() ?? 0,
+        contractedCount: (json['contracted_count'] as num?)?.toInt() ?? 0,
+        staleLeadsCount: (json['stale_leads_count'] as num?)?.toInt() ?? 0,
+        avgClosingDays: (json['avg_closing_days'] as num?)?.toDouble() ?? 0.0,
+        leadsByStatus: (json['leads_by_status'] as List?)
+                ?.map((e) => StatusStat.fromJson(Map<String, dynamic>.from(e)))
+                .toList() ??
+            [],
+        leadsByListingType: (json['leads_by_listing_type'] as List?)
+                ?.map((e) => ListingTypeStat.fromJson(Map<String, dynamic>.from(e)))
+                .toList() ??
+            [],
+        leadsByPropertyType: (json['leads_by_property_type'] as List?)
+                ?.map((e) => PropertyTypeStat.fromJson(Map<String, dynamic>.from(e)))
+                .toList() ??
+            [],
+        leadsByCity: (json['leads_by_city'] as List?)
+                ?.map((e) => CityStat.fromJson(Map<String, dynamic>.from(e)))
+                .toList() ??
+            [],
+        platformsBreakdown: (json['platforms_breakdown'] as List?)
+                ?.map((e) => PlatformStat.fromJson(Map<String, dynamic>.from(e)))
+                .toList() ??
+            [],
+        employeesPerformance: (json['employees_performance'] as List?)
+                ?.map((e) => EmployeeStat.fromJson(Map<String, dynamic>.from(e)))
+                .toList() ??
+            [],
+      );
+}
+
+class PropertyAddedStats {
+  final Map<String, int> propertiesByEmployee; // Employee Name -> Count
+  final Map<String, int> propertiesByPropertyType; // Property Type Name -> Count
+  final Map<String, int> propertiesByListingType; // Listing Type Name -> Count
+  final Map<String, int> propertiesByCity; // City Name -> Count
+
+  const PropertyAddedStats({
+    required this.propertiesByEmployee,
+    required this.propertiesByPropertyType,
+    required this.propertiesByListingType,
+    required this.propertiesByCity,
+  });
+
+  factory PropertyAddedStats.empty() => const PropertyAddedStats(
+        propertiesByEmployee: {},
+        propertiesByPropertyType: {},
+        propertiesByListingType: {},
+        propertiesByCity: {},
+      );
+}
+

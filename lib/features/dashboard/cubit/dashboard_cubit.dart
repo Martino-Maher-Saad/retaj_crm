@@ -1,6 +1,8 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../data/models/dashboard_model.dart';
 import '../../../data/repositories/dashboard_repository.dart';
 import 'dashboard_state.dart';
+import 'dart:core';
 
 class DashboardCubit extends Cubit<DashboardState> {
   final DashboardRepository _repository;
@@ -12,18 +14,35 @@ class DashboardCubit extends Cubit<DashboardState> {
     if (!isClosed) super.emit(state);
   }
 
+  static DateTime get defaultStartDate {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, 1);
+  }
+
+  static DateTime get defaultEndDate {
+    final now = DateTime.now();
+    return now.month == 12
+        ? DateTime(now.year + 1, 1, 1).subtract(const Duration(seconds: 1))
+        : DateTime(now.year, now.month + 1, 1).subtract(const Duration(seconds: 1));
+  }
+
   // ─── داشبورد الموظف ───
   Future<void> loadEmployeeDashboard({
     required String userId,
-    int days = 30,
+    DateTime? startDate,
+    DateTime? endDate,
   }) async {
+    final start = startDate ?? defaultStartDate;
+    final end = endDate ?? defaultEndDate;
     emit(DashboardLoading());
     try {
-      final data = await _repository.getEmployeeDashboard(
-        userId: userId,
-        days: days,
-      );
-      emit(EmployeeDashboardLoaded(data: data, selectedDays: days));
+      final results = await Future.wait([
+        _repository.getFilteredDashboardStats(role: 'sales', userId: userId, startDate: start, endDate: end),
+        _repository.getPropertyAddedStats(startDate: start, endDate: end, employeeId: userId),
+      ]);
+      final data = results[0] as DashboardStatsModel;
+      final propStats = results[1] as PropertyAddedStats;
+      emit(EmployeeDashboardLoaded(data: data, startDate: start, endDate: end, propertyAddedStats: propStats));
     } catch (e) {
       emit(DashboardError(e.toString()));
     }
@@ -32,86 +51,94 @@ class DashboardCubit extends Cubit<DashboardState> {
   // ─── تغيير الفترة الزمنية (موظف) ───
   Future<void> changeEmployeePeriod({
     required String userId,
-    required int days,
+    required DateTime startDate,
+    required DateTime endDate,
   }) async {
     final currentState = state;
-    // نحتفظ بالبيانات القديمة ونحدّث الـ selectedDays أولاً
     if (currentState is EmployeeDashboardLoaded) {
-      emit(currentState.copyWith(selectedDays: days));
+      emit(currentState.copyWith(startDate: startDate, endDate: endDate));
     } else {
       emit(DashboardLoading());
     }
     try {
-      final data = await _repository.getEmployeeDashboard(
-        userId: userId,
-        days: days,
-      );
-      emit(EmployeeDashboardLoaded(data: data, selectedDays: days));
+      final results = await Future.wait([
+        _repository.getFilteredDashboardStats(role: 'sales', userId: userId, startDate: startDate, endDate: endDate),
+        _repository.getPropertyAddedStats(startDate: startDate, endDate: endDate, employeeId: userId),
+      ]);
+      final data = results[0] as DashboardStatsModel;
+      final propStats = results[1] as PropertyAddedStats;
+      emit(EmployeeDashboardLoaded(data: data, startDate: startDate, endDate: endDate, propertyAddedStats: propStats));
     } catch (e) {
       emit(DashboardError(e.toString()));
     }
   }
 
   // ─── داشبورد المدير ───
-  Future<void> loadManagerDashboard({int days = 30}) async {
+  Future<void> loadManagerDashboard({
+    DateTime? startDate,
+    DateTime? endDate,
+    String? employeeId,
+    String? employeeName,
+  }) async {
+    final start = startDate ?? defaultStartDate;
+    final end = endDate ?? defaultEndDate;
     emit(DashboardLoading());
     try {
-      final data = await _repository.getManagerDashboard(days: days);
-      emit(ManagerDashboardLoaded(data: data, selectedDays: days));
-    } catch (e) {
-      emit(DashboardError(e.toString()));
-    }
-  }
-
-  // ─── تغيير الفترة الزمنية (مدير) ───
-  Future<void> changeManagerPeriod({required int days}) async {
-    final currentState = state;
-    if (currentState is ManagerDashboardLoaded) {
-      emit(currentState.copyWith(selectedDays: days));
-    } else {
-      emit(DashboardLoading());
-    }
-    try {
-      final data = await _repository.getManagerDashboard(days: days);
-      emit(ManagerDashboardLoaded(data: data, selectedDays: days));
-    } catch (e) {
-      emit(DashboardError(e.toString()));
-    }
-  }
-
-  // ─── المدير يختار موظف معين ───
-  Future<void> viewEmployee({
-    required String employeeId,
-    required String employeeName,
-  }) async {
-    final currentState = state;
-    if (currentState is! ManagerDashboardLoaded) return;
-    final days = currentState.selectedDays;
-    // نعرّض loading بينما نجيب بيانات الموظف
-    emit(currentState.copyWith(
-      selectedEmployeeId:   employeeId,
-      selectedEmployeeName: employeeName,
-    ));
-    try {
-      final empData = await _repository.getEmployeeDashboard(
-        userId: employeeId,
-        days:   days,
-      );
-      emit(currentState.copyWith(
-        selectedEmployeeId:   employeeId,
+      final results = await Future.wait([
+        _repository.getFilteredDashboardStats(role: 'manager', userId: employeeId ?? '', startDate: start, endDate: end, employeeId: employeeId),
+        _repository.getPropertyAddedStats(startDate: start, endDate: end, employeeId: employeeId),
+      ]);
+      final data = results[0] as DashboardStatsModel;
+      final propStats = results[1] as PropertyAddedStats;
+      emit(ManagerDashboardLoaded(
+        data: data,
+        startDate: start,
+        endDate: end,
+        selectedEmployeeId: employeeId,
         selectedEmployeeName: employeeName,
-        selectedEmployeeData: empData,
+        propertyAddedStats: propStats,
       ));
     } catch (e) {
       emit(DashboardError(e.toString()));
     }
   }
 
-  // ─── المدير يرجع لنظرة الشركة ───
-  void backToCompanyView() {
+  // ─── تغيير الفلاتر (مدير) ───
+  Future<void> changeManagerFilters({
+    required DateTime startDate,
+    required DateTime endDate,
+    String? employeeId,
+    String? employeeName,
+  }) async {
     final currentState = state;
     if (currentState is ManagerDashboardLoaded) {
-      emit(currentState.copyWith(clearEmployee: true));
+      emit(currentState.copyWith(
+        startDate: startDate,
+        endDate: endDate,
+        selectedEmployeeId: employeeId,
+        selectedEmployeeName: employeeName,
+        clearEmployee: employeeId == null,
+      ));
+    } else {
+      emit(DashboardLoading());
+    }
+    try {
+      final results = await Future.wait([
+        _repository.getFilteredDashboardStats(role: 'manager', userId: employeeId ?? '', startDate: startDate, endDate: endDate, employeeId: employeeId),
+        _repository.getPropertyAddedStats(startDate: startDate, endDate: endDate, employeeId: employeeId),
+      ]);
+      final data = results[0] as DashboardStatsModel;
+      final propStats = results[1] as PropertyAddedStats;
+      emit(ManagerDashboardLoaded(
+        data: data,
+        startDate: startDate,
+        endDate: endDate,
+        selectedEmployeeId: employeeId,
+        selectedEmployeeName: employeeName,
+        propertyAddedStats: propStats,
+      ));
+    } catch (e) {
+      emit(DashboardError(e.toString()));
     }
   }
 }

@@ -5,36 +5,38 @@ import '../models/dashboard_model.dart';
 class DashboardService {
   final _client = Supabase.instance.client;
 
-  /// جلب بيانات داشبورد الموظف
-  /// [userId] - الـ UUID بتاع الموظف
-  /// [days] - عدد الأيام (7 / 30 / 90 / 365)
-  Future<EmployeeDashboardModel> getEmployeeDashboard({
-    required String userId,
-    required int days,
+  /// جلب بيانات داشبورد المفلترة لجميع الصلاحيات
+  /// [year] - السنة (مثلاً 2026)
+  /// [month] - الشهر (1 إلى 12)
+  /// [employeeId] - معرّف الموظف للتصفية (اختياري)
+  Future<DashboardStatsModel> getFilteredDashboardStats({
+    required int year,
+    required int month,
+    String? employeeId,
   }) async {
     final response = await _client.rpc(
-      'get_employee_dashboard',
+      'get_filtered_dashboard_stats',
       params: {
-        'p_user_id': userId,
-        'p_days': days,
+        'p_year': year,
+        'p_month': month,
+        'p_employee_id': employeeId,
       },
     );
-    return EmployeeDashboardModel.fromJson(
+    return DashboardStatsModel.fromJson(
       Map<String, dynamic>.from(response as Map),
     );
   }
 
-  /// جلب بيانات داشبورد المدير
-  /// [days] - عدد الأيام (7 / 30 / 90 / 365)
-  Future<ManagerDashboardModel> getManagerDashboard({
-    required int days,
+  /// جلب العقارات المضافة في فترة زمنية معينة لعمل إحصائيات التجميع
+  Future<List<Map<String, dynamic>>> getRawPropertiesForPeriod({
+    required String startDate,
+    required String endDate,
   }) async {
-    final response = await _client.rpc(
-      'get_manager_dashboard',
-      params: {'p_days': days},
-    );
-    return ManagerDashboardModel.fromJson(
-      Map<String, dynamic>.from(response as Map),
-    );
+    final response = await _client
+        .from('properties')
+        .select('created_by, property_type_id, listing_type_id, city_id')
+        .gte('created_at', startDate)
+        .lt('created_at', endDate);
+    return List<Map<String, dynamic>>.from(response);
   }
 }

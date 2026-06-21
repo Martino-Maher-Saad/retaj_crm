@@ -905,7 +905,7 @@ class _RetajDropdownState<T> extends State<RetajDropdown<T>> {
             enabled: item.enabled,
             // DefaultTextStyle لضمان font/weight موحّد عبر المشروع
             child: DefaultTextStyle.merge(
-              style: AppTextStyles.inputText,
+              style: AppTextStyles.inputText.copyWith(fontSize: 18.sp, fontWeight: FontWeight.bold),
               child: item.child,
             ),
           ),
@@ -933,7 +933,7 @@ class _RetajDropdownState<T> extends State<RetajDropdown<T>> {
           isExpanded: widget.isExpanded,
           validator: widget.validator,
           onChanged: widget.onChanged,
-          style: AppTextStyles.inputText,
+          style: AppTextStyles.inputText.copyWith(fontSize: 18.sp, fontWeight: FontWeight.bold),
           icon: Icon(
             Icons.keyboard_arrow_down_rounded,
             color: _isFocused ? AppColors.brandPrimary : AppColors.textSecondary,

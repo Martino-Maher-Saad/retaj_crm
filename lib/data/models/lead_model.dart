@@ -67,6 +67,34 @@ class LeadNoteModel {
   }
 }
 
+class LeadLogEntryModel {
+  final String id;
+  final String action;
+  final DateTime createdAt;
+  final String? oldStatusName;
+  final String? newStatusName;
+
+  const LeadLogEntryModel({
+    required this.id,
+    required this.action,
+    required this.createdAt,
+    this.oldStatusName,
+    this.newStatusName,
+  });
+
+  factory LeadLogEntryModel.fromJson(Map<String, dynamic> json) {
+    final oldStatusMap = json['old_status'] as Map<String, dynamic>?;
+    final newStatusMap = json['new_status'] as Map<String, dynamic>?;
+    return LeadLogEntryModel(
+      id: json['id']?.toString() ?? '',
+      action: json['action']?.toString() ?? '',
+      createdAt: DateTime.parse(json['created_at']).toLocal(),
+      oldStatusName: oldStatusMap?['name_ar']?.toString(),
+      newStatusName: newStatusMap?['name_ar']?.toString(),
+    );
+  }
+}
+
 class LeadModel {
   final String? id;
   final String clientName;
@@ -94,6 +122,7 @@ class LeadModel {
   final String? descLeadNeed;
   final String? propertyCode;
   final List<LeadNoteModel> notes;
+  final List<LeadLogEntryModel> logs;
   final num? budgetFrom;
   final num? budgetTo;
 
@@ -134,6 +163,7 @@ class LeadModel {
     this.descLeadNeed,
     this.propertyCode,
     this.notes = const [],
+    this.logs = const [],
     this.budgetFrom,
     this.budgetTo,
     this.statusId,
@@ -172,6 +202,7 @@ class LeadModel {
     String? descLeadNeed,
     String? propertyCode,
     List<LeadNoteModel>? notes,
+    List<LeadLogEntryModel>? logs,
     num? budgetFrom,
     num? budgetTo,
     String? statusId,
@@ -209,6 +240,7 @@ class LeadModel {
       descLeadNeed: descLeadNeed ?? this.descLeadNeed,
       propertyCode: propertyCode ?? this.propertyCode,
       notes: notes ?? this.notes,
+      logs: logs ?? this.logs,
       budgetFrom: budgetFrom ?? this.budgetFrom,
       budgetTo: budgetTo ?? this.budgetTo,
       statusId: statusId ?? this.statusId,
@@ -269,6 +301,14 @@ class LeadModel {
             .toList()
         : <LeadNoteModel>[];
 
+    // السجلات من lead_logs
+    final rawLogs = json['lead_logs'] as List?;
+    final logs = rawLogs != null
+        ? rawLogs
+            .map((l) => LeadLogEntryModel.fromJson(l as Map<String, dynamic>))
+            .toList()
+        : <LeadLogEntryModel>[];
+
     return LeadModel(
       id: json['id']?.toString(),
       clientName: json['client_name'] ?? '',
@@ -317,6 +357,7 @@ class LeadModel {
       isPinned: json['is_pinned'] ?? false,
       
       notes: notes,
+      logs: logs,
     );
   }
 }

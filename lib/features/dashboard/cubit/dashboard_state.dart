@@ -13,62 +13,73 @@ class DashboardInitial extends DashboardState {}
 class DashboardLoading extends DashboardState {}
 
 class EmployeeDashboardLoaded extends DashboardState {
-  final EmployeeDashboardModel data;
-  final int selectedDays;
+  final DashboardStatsModel data;
+  final DateTime startDate;
+  final DateTime endDate;
+  final PropertyAddedStats propertyAddedStats;
 
   const EmployeeDashboardLoaded({
     required this.data,
-    required this.selectedDays,
+    required this.startDate,
+    required this.endDate,
+    required this.propertyAddedStats,
   });
 
   @override
-  List<Object?> get props => [data, selectedDays];
+  List<Object?> get props => [data, startDate, endDate, propertyAddedStats];
 
   EmployeeDashboardLoaded copyWith({
-    EmployeeDashboardModel? data,
-    int? selectedDays,
+    DashboardStatsModel? data,
+    DateTime? startDate,
+    DateTime? endDate,
+    PropertyAddedStats? propertyAddedStats,
   }) =>
       EmployeeDashboardLoaded(
-        data:         data ?? this.data,
-        selectedDays: selectedDays ?? this.selectedDays,
+        data: data ?? this.data,
+        startDate: startDate ?? this.startDate,
+        endDate: endDate ?? this.endDate,
+        propertyAddedStats: propertyAddedStats ?? this.propertyAddedStats,
       );
 }
 
 class ManagerDashboardLoaded extends DashboardState {
-  final ManagerDashboardModel data;
-  final int selectedDays;
-  // لما المدير يختار موظف معين
+  final DashboardStatsModel data;
+  final DateTime startDate;
+  final DateTime endDate;
   final String? selectedEmployeeId;
   final String? selectedEmployeeName;
-  final EmployeeDashboardModel? selectedEmployeeData;
+  final PropertyAddedStats propertyAddedStats;
 
   const ManagerDashboardLoaded({
     required this.data,
-    required this.selectedDays,
+    required this.startDate,
+    required this.endDate,
     this.selectedEmployeeId,
     this.selectedEmployeeName,
-    this.selectedEmployeeData,
+    required this.propertyAddedStats,
   });
 
   bool get isViewingEmployee => selectedEmployeeId != null;
 
   @override
-  List<Object?> get props => [data, selectedDays, selectedEmployeeId, selectedEmployeeData];
+  List<Object?> get props => [data, startDate, endDate, selectedEmployeeId, selectedEmployeeName, propertyAddedStats];
 
   ManagerDashboardLoaded copyWith({
-    ManagerDashboardModel? data,
-    int? selectedDays,
+    DashboardStatsModel? data,
+    DateTime? startDate,
+    DateTime? endDate,
     String? selectedEmployeeId,
     String? selectedEmployeeName,
-    EmployeeDashboardModel? selectedEmployeeData,
     bool clearEmployee = false,
+    PropertyAddedStats? propertyAddedStats,
   }) =>
       ManagerDashboardLoaded(
-        data:                 data ?? this.data,
-        selectedDays:         selectedDays ?? this.selectedDays,
-        selectedEmployeeId:   clearEmployee ? null : (selectedEmployeeId ?? this.selectedEmployeeId),
+        data: data ?? this.data,
+        startDate: startDate ?? this.startDate,
+        endDate: endDate ?? this.endDate,
+        selectedEmployeeId: clearEmployee ? null : (selectedEmployeeId ?? this.selectedEmployeeId),
         selectedEmployeeName: clearEmployee ? null : (selectedEmployeeName ?? this.selectedEmployeeName),
-        selectedEmployeeData: clearEmployee ? null : (selectedEmployeeData ?? this.selectedEmployeeData),
+        propertyAddedStats: propertyAddedStats ?? this.propertyAddedStats,
       );
 }
 

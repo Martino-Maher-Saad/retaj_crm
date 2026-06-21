@@ -54,6 +54,32 @@ class LeadRepository {
     }
   }
 
+  Future<List<LeadModel>> fetchDashboardExcelLeads({
+    required String role,
+    required String userId,
+    String? filterByEmployeeId,
+    String? listingTypeId,
+    String? propertyTypeId,
+    int? cityId,
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    try {
+      return await _leadService.fetchDashboardExcelLeads(
+        role: role,
+        userId: userId,
+        filterByEmployeeId: filterByEmployeeId,
+        listingTypeId: listingTypeId,
+        propertyTypeId: propertyTypeId,
+        cityId: cityId,
+        fromDate: fromDate,
+        toDate: toDate,
+      );
+    } catch (e) {
+      throw 'حدث خطأ أثناء تحميل بيانات تقرير العملاء';
+    }
+  }
+
   Future<int> getLeadsCount({
     required String role,
     required String userId,

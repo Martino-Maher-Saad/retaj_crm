@@ -27,7 +27,6 @@ class LeadService {
       'lead_exclusion_reasons!exclusion_reason_id(name_ar), '
       'lead_phones(id, phone_number, is_primary)';
 
-  // ─── SELECT لشاشة التفاصيل (مع notes والكاتب) ───
   static const _selectDetail =
       '*, '
       'assignee:profiles!leads_assigned_to_fkey(first_name, last_name), '
@@ -42,6 +41,21 @@ class LeadService {
       'lead_exclusion_reasons!exclusion_reason_id(name_ar), '
       'lead_phones(id, phone_number, is_primary), '
       'lead_notes(id, note_text, created_at, user_id, user:profiles!lead_notes_user_id_fkey(first_name, last_name))';
+
+  static const _selectExcelTable =
+      '*, '
+      'assignee:profiles!leads_assigned_to_fkey(first_name, last_name), '
+      'creator:profiles!leads_created_by_fk(first_name, last_name), '
+      'lead_statuses!status_id(name_ar), '
+      'lead_platforms!platform_id(name_ar), '
+      'property_types!property_type_id(name_ar), '
+      'listing_types!listing_type_id(name_ar), '
+      'communication_channels!channel_id(name_ar), '
+      'cities!city_id(name), '
+      'governorates!governorate_id(name), '
+      'lead_phones(id, phone_number, is_primary), '
+      'lead_notes(id, note_text, created_at, user_id, user:profiles!lead_notes_user_id_fkey(first_name, last_name)), '
+      'lead_logs(id, action, created_at, old_status:lead_statuses!old_status_id(name_ar), new_status:lead_statuses!new_status_id(name_ar))';
 
   Future<List<LeadModel>> fetchAllLeads({
     required String role,
@@ -180,6 +194,36 @@ class LeadService {
 
     final response = await query.limit(0).count(CountOption.exact);
     return response.count ?? 0;
+  }
+
+  Future<List<LeadModel>> fetchDashboardExcelLeads({
+    required String role,
+    required String userId,
+    String? filterByEmployeeId,
+    String? listingTypeId,
+    String? propertyTypeId,
+    int? cityId,
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    dynamic query = _supabase.from('leads').select(_selectExcelTable);
+
+    if (!_isManagerOrAdmin(role)) {
+      query = query.eq('assigned_to', userId);
+    } else if (filterByEmployeeId != null && filterByEmployeeId.isNotEmpty) {
+      query = query.eq('assigned_to', filterByEmployeeId);
+    }
+
+    if (listingTypeId != null && listingTypeId.isNotEmpty) query = query.eq('listing_type_id', listingTypeId);
+    if (propertyTypeId != null && propertyTypeId.isNotEmpty) query = query.eq('property_type_id', propertyTypeId);
+    if (cityId != null) query = query.eq('city_id', cityId);
+    if (fromDate != null) query = query.gte('created_at', fromDate.toIso8601String());
+    if (toDate != null) query = query.lte('created_at', toDate.toIso8601String());
+
+    query = query.order('created_at', ascending: false);
+
+    final response = await query;
+    return (response as List).map((e) => LeadModel.fromJson(e)).toList();
   }
 
   /// إضافة عميل جديد — يستخدم RPC لضمان atomicity

@@ -2,17 +2,18 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../data/models/dashboard_model.dart';
 import '../../../data/models/profile_model.dart';
 import '../cubit/dashboard_cubit.dart';
 import '../cubit/dashboard_state.dart';
+import '../widgets/dashboard_leads_table.dart';
 import 'dashboard_screen.dart';
 
 class EmployeeDashboardView extends StatelessWidget {
   final ProfileModel user;
-  // لما المدير يشوف بيانات موظف معين
   final bool isViewedByManager;
   final String? managerViewEmployeeName;
 
@@ -27,26 +28,46 @@ class EmployeeDashboardView extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<DashboardCubit, DashboardState>(
       builder: (context, state) {
-        // الموظف العادي
         if (state is EmployeeDashboardLoaded && !isViewedByManager) {
-          return _buildScaffold(context, state.data, state.selectedDays, false);
+          return _buildScaffold(
+            context,
+            state.data,
+            state.propertyAddedStats,
+            state.startDate,
+            state.endDate,
+            false,
+          );
         }
-        // المدير يشوف بيانات موظف
         if (state is ManagerDashboardLoaded && isViewedByManager) {
-          if (state.selectedEmployeeData != null) {
-            return _buildScaffold(context, state.selectedEmployeeData!, state.selectedDays, true);
-          }
-          return const Center(child: CircularProgressIndicator(color: AppColors.brandPrimary));
+          final data = state.data;
+          return _buildScaffold(
+            context,
+            data,
+            state.propertyAddedStats,
+            state.startDate,
+            state.endDate,
+            true,
+          );
         }
         if (state is DashboardLoading) {
-          return const Center(child: CircularProgressIndicator(color: AppColors.brandPrimary));
+          return const Center(
+            child: CircularProgressIndicator(color: AppColors.brandPrimary),
+          );
         }
         if (state is DashboardError) {
           return DashboardErrorWidget(
             message: state.message,
-            onRetry: () => isViewedByManager
-                ? null
-                : context.read<DashboardCubit>().loadEmployeeDashboard(userId: user.id),
+            onRetry: () {
+              if (isViewedByManager) {
+                context.read<DashboardCubit>().loadManagerDashboard(
+                  employeeId: user.id,
+                );
+              } else {
+                context.read<DashboardCubit>().loadEmployeeDashboard(
+                  userId: user.id,
+                );
+              }
+            },
           );
         }
         return const SizedBox.shrink();
@@ -54,7 +75,20 @@ class EmployeeDashboardView extends StatelessWidget {
     );
   }
 
-  Widget _buildScaffold(BuildContext context, EmployeeDashboardModel data, int selectedDays, bool managedView) {
+  Widget _buildScaffold(
+    BuildContext context,
+    DashboardStatsModel data,
+    PropertyAddedStats propStats,
+    DateTime startDate,
+    DateTime endDate,
+    bool managedView,
+  ) {
+    final String currentUserId = managedView
+        ? ((context.read<DashboardCubit>().state as ManagerDashboardLoaded)
+                .selectedEmployeeId ??
+            user.id)
+        : user.id;
+
     return Scaffold(
       backgroundColor: AppColors.bgMain,
       body: SafeArea(
@@ -63,19 +97,52 @@ class EmployeeDashboardView extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ─── Header ───
+              // Date Filter (Topmost)
+              DashboardDateFilter(
+                startDate: startDate,
+                endDate: endDate,
+                onChanged: (start, end) {
+                  if (managedView) {
+                    context.read<DashboardCubit>().changeManagerFilters(
+                      startDate: start,
+                      endDate: end,
+                      employeeId: currentUserId,
+                      employeeName: managerViewEmployeeName,
+                    );
+                  } else {
+                    context.read<DashboardCubit>().changeEmployeePeriod(
+                      userId: user.id,
+                      startDate: start,
+                      endDate: end,
+                    );
+                  }
+                },
+              ),
+              SizedBox(height: 24.h),
+
+              // Header
               if (managedView) ...[
                 GestureDetector(
-                  onTap: () => context.read<DashboardCubit>().backToCompanyView(),
+                  onTap: () {
+                    context.read<DashboardCubit>().loadManagerDashboard();
+                  },
                   child: Row(
                     children: [
-                      Icon(Icons.arrow_forward_ios_rounded,
-                          size: 18.sp, color: AppColors.brandPrimary),
+                      Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 20.sp,
+                        color: AppColors.brandPrimary,
+                      ),
                       SizedBox(width: 8.w),
-                      Text('رجوع لنظرة الشركة',
-                          style: AppTextStyles.bodyMain.copyWith(
-                              color: AppColors.brandPrimary,
-                              fontWeight: FontWeight.w700)),
+                      Text(
+                        'رجوع لنظرة الشركة',
+                        style: AppTextStyles.bodyMain.copyWith(
+                          color: AppColors.brandPrimary,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w700,
+                          fontFamily: 'Cairo',
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -83,141 +150,252 @@ class EmployeeDashboardView extends StatelessWidget {
               ],
               Text(
                 managedView
-                    ? 'تقرير: ${managerViewEmployeeName ?? ''}'
+                    ? 'تقرير أداء: ${managerViewEmployeeName ?? ''}'
                     : 'أهلاً، ${user.firstName ?? 'موظف'} 👋',
                 textAlign: TextAlign.right,
-                style: AppTextStyles.h1,
+                style: AppTextStyles.h1.copyWith(
+                  fontSize: 28.sp,
+                  fontFamily: 'Cairo',
+                ),
               ),
               SizedBox(height: 6.h),
               Text(
-                'ملخص الأداء للفترة المحددة',
+                'ملخص الأداء والإنتاجية للفترة المحددة',
                 textAlign: TextAlign.right,
-                style: AppTextStyles.subtitle,
+                style: AppTextStyles.subtitle.copyWith(
+                  fontSize: 16.sp,
+                  fontFamily: 'Cairo',
+                ),
               ),
               SizedBox(height: 24.h),
 
-              // ─── Time Filter ───
-              DashboardTimeFilter(
-                selectedDays: selectedDays,
-                onChanged: (days) => managedView
-                    ? null
-                    : context.read<DashboardCubit>().changeEmployeePeriod(userId: user.id, days: days),
-              ),
-              SizedBox(height: 24.h),
-
-              // ─── Stale Alert ───
+              // Stale leads count warning alert
               if (data.staleLeadsCount > 0) ...[
                 _buildStaleAlert(data.staleLeadsCount),
                 SizedBox(height: 20.h),
               ],
 
-              // ─── 4 Summary Cards ───
+              // Summary Cards Grid
               Row(
                 children: [
-                  Expanded(child: DashboardStatCard(
-                    title: 'عدد عملائي',
-                    value: '${data.leadsCount}',
-                    icon: Icons.people_outline_rounded,
-                    color: AppColors.brandPrimary,
-                  )),
+                  Expanded(
+                    child: DashboardStatCard(
+                      title: 'عدد عملائي الكلي',
+                      value: '${data.leadsCount}',
+                      icon: Icons.people_outline_rounded,
+                      color: AppColors.brandPrimary,
+                    ),
+                  ),
                   SizedBox(width: 14.w),
-                  Expanded(child: DashboardStatCard(
-                    title: 'تعاقداتي',
-                    value: '${data.contractedCount}',
-                    icon: Icons.handshake_outlined,
-                    color: AppColors.success,
-                  )),
+                  Expanded(
+                    child: DashboardStatCard(
+                      title: 'عدد العقارات الكلية بالشركة',
+                      value: '${data.propertiesCount}',
+                      icon: Icons.home_work_outlined,
+                      color: AppColors.warning,
+                    ),
+                  ),
                 ],
               ),
               SizedBox(height: 14.h),
               Row(
                 children: [
-                  Expanded(child: DashboardStatCard(
-                    title: 'نسبة التحويل',
-                    value: '${data.conversionRate.toStringAsFixed(1)}%',
-                    icon: Icons.percent_rounded,
-                    color: const Color(0xFF8B5CF6),
-                  )),
+                  Expanded(
+                    child: DashboardStatCard(
+                      title: 'نسبة التحويل للعملاء',
+                      value: '${data.conversionRate.toStringAsFixed(1)}%',
+                      icon: Icons.percent_rounded,
+                      color: const Color(0xFF8B5CF6),
+                    ),
+                  ),
                   SizedBox(width: 14.w),
-                  Expanded(child: DashboardStatCard(
-                    title: 'عقاراتي المضافة',
-                    value: '${data.propertiesCount}',
-                    icon: Icons.home_work_outlined,
-                    color: AppColors.warning,
-                  )),
+                  Expanded(
+                    child: DashboardStatCard(
+                      title: 'التعاقدات المكتملة',
+                      value: '${data.contractedCount}',
+                      icon: Icons.handshake_outlined,
+                      color: AppColors.success,
+                    ),
+                  ),
                 ],
               ),
               SizedBox(height: 14.h),
-              // ✅ بطاقة متوسط وقت الإغلاق
               DashboardStatCard(
-                title: 'متوسط وقت الإغلاق',
+                title: 'متوسط وقت الإغلاق (أيام)',
                 value: data.avgClosingDays == 0
                     ? 'لا توجد تعاقدات بعد'
                     : data.avgClosingDays < 1
-                        ? 'أقل من يوم'
-                        : '${data.avgClosingDays.toStringAsFixed(1)} يوم',
+                    ? 'أقل من يوم'
+                    : '${data.avgClosingDays.toStringAsFixed(1)} يوم',
                 icon: Icons.timer_rounded,
                 color: const Color(0xFF0EA5E9),
-                subtitle: 'من لحظة الإنشاء (جديد) وحتى (تم التعاقد)',
+                subtitle: 'الوقت المستغرق من إنشاء العميل وحتى التعاقد الفعلي',
+              ),
+              SizedBox(height: 32.h),
+
+              // ─── [ GROUP 1: LEAD REPORTS & CHARTS ] ───
+              _buildSectionHeader(
+                'تحليلات وتقارير العملاء والمنصات 👥',
+                Icons.people_rounded,
+              ),
+              SizedBox(height: 16.h),
+              if (data.leadsCount > 0) ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _buildSection(
+                        title: 'توزيع الحالات (قمع المبيعات)',
+                        icon: Icons.pie_chart_rounded,
+                        child: _buildStatusPieChart(data.leadsByStatus),
+                      ),
+                    ),
+                    SizedBox(width: 20.w),
+                    Expanded(
+                      child: _buildSection(
+                        title: 'نسبة البيع إلى الإيجار للعملاء',
+                        icon: Icons.donut_large_rounded,
+                        child: _buildListingTypeDonutChart(
+                          data.leadsByListingType,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 20.h),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _buildSection(
+                        title: 'مصادر العملاء (المنصات)',
+                        icon: Icons.campaign_rounded,
+                        child: _buildPlatformsDonutChart(
+                          data.platformsBreakdown,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 20.w),
+                    Expanded(
+                      child: _buildSection(
+                        title: 'أعلى 5 مدن نشطة للعملاء',
+                        icon: Icons.bar_chart_rounded,
+                        child: _buildCitiesBarChart(data.leadsByCity),
+                      ),
+                    ),
+                  ],
+                ),
+              ] else
+                _buildNoDataWidget(
+                  'لا توجد بيانات عملاء كافية لعرض الرسومات البيانية',
+                ),
+              SizedBox(height: 32.h),
+
+              // ─── [ GROUP 2: PROPERTY REPORTS & CHARTS ] ───
+              _buildSectionHeader(
+                'تحليلات وتقارير العقارات المضافة 🏢',
+                Icons.analytics_rounded,
+              ),
+              SizedBox(height: 16.h),
+              if (propStats.propertiesByPropertyType.isNotEmpty ||
+                  propStats.propertiesByListingType.isNotEmpty) ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _buildSection(
+                        title: 'توزيع العقارات حسب نوع العقار',
+                        icon: Icons.home_work_outlined,
+                        child: _buildPropertyTypePieChart(
+                          propStats.propertiesByPropertyType,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 20.w),
+                    Expanded(
+                      child: _buildSection(
+                        title: 'توزيع العقارات حسب نوع الإعلان',
+                        icon: Icons.sell_outlined,
+                        child: _buildPropertyListingTypeDonutChart(
+                          propStats.propertiesByListingType,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 20.h),
+                _buildSection(
+                  title: 'توزيع العقارات المضافة حسب المدينة الجغرافية',
+                  icon: Icons.location_city_outlined,
+                  child: _buildPropertyCitiesBarChart(
+                    propStats.propertiesByCity,
+                  ),
+                ),
+              ] else
+                _buildNoDataWidget(
+                  'لا توجد عقارات مضافة في هذه الفترة لعرض الإحصائيات المتجهة',
+                ),
+
+              // ─── [ GROUP 3: VISUAL SEPARATOR ] ───
+              SizedBox(height: 40.h),
+              Row(
+                children: [
+                  Expanded(
+                    child: Divider(
+                      color: AppColors.brandPrimary.withValues(alpha: 0.2),
+                      thickness: 2.w,
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.w),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 20.w,
+                        vertical: 8.h,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.brandPrimary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(20.r),
+                        border: Border.all(
+                          color: AppColors.brandPrimary.withValues(alpha: 0.15),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            'جدول تفاصيل ومتابعة العملاء والتقارير',
+                            style: TextStyle(
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Cairo',
+                              color: AppColors.brandPrimary,
+                            ),
+                          ),
+                          SizedBox(width: 8.w),
+                          Icon(
+                            Icons.table_chart_rounded,
+                            color: AppColors.brandPrimary,
+                            size: 20.sp,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Divider(
+                      color: AppColors.brandPrimary.withValues(alpha: 0.2),
+                      thickness: 2.w,
+                    ),
+                  ),
+                ],
               ),
               SizedBox(height: 24.h),
 
-              // ─── Line Chart ───
-              if (data.performanceOverTime.isNotEmpty) ...[
-                _buildSection(
-                  title: 'منحنى أداء العملاء والتعاقدات',
-                  subtitle: 'المحور الأفقي: الفترة الزمنية | الخط الأزرق: عملاء جدد | الخط الأخضر: تعاقدات',
-                  icon: Icons.show_chart_rounded,
-                  child: _buildLineChart(data.performanceOverTime),
-                ),
-                SizedBox(height: 20.h),
-              ],
-
-              // ─── Funnel ───
-              if (data.leadsByStatus.isNotEmpty) ...[
-                _buildSection(
-                  title: 'قمع المبيعات — توزيع حالات العملاء',
-                  subtitle: 'يُظهر كيف ينتقل العملاء من مرحلة لأخرى',
-                  icon: Icons.filter_alt_outlined,
-                  child: _buildFunnel(data.leadsByStatus, data.leadsCount),
-                ),
-                SizedBox(height: 20.h),
-              ],
-
-              // ─── Platforms ───
-              if (data.platformsBreakdown.isNotEmpty) ...[
-                _buildSection(
-                  title: 'أداء المنصات — عملاء وتعاقدات لكل منصة',
-                  subtitle: 'النسبة المئوية = تعاقدات ÷ إجمالي عملاء المنصة',
-                  icon: Icons.campaign_outlined,
-                  child: _buildPlatforms(data.platformsBreakdown),
-                ),
-                SizedBox(height: 20.h),
-              ],
-
-              // ─── Avg Time Per Stage ───
-              if (data.avgTimePerStage.isNotEmpty) ...[
-                _buildSection(
-                  title: 'متوسط وقت التحويل بين المراحل',
-                  subtitle: 'متوسط عدد الأيام قبل انتقال العميل من كل مرحلة للتالية (من كل التاريخ)',
-                  icon: Icons.timer_outlined,
-                  child: _buildAvgTime(data.avgTimePerStage),
-                ),
-              ] else ...[
-                _buildSection(
-                  title: 'متوسط وقت التحويل بين المراحل',
-                  subtitle: 'سيظهر هذا القسم تدريجياً مع تراكم بيانات التغييرات',
-                  icon: Icons.timer_outlined,
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16.h),
-                    child: Text(
-                      'لا توجد بيانات كافية بعد — ستظهر مع أول تغيير في حالة العملاء',
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.bodySmall,
-                    ),
-                  ),
-                ),
-              ],
+              // Interactive Excel-like Leads Table
+              DashboardLeadsTable(
+                role: managedView ? 'manager' : 'sales',
+                userId: currentUserId,
+              ),
             ],
           ),
         ),
@@ -225,15 +403,53 @@ class EmployeeDashboardView extends StatelessWidget {
     );
   }
 
-  // ─── Section Wrapper ───
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        Text(
+          title,
+          style: AppTextStyles.h2.copyWith(
+            fontSize: 22.sp,
+            color: AppColors.brandPrimaryDark,
+            fontFamily: 'Cairo',
+          ),
+        ),
+        SizedBox(width: 10.w),
+        Icon(icon, color: AppColors.brandPrimaryDark, size: 26.sp),
+      ],
+    );
+  }
+
+  Widget _buildNoDataWidget(String message) {
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 24.h),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: const Color(0xFFEAEAF0)),
+      ),
+      child: Center(
+        child: Text(
+          message,
+          style: TextStyle(
+            color: Colors.grey,
+            fontSize: 15.sp,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Cairo',
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSection({
     required String title,
-    required String subtitle,
     required IconData icon,
     required Widget child,
   }) {
     return Container(
-      padding: EdgeInsets.all(22.w),
+      padding: EdgeInsets.all(20.w),
       decoration: BoxDecoration(
         color: AppColors.bgSurface,
         borderRadius: BorderRadius.circular(18.r),
@@ -243,28 +459,27 @@ class EmployeeDashboardView extends StatelessWidget {
             color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 12,
             offset: const Offset(0, 4),
-          )
+          ),
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Text(title, style: AppTextStyles.h3),
+              Text(
+                title,
+                style: AppTextStyles.h3.copyWith(
+                  fontSize: 18.sp,
+                  fontFamily: 'Cairo',
+                ),
+              ),
               SizedBox(width: 10.w),
-              Icon(icon, color: AppColors.brandPrimary, size: 24.sp),
+              Icon(icon, color: AppColors.brandPrimary, size: 22.sp),
             ],
           ),
-          SizedBox(height: 6.h),
-          Text(subtitle,
-              textAlign: TextAlign.right,
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textDisabled,
-                fontSize: 13.sp,
-              )),
-          SizedBox(height: 18.h),
+          SizedBox(height: 20.h),
           child,
         ],
       ),
@@ -281,7 +496,11 @@ class EmployeeDashboardView extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 24.sp),
+          Icon(
+            Icons.warning_amber_rounded,
+            color: AppColors.warning,
+            size: 24.sp,
+          ),
           SizedBox(width: 12.w),
           Expanded(
             child: Text(
@@ -289,7 +508,9 @@ class EmployeeDashboardView extends StatelessWidget {
               textAlign: TextAlign.right,
               style: AppTextStyles.bodyMain.copyWith(
                 color: const Color(0xFF92400E),
+                fontSize: 16.sp,
                 fontWeight: FontWeight.w600,
+                fontFamily: 'Cairo',
               ),
             ),
           ),
@@ -298,266 +519,484 @@ class EmployeeDashboardView extends StatelessWidget {
     );
   }
 
-  Widget _buildLineChart(List<PerformancePoint> points) {
-    final maxY = (points.map((p) => p.leads).reduce((a, b) => a > b ? a : b).toDouble() + 2);
+  // --- CHARTS BUILDERS ---
+
+  Widget _buildStatusPieChart(List<StatusStat> stats) {
+    if (stats.isEmpty) return const Center(child: Text("لا توجد بيانات"));
+    final List<Color> colors = [
+      Colors.purple,
+      Colors.blue,
+      Colors.orange,
+      Colors.green,
+      Colors.red,
+    ];
     return Column(
       children: [
         SizedBox(
-          height: 200.h,
-          child: LineChart(LineChartData(
-            gridData: FlGridData(
-              show: true,
-              drawVerticalLine: false,
-              getDrawingHorizontalLine: (_) => FlLine(color: AppColors.borderSubtle, strokeWidth: 1),
-            ),
-            borderData: FlBorderData(show: false),
-            titlesData: FlTitlesData(
-              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              leftTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 32.w,
-                  getTitlesWidget: (v, _) => Text(v.toInt().toString(),
-                      style: TextStyle(fontSize: 13.sp, color: AppColors.textDisabled)),
-                ),
-              ),
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 28.h,
-                  interval: (points.length / 4).ceilToDouble().clamp(1, 999),
-                  getTitlesWidget: (v, _) {
-                    final idx = v.toInt();
-                    if (idx < 0 || idx >= points.length) return const SizedBox.shrink();
-                    final p = points[idx].period;
-                    return Text(p.length > 5 ? p.substring(5) : p,
-                        style: TextStyle(fontSize: 12.sp, color: AppColors.textDisabled));
-                  },
-                ),
-              ),
-            ),
-            minY: 0, maxY: maxY,
-            lineBarsData: [
-              LineChartBarData(
-                spots: points.asMap().entries
-                    .map((e) => FlSpot(e.key.toDouble(), e.value.leads.toDouble()))
-                    .toList(),
-                isCurved: true,
-                color: AppColors.brandPrimary,
-                barWidth: 3,
-                dotData: const FlDotData(show: false),
-                belowBarData: BarAreaData(
-                    show: true, color: AppColors.brandPrimary.withValues(alpha: 0.08)),
-              ),
-              LineChartBarData(
-                spots: points.asMap().entries
-                    .map((e) => FlSpot(e.key.toDouble(), e.value.contracted.toDouble()))
-                    .toList(),
-                isCurved: true,
-                color: AppColors.success,
-                barWidth: 2.5,
-                dashArray: [6, 4],
-                dotData: const FlDotData(show: false),
-              ),
-            ],
-          )),
-        ),
-        SizedBox(height: 14.h),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _legend(AppColors.success, 'تعاقدات (منقّط)'),
-            SizedBox(width: 20.w),
-            _legend(AppColors.brandPrimary, 'عملاء جدد'),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _legend(Color color, String label) {
-    return Row(
-      children: [
-        Container(width: 20.w, height: 3.h, color: color),
-        SizedBox(width: 6.w),
-        Text(label, style: AppTextStyles.bodySmall),
-      ],
-    );
-  }
-
-  Widget _buildFunnel(List<StatusStat> statuses, int total) {
-    const statusColors = {
-      'جديد': Color(0xFF8B5CF6),
-      'تم التواصل': Color(0xFF3B82F6),
-      'تفاوض': AppColors.warning,
-      'تم التعاقد': AppColors.success,
-      'مستبعد': AppColors.error,
-    };
-    return Column(
-      children: statuses.map((s) {
-        final pct = total == 0 ? 0.0 : s.count / total;
-        final color = statusColors[s.status] ?? AppColors.brandPrimary;
-        return Padding(
-          padding: EdgeInsets.only(bottom: 14.h),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(children: [
-                    Text('${s.count} عميل',
-                        style: AppTextStyles.bodyMain.copyWith(color: color, fontWeight: FontWeight.w800)),
-                    SizedBox(width: 8.w),
-                    Text('(${(pct * 100).toStringAsFixed(0)}%)',
-                        style: AppTextStyles.bodySmall.copyWith(color: color)),
-                  ]),
-                  Text(s.status, style: AppTextStyles.bodyMain.copyWith(fontWeight: FontWeight.w700)),
-                ],
-              ),
-              SizedBox(height: 8.h),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8.r),
-                child: LinearProgressIndicator(
-                  value: pct,
-                  minHeight: 14.h,
-                  backgroundColor: color.withValues(alpha: 0.1),
-                  valueColor: AlwaysStoppedAnimation<Color>(color),
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildPlatforms(List<PlatformStat> platforms) {
-    final maxVal = platforms.map((p) => p.total).reduce((a, b) => a > b ? a : b).toDouble();
-    return Column(
-      children: platforms.map((p) {
-        final pct = maxVal == 0 ? 0.0 : p.total / maxVal;
-        final convPct = p.total == 0 ? 0.0 : (p.contracted / p.total * 100);
-        return Padding(
-          padding: EdgeInsets.only(bottom: 18.h),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(children: [
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8.r),
-                      ),
-                      child: Text('${convPct.toStringAsFixed(0)}% تحويل',
-                          style: AppTextStyles.bodySmall.copyWith(
-                              color: const Color(0xFF8B5CF6), fontWeight: FontWeight.w700)),
-                    ),
-                    SizedBox(width: 10.w),
-                    Text('${p.contracted} تعاقد',
-                        style: AppTextStyles.bodySmall.copyWith(
-                            color: AppColors.success, fontWeight: FontWeight.w700)),
-                  ]),
-                  Row(children: [
-                    Text('${p.total} عميل',
-                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
-                    SizedBox(width: 10.w),
-                    Text(p.platform,
-                        style: AppTextStyles.bodyMain.copyWith(fontWeight: FontWeight.w800)),
-                  ]),
-                ],
-              ),
-              SizedBox(height: 6.h),
-              // ✅ متوسط وقت الإغلاق لهذه المنصة
-              if (p.avgClosingDays > 0)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0EA5E9).withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(6.r),
-                    ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.timer_outlined, size: 13.sp, color: const Color(0xFF0EA5E9)),
-                      SizedBox(width: 4.w),
-                      Text(
-                        'متوسط وقت الإغلاق: ${p.avgClosingDays.toStringAsFixed(1)} يوم',
-                        style: AppTextStyles.bodySmall.copyWith(
-                            color: const Color(0xFF0EA5E9), fontSize: 12.sp),
-                      ),
-                    ]),
+          height: 300.h,
+          child: PieChart(
+            PieChartData(
+              sectionsSpace: 2,
+              centerSpaceRadius: 0,
+              sections: stats.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final s = entry.value;
+                final color = colors[idx % colors.length];
+                return PieChartSectionData(
+                  color: color,
+                  value: s.count.toDouble(),
+                  title: '${s.count}',
+                  radius: 110.r,
+                  titleStyle: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontFamily: 'Cairo',
                   ),
-                ),
-              SizedBox(height: 6.h),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8.r),
-                child: LinearProgressIndicator(
-                  value: pct,
-                  minHeight: 12.h,
-                  backgroundColor: AppColors.brandPrimary.withValues(alpha: 0.08),
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.brandPrimary),
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildAvgTime(List<AvgTimeStat> stats) {
-    const statusColors = {
-      'جديد': Color(0xFF8B5CF6),
-      'تم التواصل': Color(0xFF3B82F6),
-      'تفاوض': AppColors.warning,
-      'تم التعاقد': AppColors.success,
-    };
-    return Column(
-      children: stats.map((s) {
-        final color = statusColors[s.status] ?? AppColors.brandPrimary;
-        final days = s.avgDays;
-        return Padding(
-          padding: EdgeInsets.only(bottom: 14.h),
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 14.h),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(12.r),
-              border: Border.all(color: color.withValues(alpha: 0.2)),
+                );
+              }).toList(),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          ),
+        ),
+        SizedBox(height: 12.h),
+        Wrap(
+          spacing: 12.w,
+          runSpacing: 6.h,
+          alignment: WrapAlignment.center,
+          children: stats.asMap().entries.map((entry) {
+            final idx = entry.key;
+            final s = entry.value;
+            final color = colors[idx % colors.length];
+            return Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Row(children: [
-                  Icon(Icons.timer_outlined, color: color, size: 20.sp),
-                  SizedBox(width: 8.w),
-                  Text(
-                    days < 1
-                        ? 'أقل من يوم'
-                        : '${days.toStringAsFixed(1)} يوم',
-                    style: AppTextStyles.h3.copyWith(color: color),
+                Container(width: 12.w, height: 12.h, color: color),
+                SizedBox(width: 6.w),
+                Text(
+                  s.status,
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Cairo',
+                    color: AppColors.textPrimary,
                   ),
-                ]),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(s.status,
-                        style: AppTextStyles.bodyMain.copyWith(fontWeight: FontWeight.w800)),
-                    Text('متوسط وقت البقاء في هذه المرحلة',
-                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.textDisabled)),
-                  ],
                 ),
               ],
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildListingTypeDonutChart(List<ListingTypeStat> stats) {
+    if (stats.isEmpty) return const Center(child: Text("لا توجد بيانات"));
+    final List<Color> colors = [AppColors.brandPrimary, AppColors.success];
+    return Column(
+      children: [
+        SizedBox(
+          height: 300.h,
+          child: PieChart(
+            PieChartData(
+              sectionsSpace: 3,
+              centerSpaceRadius: 65.r,
+              sections: stats.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final s = entry.value;
+                final color = colors[idx % colors.length];
+                return PieChartSectionData(
+                  color: color,
+                  value: s.count.toDouble(),
+                  title: '${s.count}',
+                  radius: 50.r,
+                  titleStyle: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontFamily: 'Cairo',
+                  ),
+                );
+              }).toList(),
             ),
           ),
-        );
-      }).toList(),
+        ),
+        SizedBox(height: 12.h),
+        Wrap(
+          spacing: 12.w,
+          alignment: WrapAlignment.center,
+          children: stats.asMap().entries.map((entry) {
+            final idx = entry.key;
+            final s = entry.value;
+            final color = colors[idx % colors.length];
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(width: 12.w, height: 12.h, color: color),
+                SizedBox(width: 6.w),
+                Text(
+                  s.listingType,
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Cairo',
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlatformsDonutChart(List<PlatformStat> stats) {
+    if (stats.isEmpty) return const Center(child: Text("لا توجد بيانات"));
+    final List<Color> colors = [
+      Colors.blue,
+      Colors.purple,
+      Colors.orange,
+      Colors.teal,
+      Colors.grey,
+    ];
+    return Column(
+      children: [
+        SizedBox(
+          height: 300.h,
+          child: PieChart(
+            PieChartData(
+              sectionsSpace: 2,
+              centerSpaceRadius: 65.r,
+              sections: stats.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final s = entry.value;
+                final color = colors[idx % colors.length];
+                return PieChartSectionData(
+                  color: color,
+                  value: s.total.toDouble(),
+                  title: '${s.total}',
+                  radius: 50.r,
+                  titleStyle: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontFamily: 'Cairo',
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+        SizedBox(height: 12.h),
+        Wrap(
+          spacing: 8.w,
+          runSpacing: 4.h,
+          alignment: WrapAlignment.center,
+          children: stats.asMap().entries.map((entry) {
+            final idx = entry.key;
+            final s = entry.value;
+            final color = colors[idx % colors.length];
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(width: 12.w, height: 12.h, color: color),
+                SizedBox(width: 4.w),
+                Text(
+                  s.platform,
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Cairo',
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCitiesBarChart(List<CityStat> stats) {
+    if (stats.isEmpty) return const Center(child: Text("لا توجد بيانات"));
+    final topStats = stats.take(5).toList();
+    final double maxVal = topStats
+        .map((s) => s.count)
+        .reduce((a, b) => a > b ? a : b)
+        .toDouble();
+    return SizedBox(
+      height: 320.h,
+      child: BarChart(
+        BarChartData(
+          alignment: BarChartAlignment.spaceAround,
+          maxY: maxVal == 0 ? 5 : maxVal + 1,
+          barTouchData: BarTouchData(enabled: false),
+          titlesData: FlTitlesData(
+            show: true,
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (double value, TitleMeta meta) {
+                  final index = value.toInt();
+                  if (index >= 0 && index < topStats.length) {
+                    return Padding(
+                      padding: EdgeInsets.only(top: 4.h),
+                      child: Text(
+                        topStats[index].city,
+                        style: TextStyle(
+                          fontSize: 15.sp,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Cairo',
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+                reservedSize: 32.h,
+              ),
+            ),
+            leftTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+          ),
+          gridData: const FlGridData(show: false),
+          borderData: FlBorderData(show: false),
+          barGroups: topStats.asMap().entries.map((entry) {
+            final idx = entry.key;
+            final s = entry.value;
+            return BarChartGroupData(
+              x: idx,
+              barRods: [
+                BarChartRodData(
+                  toY: s.count.toDouble(),
+                  color: AppColors.brandPrimary,
+                  width: 22.w,
+                  borderRadius: BorderRadius.circular(4.r),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  // --- PROPERTY ANALYTICS CHARTS ---
+
+  Widget _buildPropertyTypePieChart(Map<String, int> stats) {
+    if (stats.isEmpty) return const Center(child: Text("لا توجد بيانات"));
+    final List<Color> colors = [
+      Colors.purple,
+      Colors.blue,
+      Colors.orange,
+      Colors.green,
+      Colors.red,
+      Colors.teal,
+    ];
+    final total = stats.values.fold(0, (sum, item) => sum + item);
+    return Column(
+      children: [
+        SizedBox(
+          height: 300.h,
+          child: PieChart(
+            PieChartData(
+              sectionsSpace: 2,
+              centerSpaceRadius: 0,
+              sections: stats.entries.toList().asMap().entries.map((entry) {
+                final idx = entry.key;
+                final e = entry.value;
+                final color = colors[idx % colors.length];
+                return PieChartSectionData(
+                  color: color,
+                  value: e.value.toDouble(),
+                  title: '${e.value}',
+                  radius: 110.r,
+                  titleStyle: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontFamily: 'Cairo',
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+        SizedBox(height: 12.h),
+        Wrap(
+          spacing: 12.w,
+          runSpacing: 6.h,
+          alignment: WrapAlignment.center,
+          children: stats.entries.toList().asMap().entries.map((entry) {
+            final idx = entry.key;
+            final e = entry.value;
+            final color = colors[idx % colors.length];
+            final pct = total == 0 ? 0.0 : (e.value / total) * 100;
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(width: 12.w, height: 12.h, color: color),
+                SizedBox(width: 6.w),
+                Text(
+                  '${e.key} (${pct.toStringAsFixed(0)}%)',
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Cairo',
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPropertyListingTypeDonutChart(Map<String, int> stats) {
+    if (stats.isEmpty) return const Center(child: Text("لا توجد بيانات"));
+    final List<Color> colors = [AppColors.brandPrimary, AppColors.success];
+    final total = stats.values.fold(0, (sum, item) => sum + item);
+    return Column(
+      children: [
+        SizedBox(
+          height: 300.h,
+          child: PieChart(
+            PieChartData(
+              sectionsSpace: 3,
+              centerSpaceRadius: 65.r,
+              sections: stats.entries.toList().asMap().entries.map((entry) {
+                final idx = entry.key;
+                final e = entry.value;
+                final color = colors[idx % colors.length];
+                return PieChartSectionData(
+                  color: color,
+                  value: e.value.toDouble(),
+                  title: '${e.value}',
+                  radius: 50.r,
+                  titleStyle: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontFamily: 'Cairo',
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+        SizedBox(height: 12.h),
+        Wrap(
+          spacing: 12.w,
+          alignment: WrapAlignment.center,
+          children: stats.entries.toList().asMap().entries.map((entry) {
+            final idx = entry.key;
+            final e = entry.value;
+            final color = colors[idx % colors.length];
+            final pct = total == 0 ? 0.0 : (e.value / total) * 100;
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(width: 12.w, height: 12.h, color: color),
+                SizedBox(width: 6.w),
+                Text(
+                  '${e.key} (${pct.toStringAsFixed(0)}%)',
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Cairo',
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPropertyCitiesBarChart(Map<String, int> stats) {
+    if (stats.isEmpty) return const Center(child: Text("لا توجد بيانات"));
+    final entries = stats.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final topStats = entries.take(5).toList();
+    final double maxVal = topStats
+        .map((e) => e.value)
+        .reduce((a, b) => a > b ? a : b)
+        .toDouble();
+    return SizedBox(
+      height: 320.h,
+      child: BarChart(
+        BarChartData(
+          alignment: BarChartAlignment.spaceAround,
+          maxY: maxVal == 0 ? 5 : maxVal + 1,
+          barTouchData: BarTouchData(enabled: false),
+          titlesData: FlTitlesData(
+            show: true,
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (double value, TitleMeta meta) {
+                  final index = value.toInt();
+                  if (index >= 0 && index < topStats.length) {
+                    return Padding(
+                      padding: EdgeInsets.only(top: 4.h),
+                      child: Text(
+                        topStats[index].key,
+                        style: TextStyle(
+                          fontSize: 15.sp,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Cairo',
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+                reservedSize: 32.h,
+              ),
+            ),
+            leftTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+          ),
+          gridData: const FlGridData(show: false),
+          borderData: FlBorderData(show: false),
+          barGroups: topStats.asMap().entries.map((entry) {
+            final idx = entry.key;
+            final e = entry.value;
+            return BarChartGroupData(
+              x: idx,
+              barRods: [
+                BarChartRodData(
+                  toY: e.value.toDouble(),
+                  color: AppColors.warning,
+                  width: 22.w,
+                  borderRadius: BorderRadius.circular(4.r),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 }

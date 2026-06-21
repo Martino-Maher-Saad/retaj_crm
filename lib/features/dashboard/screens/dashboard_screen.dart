@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:intl/intl.dart' as intl;
 import '../../../core/constants/app_colors.dart';
 import '../../../core/di/injection_container.dart' as di;
+import '../../../core/widgets/retaj_shared_fields.dart';
 import '../../../data/models/profile_model.dart';
 import '../cubit/dashboard_cubit.dart';
 import 'employee_dashboard_view.dart';
@@ -28,9 +30,9 @@ class _DashboardScreenState extends State<DashboardScreen> with AutomaticKeepAli
     super.initState();
     _cubit = di.sl<DashboardCubit>();
     if (widget.user.role == 'sales') {
-      _cubit.loadEmployeeDashboard(userId: widget.user.id, days: 30);
+      _cubit.loadEmployeeDashboard(userId: widget.user.id);
     } else {
-      _cubit.loadManagerDashboard(days: 30);
+      _cubit.loadManagerDashboard();
     }
   }
 
@@ -46,73 +48,84 @@ class _DashboardScreenState extends State<DashboardScreen> with AutomaticKeepAli
   }
 }
 
-/// ─── Time Filter Bar (مشترك بين الداشبوردين) ───
-class DashboardTimeFilter extends StatelessWidget {
-  final int selectedDays;
-  final void Function(int days) onChanged;
+/// ─── Date Filter Bar (Date Range Picker Button) ───
+class DashboardDateFilter extends StatelessWidget {
+  final DateTime startDate;
+  final DateTime endDate;
+  final void Function(DateTime start, DateTime end) onChanged;
 
-  const DashboardTimeFilter({
+  const DashboardDateFilter({
     super.key,
-    required this.selectedDays,
+    required this.startDate,
+    required this.endDate,
     required this.onChanged,
   });
 
-  static const _options = [
-    (label: 'أسبوع', days: 7),
-    (label: 'شهر', days: 30),
-    (label: '3 شهور', days: 90),
-    (label: 'سنة', days: 365),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final startStr = intl.DateFormat('yyyy/MM/dd').format(startDate);
+    final endStr = intl.DateFormat('yyyy/MM/dd').format(endDate);
+
     return Container(
-      padding: EdgeInsets.all(4.r),
       decoration: BoxDecoration(
-        color: const Color(0xFFEEEEF8),
-        borderRadius: BorderRadius.circular(14.r),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: const Color(0xFFEAEAF0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          )
+        ],
       ),
-      child: Row(
-        children: _options.map((opt) {
-          final isActive = opt.days == selectedDays;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => onChanged(opt.days),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: EdgeInsets.symmetric(vertical: 10.h),
-                decoration: BoxDecoration(
-                  color: isActive ? AppColors.brandPrimary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10.r),
-                  boxShadow: isActive
-                      ? [
-                          BoxShadow(
-                            color: AppColors.brandPrimary.withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          )
-                        ]
-                      : [],
-                ),
-                child: Text(
-                  opt.label,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w700,
-                    color: isActive ? Colors.white : const Color(0xFF888899),
-                  ),
+      child: InkWell(
+        onTap: () => _pickDateRange(context),
+        borderRadius: BorderRadius.circular(16.r),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Icon(Icons.arrow_drop_down, color: AppColors.brandPrimary, size: 24.sp),
+              const Spacer(),
+              Text(
+                '$endStr  ◀  $startStr',
+                style: TextStyle(
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Cairo',
+                  color: AppColors.textPrimary,
                 ),
               ),
-            ),
-          );
-        }).toList(),
+              const Spacer(),
+              Text(
+                'الفترة الزمنيّة:',
+                style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold, color: const Color(0xFF1A1A2E), fontFamily: 'Cairo'),
+              ),
+              SizedBox(width: 8.w),
+              Icon(Icons.calendar_month_rounded, color: AppColors.brandPrimary, size: 22.sp),
+            ],
+          ),
+        ),
       ),
     );
   }
+
+  Future<void> _pickDateRange(BuildContext context) async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2025),
+      lastDate: DateTime(2030),
+      initialDateRange: DateTimeRange(start: startDate, end: endDate),
+    );
+    if (picked != null) {
+      onChanged(picked.start, picked.end);
+    }
+  }
 }
 
-/// ─── Summary Card (مشترك) ───
+/// ─── Summary Card ───
 class DashboardStatCard extends StatelessWidget {
   final String title;
   final String value;
@@ -221,7 +234,7 @@ class DashboardStatCard extends StatelessWidget {
             value,
             textAlign: TextAlign.right,
             style: TextStyle(
-              fontSize: 32.sp, // أكبر وأوضح
+              fontSize: 32.sp,
               fontWeight: FontWeight.w900,
               color: const Color(0xFF1A1A2E),
             ),
@@ -231,7 +244,7 @@ class DashboardStatCard extends StatelessWidget {
             title,
             textAlign: TextAlign.right,
             style: TextStyle(
-              fontSize: 14.sp, // أوضح
+              fontSize: 14.sp,
               fontWeight: FontWeight.w600,
               color: const Color(0xFF555555),
             ),
