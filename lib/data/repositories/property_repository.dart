@@ -23,7 +23,9 @@ class PropertyRepository {
     String? newId;
     try {
       final text = model.descAr;
-      final vector = await _aiService.generateEmbedding(text, isSearch: false);
+      
+      // توليد الـ Vector الجديد من Gemini (768 بعداً) - تم إيقاف Hugging Face بالكامل لتسريع الإضافة
+      final vectorV2 = await _aiService.generateEmbedding(text, isSearch: false, useGemini: true);
       
       // تعيين حالة "قيد المراجعة" كحالة افتراضية
       String? pendingStatusId = model.approvalStatusId;
@@ -32,7 +34,8 @@ class PropertyRepository {
       }
       
       model = model.copyWith(
-        embedding: vector,
+        embedding: null, // إيقاف الحقل القديم
+        embeddingV2: vectorV2,
         approvalStatusId: pendingStatusId,
       );
 
@@ -169,8 +172,14 @@ class PropertyRepository {
   }) async {
     try {
       final text = p.descAr;
-      final vector = await _aiService.generateEmbedding(text, isSearch: false);
-      p = p.copyWith(embedding: vector);
+
+      // توليد الـ Vector الجديد من Gemini (768 بعداً) - تم إيقاف Hugging Face بالكامل لتسريع التعديل
+      final vectorV2 = await _aiService.generateEmbedding(text, isSearch: false, useGemini: true);
+
+      p = p.copyWith(
+        embedding: null, // إيقاف الحقل القديم
+        embeddingV2: vectorV2,
+      );
 
       await _pService.updateProperty(p.id, p.toJson());
 
@@ -254,7 +263,7 @@ class PropertyRepository {
   }
 
   Future<List<double>> generateQueryEmbedding(String query) =>
-      _aiService.generateEmbedding(query, isSearch: true);
+      _aiService.generateEmbedding(query, isSearch: true, useGemini: true);
 
   Future<List<PropertyModel>> searchWithAi({
     required List<double> vector,

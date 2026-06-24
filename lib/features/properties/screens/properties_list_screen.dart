@@ -108,6 +108,10 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
           body: BlocConsumer<PropertiesCubit, PropertiesState>(
             listener: (context, state) {
               if (state is PropertiesError) {
+                print('==================================================================');
+                print('❌ [PROPERTIES INVENTORY ERROR DETECTED]:');
+                print('Message: ${state.message}');
+                print('==================================================================');
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(state.message),

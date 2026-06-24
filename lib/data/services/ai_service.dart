@@ -1,12 +1,27 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'gemini_embedding_service.dart';
 
 class AiService {
   // رابط الـ API المرفوع لايف على Hugging Face
   // شغال 24/7 ومجاني ومحدش يقدر يوقفه!
   static const String _apiUrl = 'https://martino564-retaj.hf.space/embed';
+  final _geminiService = GeminiEmbeddingService();
 
-  Future<List<double>> generateEmbedding(String text, {bool isSearch = false}) async {
+  Future<List<double>> generateEmbedding(String text, {bool isSearch = false, bool useGemini = false}) async {
+    if (useGemini) {
+      try {
+        print('=== AI SERVICE (Google Gemini): جاري الحساب (768 بعداً) ===');
+        final vector = await _geminiService.generateEmbedding(text);
+        print('=== تم بنجاح من Gemini ✅، حجم الـ Vector: ${vector.length} ===');
+        return vector;
+      } catch (e) {
+        print('=== AI SERVICE (Google Gemini) ERROR ===');
+        print('=== الخطأ: $e ===');
+        rethrow;
+      }
+    }
+
     try {
       print('=== AI SERVICE (Python Microservice): جاري الحساب ===');
       

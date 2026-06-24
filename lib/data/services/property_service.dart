@@ -190,7 +190,8 @@ class PropertyService {
     } else if (type == 'phone') {
       query = query.like('owner_phone', '%$term%');
     } else {
-      query = query.textSearch('search_vector', term);
+      // تم إلغاء استخدام search_vector واستبداله بالبحث المطابق المباشر في العنوان والوصف
+      query = query.or('title_ar.ilike.%$term%,desc_ar.ilike.%$term%');
     }
     final response = await query.limit(10);
     return List<Map<String, dynamic>>.from(response);
@@ -266,7 +267,10 @@ class PropertyService {
     int limit = 10,
     int offset = 0,
   }) async {
-    final response = await _client.rpc('match_properties_with_filters', params: {
+    print('==================================================================');
+    print('🔍 تم تشغيل البحث الدلالي باستخدام محرك بحث Google Gemini الجديد (768 بعداً) بدلاً من Hugging Face.');
+    print('==================================================================');
+    final response = await _client.rpc('match_properties_v2', params: {
       'query_embedding': vector,
       'match_count': limit,
       'filter_offset': offset,

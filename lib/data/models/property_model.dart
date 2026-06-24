@@ -51,6 +51,7 @@ class PropertyModel {
   final String? ownerPhone;
   final List<PropertyImageModel> images;
   final List<double>? embedding;
+  final List<double>? embeddingV2;
   final String? source;
   final List<PropertyPlatformEntry> advertisingPlatforms;
 
@@ -65,6 +66,7 @@ class PropertyModel {
 
   const PropertyModel({
     this.embedding,
+    this.embeddingV2,
     required this.id,
     this.propertyCode,
     this.createdBy,
@@ -151,6 +153,26 @@ class PropertyModel {
       ownerPhone: json['owner_phone'],
       images: imagesList,
       advertisingPlatforms: advertisingPlatforms,
+      embedding: json['embedding'] != null
+          ? (json['embedding'] is String
+              ? (json['embedding'] as String)
+                  .replaceAll('[', '')
+                  .replaceAll(']', '')
+                  .split(',')
+                  .map((e) => double.parse(e.trim()))
+                  .toList()
+              : (json['embedding'] as List).map((e) => (e as num).toDouble()).toList())
+          : null,
+      embeddingV2: json['embedding_v2'] != null
+          ? (json['embedding_v2'] is String
+              ? (json['embedding_v2'] as String)
+                  .replaceAll('[', '')
+                  .replaceAll(']', '')
+                  .split(',')
+                  .map((e) => double.parse(e.trim()))
+                  .toList()
+              : (json['embedding_v2'] as List).map((e) => (e as num).toDouble()).toList())
+          : null,
       // الـ IDs الجديدة
       propertyTypeId: json['property_type_id']?.toString(),
       listingTypeId:  json['listing_type_id']?.toString(),
@@ -168,6 +190,7 @@ class PropertyModel {
   Map<String, dynamic> toJson() {
     return {
       'embedding': embedding,
+      'embedding_v2': embeddingV2,
       'property_code': propertyCode,
       'created_by': createdBy,
       'status': status,
@@ -193,6 +216,7 @@ class PropertyModel {
 
   PropertyModel copyWith({
     List<double>? embedding,
+    List<double>? embeddingV2,
     String? id,
     String? propertyCode,
     String? createdBy,
@@ -226,6 +250,7 @@ class PropertyModel {
   }) {
     return PropertyModel(
       embedding: embedding ?? this.embedding,
+      embeddingV2: embeddingV2 ?? this.embeddingV2,
       id: id ?? this.id,
       propertyCode: propertyCode ?? this.propertyCode,
       createdBy: createdBy ?? this.createdBy,
