@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart' hide TextDirection;
+
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/di/injection_container.dart' as di;
@@ -89,7 +90,14 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
     super.dispose();
   }
 
-  Widget _cell(String text, double width, {bool isHeader = false, bool isBold = false, Color? color, TextDirection? textDirection}) {
+  Widget _cell(
+    String text,
+    double width, {
+    bool isHeader = false,
+    bool isBold = false,
+    Color? color,
+    TextDirection? textDirection,
+  }) {
     return SizedBox(
       width: width,
       child: Text(
@@ -109,17 +117,19 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
   }
 
   Widget _customCell(Widget child, double width) {
-    return SizedBox(
-      width: width,
-      child: child,
-    );
+    return SizedBox(width: width, child: child);
   }
 
   Widget _buildNotesCell(LeadModel lead, int idx) {
     if (lead.notes.isEmpty) {
       return SizedBox(
         width: 300.w,
-        child: Text('—', style: cellStyle, textDirection: TextDirection.rtl, textAlign: TextAlign.right),
+        child: Text(
+          '—',
+          style: cellStyle,
+          textDirection: TextDirection.rtl,
+          textAlign: TextAlign.right,
+        ),
       );
     }
 
@@ -127,11 +137,18 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
     final List<String> notesList = lead.notes
         .map((n) => '• ${n.noteText}')
         .toList();
-    
-    final bool hasMore = notesList.length > 3 || notesList.any((note) => note.length > 100);
+
+    final bool hasMore =
+        notesList.length > 3 || notesList.any((note) => note.length > 100);
     final List<String> displayedNotes = isExpanded
         ? notesList
-        : notesList.take(3).map((note) => note.length > 100 ? '${note.substring(0, 97)}...' : note).toList();
+        : notesList
+              .take(3)
+              .map(
+                (note) =>
+                    note.length > 100 ? '${note.substring(0, 97)}...' : note,
+              )
+              .toList();
 
     return SizedBox(
       width: 300.w,
@@ -140,15 +157,17 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          ...displayedNotes.map((note) => Padding(
-                padding: EdgeInsets.only(bottom: 4.h),
-                child: Text(
-                  note,
-                  style: cellStyle,
-                  textDirection: TextDirection.rtl,
-                  textAlign: TextAlign.right,
-                ),
-              )),
+          ...displayedNotes.map(
+            (note) => Padding(
+              padding: EdgeInsets.only(bottom: 4.h),
+              child: Text(
+                note,
+                style: cellStyle,
+                textDirection: TextDirection.rtl,
+                textAlign: TextAlign.right,
+              ),
+            ),
+          ),
           if (hasMore) ...[
             SizedBox(height: 4.h),
             InkWell(
@@ -171,7 +190,7 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
                 ),
               ),
             ),
-          ]
+          ],
         ],
       ),
     );
@@ -182,7 +201,9 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
         .where((log) => log.action == 'status_changed')
         .map((log) {
           final dateStr = DateFormat("dd/MM/yyyy HH:mm").format(log.createdAt);
-          final changerStr = log.createdByName != null ? ' بواسطة (${log.createdByName})' : '';
+          final changerStr = log.createdByName != null
+              ? ' بواسطة (${log.createdByName})'
+              : '';
           return '• $dateStr$changerStr: تم تحويل العميل من (${log.oldStatusName ?? "—"}) الي (${log.newStatusName ?? "—"})';
         })
         .toList();
@@ -190,7 +211,12 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
     if (statusLogs.isEmpty) {
       return SizedBox(
         width: 350.w,
-        child: Text('—', style: cellStyle, textDirection: TextDirection.rtl, textAlign: TextAlign.right),
+        child: Text(
+          '—',
+          style: cellStyle,
+          textDirection: TextDirection.rtl,
+          textAlign: TextAlign.right,
+        ),
       );
     }
 
@@ -207,15 +233,17 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          ...displayedLogs.map((log) => Padding(
-                padding: EdgeInsets.only(bottom: 4.h),
-                child: Text(
-                  log,
-                  style: cellStyle,
-                  textDirection: TextDirection.rtl,
-                  textAlign: TextAlign.right,
-                ),
-              )),
+          ...displayedLogs.map(
+            (log) => Padding(
+              padding: EdgeInsets.only(bottom: 4.h),
+              child: Text(
+                log,
+                style: cellStyle,
+                textDirection: TextDirection.rtl,
+                textAlign: TextAlign.right,
+              ),
+            ),
+          ),
           if (hasMore) ...[
             SizedBox(height: 4.h),
             InkWell(
@@ -238,7 +266,7 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
                 ),
               ),
             ),
-          ]
+          ],
         ],
       ),
     );
@@ -252,7 +280,9 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
-      children: lead.phones.map((p) => Text(p.phoneNumber, style: cellStyle)).toList(),
+      children: lead.phones
+          .map((p) => Text(p.phoneNumber, style: cellStyle))
+          .toList(),
     );
   }
 
@@ -285,7 +315,9 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
       // تصفية العملاء بناءً على الحالة محلياً
       var filtered = fetchedLeads;
       if (_selectedStatusId != null) {
-        filtered = filtered.where((l) => l.statusId == _selectedStatusId).toList();
+        filtered = filtered
+            .where((l) => l.statusId == _selectedStatusId)
+            .toList();
       }
 
       // تصفية العملاء بناءً على حقل البحث بالاسم أو الهاتف
@@ -350,7 +382,10 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
     final cities = _dataManager.allCities;
     final employees = _dataManager.employees;
 
-    final isManager = widget.role == 'manager' || widget.role == 'admin' || widget.role == 'ceo';
+    final isManager =
+        widget.role == 'manager' ||
+        widget.role == 'admin' ||
+        widget.role == 'ceo';
 
     return Container(
       margin: EdgeInsets.only(top: 24.h),
@@ -364,7 +399,7 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
             color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 3),
-          )
+          ),
         ],
       ),
       child: Column(
@@ -378,30 +413,69 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
                 children: [
                   OutlinedButton.icon(
                     onPressed: () => DashboardExportHelper.exportToPdf(_leads),
-                    icon: const Icon(Icons.picture_as_pdf_outlined, color: Colors.red),
-                    label: Text('تصدير PDF', style: TextStyle(color: Colors.red, fontSize: 14.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+                    icon: const Icon(
+                      Icons.picture_as_pdf_outlined,
+                      color: Colors.red,
+                    ),
+                    label: Text(
+                      'تصدير PDF',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Cairo',
+                      ),
+                    ),
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Colors.red),
-                      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16.w,
+                        vertical: 12.h,
+                      ),
                     ),
                   ),
                   SizedBox(width: 10.w),
                   OutlinedButton.icon(
-                    onPressed: () => DashboardExportHelper.exportToExcel(_leads),
-                    icon: const Icon(Icons.grid_on_outlined, color: Colors.green),
-                    label: Text('تصدير Excel', style: TextStyle(color: Colors.green, fontSize: 14.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+                    onPressed: () =>
+                        DashboardExportHelper.exportToExcel(_leads),
+                    icon: const Icon(
+                      Icons.grid_on_outlined,
+                      color: Colors.green,
+                    ),
+                    label: Text(
+                      'تصدير Excel',
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Cairo',
+                      ),
+                    ),
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Colors.green),
-                      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16.w,
+                        vertical: 12.h,
+                      ),
                     ),
                   ),
                 ],
               ),
               Row(
                 children: [
-                  Text('تقرير تفاصيل ومتابعة العملاء', style: AppTextStyles.h2.copyWith(fontSize: 22.sp, fontFamily: 'Cairo')),
+                  Text(
+                    'تقرير تفاصيل ومتابعة العملاء',
+                    style: AppTextStyles.h2.copyWith(
+                      fontSize: 22.sp,
+                      fontFamily: 'Cairo',
+                    ),
+                  ),
                   SizedBox(width: 8.w),
-                  Icon(Icons.table_chart_rounded, color: AppColors.brandPrimary, size: 24.sp),
+                  Icon(
+                    Icons.table_chart_rounded,
+                    color: AppColors.brandPrimary,
+                    size: 24.sp,
+                  ),
                 ],
               ),
             ],
@@ -560,18 +634,28 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
                     _fromDate == null
                         ? 'تاريخ الإضافة'
                         : '${DateFormat("MM/dd").format(_fromDate!)} - ${DateFormat("MM/dd").format(_toDate!)}',
-                    style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Cairo',
+                    ),
                   ),
                   style: OutlinedButton.styleFrom(
                     padding: EdgeInsets.symmetric(vertical: 18.h),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.r),
+                    ),
                   ),
                 ),
               ),
               SizedBox(width: 12.w),
               IconButton(
                 onPressed: _clearFilters,
-                icon: Icon(Icons.filter_alt_off, color: Colors.red, size: 26.sp),
+                icon: Icon(
+                  Icons.filter_alt_off,
+                  color: Colors.red,
+                  size: 26.sp,
+                ),
                 tooltip: 'تفريغ الفلاتر',
                 padding: EdgeInsets.all(12.r),
               ),
@@ -617,7 +701,9 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
           if (_isLoading)
             Padding(
               padding: EdgeInsets.symmetric(vertical: 40.h),
-              child: const Center(child: CircularProgressIndicator(color: AppColors.brandPrimary)),
+              child: const Center(
+                child: CircularProgressIndicator(color: AppColors.brandPrimary),
+              ),
             )
           else if (_errorMessage != null)
             Padding(
@@ -625,13 +711,22 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
               child: Text(
                 'خطأ أثناء تحميل الجدول: $_errorMessage',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.red, fontSize: 15.sp, fontFamily: 'Cairo'),
+                style: TextStyle(
+                  color: Colors.red,
+                  fontSize: 15.sp,
+                  fontFamily: 'Cairo',
+                ),
               ),
             )
           else if (_leads.isEmpty)
             Padding(
               padding: EdgeInsets.symmetric(vertical: 40.h),
-              child: Center(child: Text('لا توجد نتائج مطابقة للفلاتر المعيّنة', style: TextStyle(fontSize: 16.sp, fontFamily: 'Cairo'))),
+              child: Center(
+                child: Text(
+                  'لا توجد نتائج مطابقة للفلاتر المعيّنة',
+                  style: TextStyle(fontSize: 16.sp, fontFamily: 'Cairo'),
+                ),
+              ),
             )
           else
             Container(
@@ -651,10 +746,7 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
                     child: SingleChildScrollView(
                       controller: _topScrollController,
                       scrollDirection: Axis.horizontal,
-                      child: SizedBox(
-                        width: 2880.w,
-                        height: 12.h,
-                      ),
+                      child: SizedBox(width: 2880.w, height: 12.h),
                     ),
                   ),
                   SizedBox(height: 6.h),
@@ -666,26 +758,72 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
                       scrollDirection: Axis.horizontal,
                       child: DataTable(
                         columnSpacing: 16.w,
-                        headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                        headingRowColor: WidgetStateProperty.all(
+                          const Color(0xFFF8FAFC),
+                        ),
                         dataRowMinHeight: 65.h,
                         dataRowMaxHeight: double.infinity,
                         headingRowHeight: 65.h,
                         columns: [
                           DataColumn(label: _cell('#', 50.w, isHeader: true)),
-                          DataColumn(label: _cell('اسم العميل', 180.w, isHeader: true)),
-                          DataColumn(label: _cell('أرقام الهاتف', 150.w, isHeader: true)),
-                          DataColumn(label: _cell('المسؤول', 150.w, isHeader: true)),
-                          DataColumn(label: _cell('تاريخ الإضافة', 160.w, isHeader: true)),
-                          DataColumn(label: _cell('كود العقار', 120.w, isHeader: true)),
-                          DataColumn(label: _cell('طلب العميل', 250.w, isHeader: true)),
-                          DataColumn(label: _cell('المنصة', 130.w, isHeader: true)),
-                          DataColumn(label: _cell('الحالة الحالية', 150.w, isHeader: true)),
-                          DataColumn(label: _cell('سبب الاستبعاد', 160.w, isHeader: true)),
-                          DataColumn(label: _cell('نوع الإعلان', 130.w, isHeader: true)),
-                          DataColumn(label: _cell('نوع العقار', 130.w, isHeader: true)),
-                          DataColumn(label: _cell('المدينة', 130.w, isHeader: true)),
-                          DataColumn(label: _cell('الملاحظات', 300.w, isHeader: true)),
-                          DataColumn(label: _cell('سجل تغيير الحالات', 350.w, isHeader: true)),
+                          DataColumn(
+                            label: _cell('اسم العميل', 180.w, isHeader: true),
+                          ),
+                          DataColumn(
+                            label: _cell('أرقام الهاتف', 150.w, isHeader: true),
+                          ),
+                          DataColumn(
+                            label: _cell('المسؤول', 150.w, isHeader: true),
+                          ),
+                          DataColumn(
+                            label: _cell(
+                              'تاريخ الإضافة',
+                              160.w,
+                              isHeader: true,
+                            ),
+                          ),
+                          DataColumn(
+                            label: _cell('كود العقار', 120.w, isHeader: true),
+                          ),
+                          DataColumn(
+                            label: _cell('طلب العميل', 250.w, isHeader: true),
+                          ),
+                          DataColumn(
+                            label: _cell('المنصة', 130.w, isHeader: true),
+                          ),
+                          DataColumn(
+                            label: _cell(
+                              'الحالة الحالية',
+                              150.w,
+                              isHeader: true,
+                            ),
+                          ),
+                          DataColumn(
+                            label: _cell(
+                              'سبب الاستبعاد',
+                              160.w,
+                              isHeader: true,
+                            ),
+                          ),
+                          DataColumn(
+                            label: _cell('نوع الإعلان', 130.w, isHeader: true),
+                          ),
+                          DataColumn(
+                            label: _cell('نوع العقار', 130.w, isHeader: true),
+                          ),
+                          DataColumn(
+                            label: _cell('المدينة', 130.w, isHeader: true),
+                          ),
+                          DataColumn(
+                            label: _cell('الملاحظات', 300.w, isHeader: true),
+                          ),
+                          DataColumn(
+                            label: _cell(
+                              'سجل تغيير الحالات',
+                              350.w,
+                              isHeader: true,
+                            ),
+                          ),
                         ],
                         rows: _leads.asMap().entries.map((entry) {
                           final idx = entry.key;
@@ -694,24 +832,46 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
                           return DataRow(
                             cells: [
                               DataCell(_cell('${idx + 1}', 50.w, isBold: true)),
-                              DataCell(_cell(lead.clientName, 180.w, isBold: true)),
-                              DataCell(_customCell(_buildPhonesCell(lead), 150.w)),
-                              DataCell(_cell(lead.assignedToName ?? '—', 150.w)),
-                              DataCell(_cell(
-                                lead.createdAt != null
-                                    ? DateFormat('dd/MM/yyyy HH:mm', 'en').format(lead.createdAt!)
-                                    : '—',
-                                160.w,
-                              )),
+                              DataCell(
+                                _cell(lead.clientName, 180.w, isBold: true),
+                              ),
+                              DataCell(
+                                _customCell(_buildPhonesCell(lead), 150.w),
+                              ),
+                              DataCell(
+                                _cell(lead.assignedToName ?? '—', 150.w),
+                              ),
+                              DataCell(
+                                _cell(
+                                  lead.createdAt != null
+                                      ? DateFormat(
+                                          'dd/MM/yyyy HH:mm',
+                                          'en',
+                                        ).format(lead.createdAt!)
+                                      : '—',
+                                  160.w,
+                                ),
+                              ),
                               DataCell(_cell(lead.propertyCode ?? '—', 120.w)),
-                              DataCell(_cell(lead.descLeadNeed ?? '—', 250.w, textDirection: TextDirection.rtl)),
+                              DataCell(
+                                _cell(
+                                  lead.descLeadNeed ?? '—',
+                                  250.w,
+                                  textDirection: TextDirection.rtl,
+                                ),
+                              ),
                               DataCell(_cell(lead.platform ?? '—', 130.w)),
                               DataCell(
                                 _customCell(
                                   Container(
-                                    padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 8.w,
+                                      vertical: 4.h,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: AppColors.brandPrimary.withValues(alpha: 0.1),
+                                      color: AppColors.brandPrimary.withValues(
+                                        alpha: 0.1,
+                                      ),
                                       borderRadius: BorderRadius.circular(6.r),
                                     ),
                                     child: Text(
@@ -726,12 +886,18 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
                                   150.w,
                                 ),
                               ),
-                              DataCell(_cell(lead.exclusionReasonName ?? '—', 160.w)),
+                              DataCell(
+                                _cell(lead.exclusionReasonName ?? '—', 160.w),
+                              ),
                               DataCell(_cell(lead.listingType ?? '—', 130.w)),
                               DataCell(_cell(lead.propertyType ?? '—', 130.w)),
                               DataCell(_cell(lead.city ?? '—', 130.w)),
-                              DataCell(_customCell(_buildNotesCell(lead, idx), 300.w)),
-                              DataCell(_customCell(_buildLogsCell(lead, idx), 350.w)),
+                              DataCell(
+                                _customCell(_buildNotesCell(lead, idx), 300.w),
+                              ),
+                              DataCell(
+                                _customCell(_buildLogsCell(lead, idx), 350.w),
+                              ),
                             ],
                           );
                         }).toList(),
