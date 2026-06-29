@@ -120,6 +120,16 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
     return SizedBox(width: width, child: child);
   }
 
+  bool _willTextExceedThreeLines(String text, double width) {
+    final textPainter = TextPainter(
+      text: TextSpan(text: text, style: cellStyle),
+      maxLines: 3,
+      textDirection: TextDirection.rtl,
+    );
+    textPainter.layout(maxWidth: width);
+    return textPainter.didExceedMaxLines;
+  }
+
   Widget _buildNotesCell(LeadModel lead, int idx) {
     if (lead.notes.isEmpty) {
       return SizedBox(
@@ -134,21 +144,11 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
     }
 
     final isExpanded = _expandedNotes.contains(idx);
-    final List<String> notesList = lead.notes
+    final notesText = lead.notes
         .map((n) => '• ${n.noteText}')
-        .toList();
+        .join('\n');
 
-    final bool hasMore =
-        notesList.length > 3 || notesList.any((note) => note.length > 100);
-    final List<String> displayedNotes = isExpanded
-        ? notesList
-        : notesList
-              .take(3)
-              .map(
-                (note) =>
-                    note.length > 100 ? '${note.substring(0, 97)}...' : note,
-              )
-              .toList();
+    final bool hasMore = _willTextExceedThreeLines(notesText, 300.w);
 
     return SizedBox(
       width: 300.w,
@@ -157,16 +157,13 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          ...displayedNotes.map(
-            (note) => Padding(
-              padding: EdgeInsets.only(bottom: 4.h),
-              child: Text(
-                note,
-                style: cellStyle,
-                textDirection: TextDirection.rtl,
-                textAlign: TextAlign.right,
-              ),
-            ),
+          Text(
+            notesText,
+            style: cellStyle,
+            maxLines: isExpanded ? null : 3,
+            overflow: isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+            textDirection: TextDirection.rtl,
+            textAlign: TextAlign.right,
           ),
           if (hasMore) ...[
             SizedBox(height: 4.h),
@@ -221,10 +218,8 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
     }
 
     final isExpanded = _expandedLogs.contains(idx);
-    final bool hasMore = statusLogs.length > 3;
-    final List<String> displayedLogs = isExpanded
-        ? statusLogs
-        : statusLogs.take(3).toList();
+    final logsText = statusLogs.join('\n');
+    final bool hasMore = _willTextExceedThreeLines(logsText, 350.w);
 
     return SizedBox(
       width: 350.w,
@@ -233,16 +228,13 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          ...displayedLogs.map(
-            (log) => Padding(
-              padding: EdgeInsets.only(bottom: 4.h),
-              child: Text(
-                log,
-                style: cellStyle,
-                textDirection: TextDirection.rtl,
-                textAlign: TextAlign.right,
-              ),
-            ),
+          Text(
+            logsText,
+            style: cellStyle,
+            maxLines: isExpanded ? null : 3,
+            overflow: isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+            textDirection: TextDirection.rtl,
+            textAlign: TextAlign.right,
           ),
           if (hasMore) ...[
             SizedBox(height: 4.h),

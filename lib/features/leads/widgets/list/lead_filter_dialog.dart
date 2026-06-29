@@ -273,14 +273,17 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
                         Row(
                           children: [
                             Expanded(
-                              child: CheckboxListTile(
-                                title: Text('لم تتغير حالتهم منذ أكثر من يومين', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold)),
-                                value: _isStagnant,
-                                contentPadding: EdgeInsets.zero,
-                                controlAffinity: ListTileControlAffinity.leading,
-                                dense: true,
-                                activeColor: AppColors.brandPrimary,
-                                onChanged: (v) => setState(() => _isStagnant = v ?? false),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: CheckboxListTile(
+                                  title: Text('لم تتغير حالتهم منذ أكثر من يومين', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold)),
+                                  value: _isStagnant,
+                                  contentPadding: EdgeInsets.zero,
+                                  controlAffinity: ListTileControlAffinity.leading,
+                                  dense: true,
+                                  activeColor: AppColors.brandPrimary,
+                                  onChanged: (v) => setState(() => _isStagnant = v ?? false),
+                                ),
                               ),
                             ),
                           ],
@@ -288,14 +291,17 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
                         Row(
                           children: [
                             Expanded(
-                              child: CheckboxListTile(
-                                title: Text('العملاء المؤرشفين فقط', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold)),
-                                value: _isArchived,
-                                contentPadding: EdgeInsets.zero,
-                                controlAffinity: ListTileControlAffinity.leading,
-                                dense: true,
-                                activeColor: AppColors.brandPrimary,
-                                onChanged: (v) => setState(() => _isArchived = v ?? false),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: CheckboxListTile(
+                                  title: Text('العملاء المؤرشفين فقط', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold)),
+                                  value: _isArchived,
+                                  contentPadding: EdgeInsets.zero,
+                                  controlAffinity: ListTileControlAffinity.leading,
+                                  dense: true,
+                                  activeColor: AppColors.brandPrimary,
+                                  onChanged: (v) => setState(() => _isArchived = v ?? false),
+                                ),
                               ),
                             ),
                           ],
