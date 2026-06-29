@@ -304,6 +304,13 @@ class LeadService {
     return await getLeadById(id);
   }
 
+  /// تحديث متجه البحث لطلب العميل (Embedding) في قاعدة البيانات
+  Future<void> updateLeadEmbedding(String id, List<double>? vector) async {
+    await _supabase.from('leads').update({
+      'embedding': vector,
+    }).eq('id', id);
+  }
+
   /// تحديث حالة العميل فقط وتفريغ المحول منه لإنهاء المهمة
   Future<LeadModel> updateLeadStatus(String leadId, String statusId) async {
     final isExcluded = statusId == '34f6f48c-3179-4b83-b34e-edc3fdc2e3d4';
@@ -375,11 +382,13 @@ class LeadService {
     String? listingTypeId,
     int? governorateId,
     int? cityId,
+    required String role,
+    required String userId,
   }) async {
     final response = await _supabase.rpc('match_leads', params: {
       'query_embedding': vector,
-      'match_threshold': 0.70,
-      'match_count': 10,
+      'match_threshold': 0.15, // تقليل الحد الأدنى للمطابقة لضمان الحصول على نتائج للبحث المخصص
+      'match_count': 50,       // جلب عدد كافٍ من النتائج للتصفية اللاحقة حسب الموظف
       'filter_property_type_id': propertyTypeId,
       'filter_listing_type_id': listingTypeId,
       'filter_governorate_id': governorateId,
@@ -390,8 +399,23 @@ class LeadService {
     if (rpcResults.isEmpty) return [];
 
     final List<String> ids = rpcResults.map((r) => r['id'].toString()).toList();
-    final fullLeads = await _supabase.from('leads').select(_selectList).inFilter('id', ids);
-    return (fullLeads as List).map((e) => LeadModel.fromJson(e)).toList();
+    
+    var query = _supabase.from('leads').select(_selectList).inFilter('id', ids);
+    if (!_isManagerOrAdmin(role)) {
+      query = query.eq('assigned_to', userId);
+    }
+    
+    final fullLeads = await query;
+    final List<LeadModel> leads = (fullLeads as List).map((e) => LeadModel.fromJson(e)).toList();
+    
+    // إعادة الترتيب حسب ترتيب درجات التشابه الـ Cosine Similarity
+    leads.sort((a, b) {
+      final indexA = ids.indexOf(a.id.toString());
+      final indexB = ids.indexOf(b.id.toString());
+      return indexA.compareTo(indexB);
+    });
+
+    return leads;
   }
 
   Future<List<LeadModel>> searchLeads(String term, {String type = 'phone', required String role, required String userId}) async {

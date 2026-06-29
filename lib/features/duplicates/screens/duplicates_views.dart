@@ -212,7 +212,10 @@ class _LeadDuplicatesViewState extends State<LeadDuplicatesView> with AutomaticK
                       MaterialPageRoute(
                         builder: (_) => BlocProvider.value(
                           value: context.read<LeadCubit>(),
-                          child: LeadDetailsScreen(leadId: l.id ?? ''),
+                          child: LeadDetailsScreen(
+                            leadId: l.id ?? '',
+                            currentUser: widget.user,
+                          ),
                         ),
                       ),
                     ),

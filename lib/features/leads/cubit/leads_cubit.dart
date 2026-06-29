@@ -183,13 +183,14 @@ class LeadCubit extends Cubit<LeadState> {
     String? listingTypeId,
     int? governorateId,
     int? cityId,
+    required String role,
+    required String userId,
   }) async {
     final currentState = state is LeadLoaded ? state as LeadLoaded : null;
     if (currentState == null) return;
 
     if (query.isEmpty) { clearSearch(); return; }
     
-    // حفظ الـ filteredLeads القديمة عشان لو حصل خطأ نرجعها؟ لا الـ isSearching بتعرض filteredLeads.
     emit(LeadLoading());
     try {
       final useFilters = currentState.currentFilter != 'الكل';
@@ -199,6 +200,8 @@ class LeadCubit extends Cubit<LeadState> {
         listingTypeId: listingTypeId ?? (useFilters ? _currentListingTypeId : null),
         governorateId: governorateId ?? (useFilters ? _currentGovernorateId : null),
         cityId: cityId ?? (useFilters ? _currentCityId : null),
+        role: role,
+        userId: userId,
       );
       emit(currentState.copyWith(filteredLeads: results, isSearching: true));
     } catch (e) {

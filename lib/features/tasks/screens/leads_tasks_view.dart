@@ -96,7 +96,10 @@ class _LeadsTasksViewState extends State<LeadsTasksView>
       MaterialPageRoute(
         builder: (_) => BlocProvider(
           create: (_) => di.sl<LeadCubit>()..loadSingleLeadAndEmployees(lead, widget.user.role),
-          child: LeadDetailsScreen(leadId: lead.id!),
+          child: LeadDetailsScreen(
+            leadId: lead.id!,
+            currentUser: widget.user,
+          ),
         ),
       ),
     );

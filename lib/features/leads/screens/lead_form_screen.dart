@@ -212,11 +212,26 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
                                     label: "رقم الهاتف ${idx + 1}",
                                     keyboardType: TextInputType.phone,
                                     forceLtr: true,
+                                    inputFormatters: [
+                                      EnglishDigitsFormatter(),
+                                      LengthLimitingTextInputFormatter(15),
+                                    ],
                                     validator: idx == 0
-                                        ? (v) => (v == null || v.trim().isEmpty)
-                                            ? 'رقم الهاتف الأساسي مطلوب'
-                                            : null
-                                        : null,
+                                        ? (v) {
+                                            if (v == null || v.trim().isEmpty) {
+                                              return 'رقم الهاتف الأساسي مطلوب';
+                                            }
+                                            if (RegExp(r'[^\d]').hasMatch(v)) {
+                                              return 'يرجى إدخال أرقام إنجليزية فقط';
+                                            }
+                                            return null;
+                                          }
+                                        : (v) {
+                                            if (v != null && v.isNotEmpty && RegExp(r'[^\d]').hasMatch(v)) {
+                                              return 'يرجى إدخال أرقام إنجليزية فقط';
+                                            }
+                                            return null;
+                                          },
                                   ),
                                 ),
                                 if (idx > 0) ...[
@@ -609,15 +624,24 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isSubmitting = true);
 
-      // بناء قائمة الأرقام كـ LeadPhoneModel
+      // بناء قائمة الأرقام كـ LeadPhoneModel مع تنظيف الأرقام الإنجليزية
       final phones = _phoneControllers.asMap().entries
           .where((e) => e.value.text.trim().isNotEmpty)
-          .map((e) => LeadPhoneModel(
-                phoneNumber: e.value.text.trim(),
-                isPrimary: _phonePrimary.length > e.key
-                    ? _phonePrimary[e.key]
-                    : e.key == 0,
-              ))
+          .map((e) {
+            String rawPhone = e.value.text.trim();
+            const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+            const englishDigits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+            for (int i = 0; i < 10; i++) {
+              rawPhone = rawPhone.replaceAll(arabicDigits[i], englishDigits[i]);
+            }
+            rawPhone = rawPhone.replaceAll(RegExp(r'[^0-9]'), '');
+            return LeadPhoneModel(
+              phoneNumber: rawPhone,
+              isPrimary: _phonePrimary.length > e.key
+                  ? _phonePrimary[e.key]
+                  : e.key == 0,
+            );
+          })
           .toList();
 
       // تحويل الاختيارات النصية إلى IDs
@@ -834,5 +858,39 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
             );
       }
     }
+  }
+}
+
+class EnglishDigitsFormatter extends TextInputFormatter {
+  static const _arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+  static const _englishDigits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    String text = newValue.text;
+    
+    // تحويل الأرقام العربية إلى إنجليزية
+    for (int i = 0; i < 10; i++) {
+      text = text.replaceAll(_arabicDigits[i], _englishDigits[i]);
+    }
+    
+    // فلترة المدخلات للسماح بالأرقام الإنجليزية فقط
+    final filteredText = text.replaceAll(RegExp(r'[^0-9]'), '');
+    
+    // حساب الموضع الجديد للمؤشر بشكل ذكي
+    int newSelectionOffset = newValue.selection.baseOffset;
+    if (newSelectionOffset > filteredText.length) {
+      newSelectionOffset = filteredText.length;
+    } else if (newSelectionOffset < 0) {
+      newSelectionOffset = 0;
+    }
+    
+    return TextEditingValue(
+      text: filteredText,
+      selection: TextSelection.collapsed(offset: newSelectionOffset),
+    );
   }
 }

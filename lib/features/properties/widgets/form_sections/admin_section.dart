@@ -55,31 +55,34 @@ class AdminSection extends StatelessWidget {
                   : const Color(0xFFE31E24).withValues(alpha: 0.2),
             ),
           ),
-          child: SwitchListTile(
-            contentPadding:
-                EdgeInsets.symmetric(horizontal: 14.w, vertical: 2.h),
-            title: Text(
-              status ? 'نشط — يظهر للعملاء' : 'غير نشط — مخفي',
-              style: TextStyle(
-                fontFamily: 'Cairo',
-                fontSize: 13.sp,
-                fontWeight: FontWeight.w600,
-                color: status
-                    ? const Color(0xFF2D6A4F)
-                    : const Color(0xFFE31E24),
+          child: Material(
+            color: Colors.transparent,
+            child: SwitchListTile(
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 14.w, vertical: 2.h),
+              title: Text(
+                status ? 'نشط — يظهر للعملاء' : 'غير نشط — مخفي',
+                style: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w600,
+                  color: status
+                      ? const Color(0xFF2D6A4F)
+                      : const Color(0xFFE31E24),
+                ),
               ),
-            ),
-            subtitle: Text(
-              status ? 'العقار ظاهر في القوائم' : 'العقار مخفي ولا يظهر للمستخدمين',
-              style: TextStyle(
-                fontFamily: 'Cairo',
-                fontSize: 11.sp,
-                color: const Color(0xFF64748B),
+              subtitle: Text(
+                status ? 'العقار ظاهر في القوائم' : 'العقار مخفي ولا يظهر للمستخدمين',
+                style: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 11.sp,
+                  color: const Color(0xFF64748B),
+                ),
               ),
+              value: status,
+              onChanged: onStatusChanged,
+              activeColor: const Color(0xFF2D6A4F),
             ),
-            value: status,
-            onChanged: onStatusChanged,
-            activeColor: const Color(0xFF2D6A4F),
           ),
         ),
       ],

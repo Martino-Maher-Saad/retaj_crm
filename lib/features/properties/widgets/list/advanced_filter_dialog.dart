@@ -281,12 +281,15 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
               
               if (widget.role == 'sales') ...[
                 SizedBox(height: 20.h),
-                SwitchListTile(
-                  title: Text("البحث في كل العقارات (وليس عقاراتي فقط)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.sp)),
-                  value: _searchAll,
-                  activeColor: AppColors.brandPrimary,
-                  onChanged: (val) => setState(() => _searchAll = val),
-                  contentPadding: EdgeInsets.zero,
+                Material(
+                  color: Colors.transparent,
+                  child: SwitchListTile(
+                    title: Text("البحث في كل العقارات (وليس عقاراتي فقط)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.sp)),
+                    value: _searchAll,
+                    activeColor: AppColors.brandPrimary,
+                    onChanged: (val) => setState(() => _searchAll = val),
+                    contentPadding: EdgeInsets.zero,
+                  ),
                 ),
               ],
               if (widget.role == 'manager' || widget.role == 'admin' || widget.role == 'ceo') ...[

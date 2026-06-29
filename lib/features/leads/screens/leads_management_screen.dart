@@ -140,7 +140,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                     LeadSearchBar(
                       onSearch: (query, type) {
                         if (type == 'general') {
-                          _cubit.smartSearch(query);
+                          _cubit.smartSearch(query, role: widget.user.role, userId: widget.user.id);
                         } else {
                           _cubit.search(query, type: type, role: widget.user.role, userId: widget.user.id);
                         }
@@ -318,7 +318,10 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
       MaterialPageRoute(
         builder: (_) => BlocProvider.value(
           value: _cubit,
-          child: LeadDetailsScreen(leadId: lead.id!),
+          child: LeadDetailsScreen(
+            leadId: lead.id!,
+            currentUser: widget.user,
+          ),
         ),
       ),
     );

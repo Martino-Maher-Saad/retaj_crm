@@ -38,9 +38,17 @@ class _LeadSearchBarState extends State<LeadSearchBar> {
       padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 8.h),
       child: Column(
         children: [
+          // البحث الذكي في متطلبات العملاء (دلالي)
+          _buildSearchField(
+            hint: "البحث الذكي في متطلبات العملاء (سيمانتك)...",
+            type: 'general',
+            icon: Icons.auto_awesome,
+            keyboardType: TextInputType.text,
+          ),
+          SizedBox(height: 10.h),
           // بحث برقم العميل
           _buildSearchField(
-            hint: "بحث برقم العميل...",
+            hint: "بحث برقم هاتف العميل...",
             type: 'phone',
             icon: Icons.phone,
             keyboardType: TextInputType.phone,

@@ -7,14 +7,20 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../../../core/widgets/retaj_shared_fields.dart';
 import '../../../data/models/lead_model.dart';
+import '../../../data/models/profile_model.dart';
 import '../cubit/leads_cubit.dart';
 import '../cubit/leads_state.dart';
 import 'smart_match_screen.dart';
 
 class LeadDetailsScreen extends StatefulWidget {
   final String leadId;
+  final ProfileModel currentUser;
 
-  const LeadDetailsScreen({super.key, required this.leadId});
+  const LeadDetailsScreen({
+    super.key,
+    required this.leadId,
+    required this.currentUser,
+  });
 
   @override
   State<LeadDetailsScreen> createState() => _LeadDetailsScreenState();
@@ -221,7 +227,12 @@ class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
                         child: ElevatedButton.icon(
                           onPressed: () => Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => SmartMatchScreen(lead: lead)),
+                            MaterialPageRoute(
+                              builder: (_) => SmartMatchScreen(
+                                lead: lead,
+                                currentUser: widget.currentUser,
+                              ),
+                            ),
                           ),
                           icon: Icon(Icons.auto_awesome, size: 20.sp),
                           label: Text(

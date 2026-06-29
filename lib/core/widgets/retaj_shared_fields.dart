@@ -1018,30 +1018,35 @@ class RetajDatePicker extends StatelessWidget {
         borderRadius: BorderRadius.circular(8.r),
         border: Border.all(color: AppColors.borderSubtle),
       ),
-      child: ListTile(
-        contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 0),
-        leading: Icon(
-          Icons.calendar_today_outlined,
-          color: AppColors.brandPrimary,
-          size: 20.sp,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(8.r),
+        clipBehavior: Clip.antiAlias,
+        child: ListTile(
+          contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 0),
+          leading: Icon(
+            Icons.calendar_today_outlined,
+            color: AppColors.brandPrimary,
+            size: 20.sp,
+          ),
+          title: Text(
+            selectedDate == null
+                ? label
+                : "${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}",
+            style: selectedDate == null
+                ? AppTextStyles.tableCellSub
+                : AppTextStyles.inputText,
+          ),
+          onTap: () async {
+            final d = await showDatePicker(
+              context: context,
+              initialDate: DateTime.now(),
+              firstDate: DateTime(2020),
+              lastDate: DateTime(2040),
+            );
+            if (d != null) onDateSelected(d);
+          },
         ),
-        title: Text(
-          selectedDate == null
-              ? label
-              : "${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}",
-          style: selectedDate == null
-              ? AppTextStyles.tableCellSub
-              : AppTextStyles.inputText,
-        ),
-        onTap: () async {
-          final d = await showDatePicker(
-            context: context,
-            initialDate: DateTime.now(),
-            firstDate: DateTime(2020),
-            lastDate: DateTime(2040),
-          );
-          if (d != null) onDateSelected(d);
-        },
       ),
     );
   }

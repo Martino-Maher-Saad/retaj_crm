@@ -128,11 +128,27 @@ class LeadRepository {
     List<LeadNoteModel> notes = const [],
   }) async {
     try {
-      return await _leadService.addLead(lead, phones, notes: notes);
+      List<double>? vector;
+      if (lead.descLeadNeed != null && lead.descLeadNeed!.trim().isNotEmpty) {
+        final aiService = di.sl<AiService>();
+        vector = await aiService.generateEmbedding(lead.descLeadNeed!.trim(), useGemini: true);
+        if (vector == null || vector.isEmpty) {
+          throw 'فشل في حساب دلالات البحث من سيرفر الذكاء الاصطناعي لوصف طلب العميل';
+        }
+      }
+
+      final newLead = await _leadService.addLead(lead, phones, notes: notes);
+
+      if (vector != null && newLead.id != null) {
+        await _leadService.updateLeadEmbedding(newLead.id!, vector);
+      }
+
+      return newLead;
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
-      throw 'فشل الاتصال بالسيرفر، تأكد من الإنترنت';
+      if (e is String) rethrow;
+      throw 'فشل إضافة العميل، حدث خطأ أثناء المعالجة أو توليد المتجه الدلالي لطلب العميل';
     }
   }
 
@@ -143,13 +159,29 @@ class LeadRepository {
     String? newNote,
   }) async {
     try {
-      return await _leadService.updateLead(id, lead, phones, newNote: newNote);
+      List<double>? vector;
+      final bool hasNewNeed = lead.descLeadNeed != null && lead.descLeadNeed!.trim().isNotEmpty;
+      if (hasNewNeed) {
+        final aiService = di.sl<AiService>();
+        vector = await aiService.generateEmbedding(lead.descLeadNeed!.trim(), useGemini: true);
+        if (vector == null || vector.isEmpty) {
+          throw 'فشل في حساب دلالات البحث من سيرفر الذكاء الاصطناعي لوصف طلب العميل';
+        }
+      }
+
+      final updatedLead = await _leadService.updateLead(id, lead, phones, newNote: newNote);
+
+      // تحديث المتجه دائمًا في السيرفر (حتى لو كان فارغًا نقوم بتصفيره)
+      await _leadService.updateLeadEmbedding(id, vector);
+
+      return updatedLead;
     } on PostgrestException catch (e) {
       print('🚀 Supabase Error in updateLeadData: ${e.message} \n Details: ${e.details} \n Hint: ${e.hint}');
       throw _handlePostgrestError(e);
     } catch (e) {
+      if (e is String) rethrow;
       print('🚀 Unknown Error in updateLeadData: $e');
-      throw 'فشل تحديث البيانات، حاول مرة أخرى';
+      throw 'فشل تحديث البيانات، حاول مرة أخرى أو توليد المتجه الدلالي لطلب العميل';
     }
   }
 
@@ -219,11 +251,13 @@ class LeadRepository {
     String? listingTypeId,
     int? governorateId,
     int? cityId,
+    required String role,
+    required String userId,
   }) async {
     try {
       final aiService = di.sl<AiService>();
-      final vector = await aiService.generateEmbedding(query);
-      if (vector == null) throw 'فشل في حساب دلالات البحث من سيرفر الذكاء الاصطناعي';
+      final vector = await aiService.generateEmbedding(query, useGemini: true);
+      if (vector == null || vector.isEmpty) throw 'فشل في حساب دلالات البحث من سيرفر الذكاء الاصطناعي';
       
       return await _leadService.searchLeadsByAi(
         vector: vector,
@@ -231,9 +265,16 @@ class LeadRepository {
         listingTypeId: listingTypeId,
         governorateId: governorateId,
         cityId: cityId,
+        role: role,
+        userId: userId,
       );
-    } catch (e) {
-      throw 'حدث خطأ أثناء البحث الذكي';
+    } catch (e, s) {
+      print("========== SMART SEARCH LEADS ERROR ==========");
+      print("Error: $e");
+      print("Stack trace: $s");
+      print("=============================================");
+      if (e is String) rethrow;
+      throw 'حدث خطأ أثناء البحث الذكي: $e';
     }
   }
 

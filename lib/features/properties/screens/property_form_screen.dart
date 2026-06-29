@@ -365,12 +365,14 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                           maxLines: null,
                           minLines: 3,
                         ),
-                        SizedBox(height: 24.h),
-                        SwitchListTile(
-                          title: const Text("حالة العقار (متاح؟)"),
-                          value: status,
-                          activeColor: AppColors.brandPrimary,
-                          onChanged: (v) => setState(() => status = v),
+                        Material(
+                          color: Colors.transparent,
+                          child: SwitchListTile(
+                            title: const Text("حالة العقار (متاح؟)"),
+                            value: status,
+                            activeColor: AppColors.brandPrimary,
+                            onChanged: (v) => setState(() => status = v),
+                          ),
                         ),
                       ],
                     ),
