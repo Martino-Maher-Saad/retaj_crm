@@ -1,12 +1,13 @@
-import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../core/utils/property_cache_manager.dart';
 import '../../../core/utils/number_formatter.dart';
+import '../../../core/utils/property_cache_manager.dart';
 import '../../../core/utils/whatsapp_share_helper.dart';
 import '../../../data/models/property_model.dart';
 import 'property_share_sheet.dart';
@@ -49,16 +50,23 @@ class _PropertyCardState extends State<PropertyCard> {
     final String? firstImageUrl = widget.property.images.isNotEmpty
         ? widget.property.images.first.thumbnail
         : null;
-    final String displayUrl = firstImageUrl ??
+    final String displayUrl =
+        firstImageUrl ??
         "https://upload.wikimedia.org/wikipedia/commons/a/a3/Image-not-found.png";
 
     final bool isMine = widget.property.createdBy == widget.currentUserId;
-    final bool isManagerOrAdmin = widget.role == 'manager' || widget.role == 'admin' || widget.role == 'ceo';
+    final bool isManagerOrAdmin =
+        widget.role == 'manager' ||
+        widget.role == 'admin' ||
+        widget.role == 'ceo';
     final bool shouldMask = widget.role == 'sales' && !isMine;
 
     // تنسيق التاريخ
     final String formattedDate = widget.property.createdAt != null
-        ? DateFormat('dd/MM/yyyy HH:mm', 'en').format(widget.property.createdAt!)
+        ? DateFormat(
+            'dd/MM/yyyy HH:mm',
+            'en',
+          ).format(widget.property.createdAt!)
         : 'غير محدد';
 
     return MouseRegion(
@@ -174,12 +182,18 @@ class _PropertyCardState extends State<PropertyCard> {
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 _buildStatusBadge(),
-                                if (widget.property.approvalStatusName != null) ...[
+                                if (widget.property.approvalStatusName !=
+                                    null) ...[
                                   SizedBox(height: 5.h),
                                   Container(
-                                    padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 10.w,
+                                      vertical: 4.h,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: Colors.blueAccent.withValues(alpha: 0.88),
+                                      color: Colors.blueAccent.withValues(
+                                        alpha: 0.88,
+                                      ),
                                       borderRadius: BorderRadius.circular(8.r),
                                     ),
                                     child: Text(
@@ -204,9 +218,18 @@ class _PropertyCardState extends State<PropertyCard> {
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   shape: BoxShape.circle,
-                                  boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black26,
+                                      blurRadius: 4,
+                                    ),
+                                  ],
                                 ),
-                                child: Icon(Icons.push_pin_rounded, color: AppColors.brandPrimary, size: 20.sp),
+                                child: Icon(
+                                  Icons.push_pin_rounded,
+                                  color: AppColors.brandPrimary,
+                                  size: 20.sp,
+                                ),
                               ),
                             ),
                         ],
@@ -223,10 +246,13 @@ class _PropertyCardState extends State<PropertyCard> {
                               children: [
                                 Container(
                                   padding: EdgeInsets.symmetric(
-                                      horizontal: 14.w, vertical: 6.h),
+                                    horizontal: 14.w,
+                                    vertical: 6.h,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: AppColors.brandPrimary
-                                        .withValues(alpha: 0.08),
+                                    color: AppColors.brandPrimary.withValues(
+                                      alpha: 0.08,
+                                    ),
                                     borderRadius: BorderRadius.circular(8.r),
                                   ),
                                   child: Text(
@@ -259,8 +285,11 @@ class _PropertyCardState extends State<PropertyCard> {
                             SizedBox(height: 12.h),
                             Row(
                               children: [
-                                Icon(Icons.location_on_outlined,
-                                    size: 20.sp, color: AppColors.brandAccent),
+                                Icon(
+                                  Icons.location_on_outlined,
+                                  size: 20.sp,
+                                  color: AppColors.brandAccent,
+                                ),
                                 SizedBox(width: 6.w),
                                 Expanded(
                                   child: Text(
@@ -279,8 +308,11 @@ class _PropertyCardState extends State<PropertyCard> {
                             SizedBox(height: 12.h),
                             Row(
                               children: [
-                                Icon(Icons.access_time,
-                                    size: 20.sp, color: AppColors.textSecondary),
+                                Icon(
+                                  Icons.access_time,
+                                  size: 20.sp,
+                                  color: AppColors.textSecondary,
+                                ),
                                 SizedBox(width: 6.w),
                                 Text(
                                   formattedDate,
@@ -296,8 +328,11 @@ class _PropertyCardState extends State<PropertyCard> {
                               SizedBox(height: 12.h),
                               Row(
                                 children: [
-                                  Icon(Icons.person_outline,
-                                      size: 20.sp, color: AppColors.info),
+                                  Icon(
+                                    Icons.person_outline,
+                                    size: 20.sp,
+                                    color: AppColors.info,
+                                  ),
                                   SizedBox(width: 6.w),
                                   Text(
                                     "بواسطة: ${widget.property.createdByName ?? '---'}",
@@ -326,13 +361,21 @@ class _PropertyCardState extends State<PropertyCard> {
                                 FontAwesomeIcons.whatsapp,
                                 const Color(0xFF25D366),
                                 "مشاركة",
-                                () => showPropertyShareSheet(context, widget.property, canShareInternal: isMine || isManagerOrAdmin),
+                                () => showPropertyShareSheet(
+                                  context,
+                                  widget.property,
+                                  canShareInternal: isMine || isManagerOrAdmin,
+                                ),
                               ),
                               if (widget.onPinToggle != null) ...[
                                 SizedBox(height: 14.h),
                                 _actionButton(
-                                  widget.property.isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
-                                  widget.property.isPinned ? AppColors.brandPrimary : Colors.grey,
+                                  widget.property.isPinned
+                                      ? Icons.push_pin_rounded
+                                      : Icons.push_pin_outlined,
+                                  widget.property.isPinned
+                                      ? AppColors.brandPrimary
+                                      : Colors.grey,
                                   "تثبيت العقار",
                                   widget.onPinToggle!,
                                 ),
@@ -343,7 +386,10 @@ class _PropertyCardState extends State<PropertyCard> {
                                 AppColors.success,
                                 "تحميل الصور",
                                 () {
-                                  WhatsappShareHelper.downloadImages(context, widget.property);
+                                  WhatsappShareHelper.downloadImages(
+                                    context,
+                                    widget.property,
+                                  );
                                 },
                               ),
                               SizedBox(height: 14.h),
@@ -352,7 +398,10 @@ class _PropertyCardState extends State<PropertyCard> {
                                 Colors.blueAccent,
                                 "نسخ التفاصيل",
                                 () {
-                                  WhatsappShareHelper.copyToClipboard(context, widget.property);
+                                  WhatsappShareHelper.copyToClipboard(
+                                    context,
+                                    widget.property,
+                                  );
                                 },
                               ),
                             ],
@@ -420,14 +469,23 @@ class _PropertyCardState extends State<PropertyCard> {
     );
   }
 
-  Widget _actionButton(IconData icon, Color color, String tooltipMsg, VoidCallback onPressed) {
+  Widget _actionButton(
+    dynamic icon,
+    Color color,
+    String tooltipMsg,
+    VoidCallback onPressed,
+  ) {
     return Tooltip(
       message: tooltipMsg,
       decoration: BoxDecoration(
         color: AppColors.brandPrimary,
         borderRadius: BorderRadius.circular(8.r),
       ),
-      textStyle: TextStyle(color: Colors.white, fontSize: 12.sp, fontWeight: FontWeight.bold),
+      textStyle: TextStyle(
+        color: Colors.white,
+        fontSize: 12.sp,
+        fontWeight: FontWeight.bold,
+      ),
       preferBelow: false,
       child: InkWell(
         onTap: onPressed,
@@ -439,7 +497,9 @@ class _PropertyCardState extends State<PropertyCard> {
             borderRadius: BorderRadius.circular(12.r),
             border: Border.all(color: color.withValues(alpha: 0.15)),
           ),
-          child: Icon(icon, color: color, size: 28.sp),
+          child: icon is IconData
+              ? Icon(icon, color: color, size: 28.sp)
+              : FaIcon(icon, color: color, size: 28.sp),
         ),
       ),
     );

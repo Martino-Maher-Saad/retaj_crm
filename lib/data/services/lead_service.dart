@@ -53,9 +53,10 @@ class LeadService {
       'communication_channels!channel_id(name_ar), '
       'cities!city_id(name), '
       'governorates!governorate_id(name), '
+      'lead_exclusion_reasons!exclusion_reason_id(name_ar), '
       'lead_phones(id, phone_number, is_primary), '
       'lead_notes(id, note_text, created_at, user_id, user:profiles!lead_notes_user_id_fkey(first_name, last_name)), '
-      'lead_logs(id, action, created_at, old_status:lead_statuses!old_status_id(name_ar), new_status:lead_statuses!new_status_id(name_ar))';
+      'lead_logs(id, action, created_at, creator:profiles!lead_logs_changed_by_fkey(first_name, last_name), old_status:lead_statuses!old_status_id(name_ar), new_status:lead_statuses!new_status_id(name_ar))';
 
   Future<List<LeadModel>> fetchAllLeads({
     required String role,

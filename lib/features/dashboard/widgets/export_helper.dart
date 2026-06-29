@@ -19,41 +19,51 @@ class DashboardExportHelper {
         TextCellValue('#'),
         TextCellValue('اسم العميل'),
         TextCellValue('أرقام الهاتف'),
-        TextCellValue('المسؤول عن العميل'),
+        TextCellValue('المسؤول'),
+        TextCellValue('تاريخ الإضافة'),
+        TextCellValue('كود العقار'),
+        TextCellValue('طلب العميل'),
+        TextCellValue('المنصة'),
         TextCellValue('الحالة الحالية'),
+        TextCellValue('سبب الاستبعاد'),
         TextCellValue('نوع الإعلان'),
         TextCellValue('نوع العقار'),
-        TextCellValue('المحافظة'),
         TextCellValue('المدينة'),
-        TextCellValue('المنصة'),
         TextCellValue('الملاحظات'),
         TextCellValue('سجل تغيير الحالات'),
-        TextCellValue('تاريخ الإضافة'),
       ]);
 
       for (int i = 0; i < leads.length; i++) {
         final l = leads[i];
-        final phonesStr = l.phones.map((p) => p.phoneNumber).join('، ');
-        final notesStr = l.notes.map((n) => '[${n.userName ?? "موظف"}: ${n.noteText}]').join('\n');
+        final phonesStr = l.phones.map((p) => p.phoneNumber).join('\n');
+        final notesStr = l.notes.isEmpty
+            ? '—'
+            : l.notes.map((n) => '• ${n.noteText}').join('\n');
         final logsStr = l.logs
             .where((log) => log.action == 'status_changed')
-            .map((log) => '${log.oldStatusName ?? "—"} ➔ ${log.newStatusName ?? "—"} (${DateFormat("yyyy/MM/dd").format(log.createdAt)})')
-            .join(' | ');
+            .map((log) {
+              final dateStr = DateFormat("dd/MM/yyyy HH:mm").format(log.createdAt);
+              final changerStr = log.createdByName != null ? ' بواسطة (${log.createdByName})' : '';
+              return '• $dateStr$changerStr: تم تحويل العميل من (${log.oldStatusName ?? "—"}) الي (${log.newStatusName ?? "—"})';
+            })
+            .join('\n');
 
         sheet.appendRow([
           IntCellValue(i + 1),
           TextCellValue(l.clientName),
           TextCellValue(phonesStr),
           TextCellValue(l.assignedToName ?? '—'),
+          TextCellValue(l.createdAt != null ? DateFormat("dd/MM/yyyy HH:mm").format(l.createdAt!) : '—'),
+          TextCellValue(l.propertyCode ?? '—'),
+          TextCellValue(l.descLeadNeed ?? '—'),
+          TextCellValue(l.platform ?? '—'),
           TextCellValue(l.leadStatus ?? '—'),
+          TextCellValue(l.exclusionReasonName ?? '—'),
           TextCellValue(l.listingType ?? '—'),
           TextCellValue(l.propertyType ?? '—'),
-          TextCellValue(l.governorate ?? '—'),
           TextCellValue(l.city ?? '—'),
-          TextCellValue(l.platform ?? '—'),
           TextCellValue(notesStr),
           TextCellValue(logsStr),
-          TextCellValue(l.createdAt != null ? DateFormat("yyyy/MM/dd HH:mm").format(l.createdAt!) : '—')
         ]);
       }
 
@@ -141,14 +151,19 @@ class DashboardExportHelper {
                   <tr>
                     <th>#</th>
                     <th>اسم العميل</th>
-                    <th>الهاتف</th>
+                    <th>أرقام الهاتف</th>
                     <th>المسؤول</th>
-                    <th>الحالة</th>
+                    <th>تاريخ الإضافة</th>
+                    <th>كود العقار</th>
+                    <th>طلب العميل</th>
+                    <th>المنصة</th>
+                    <th>الحالة الحالية</th>
+                    <th>سبب الاستبعاد</th>
                     <th>نوع الإعلان</th>
                     <th>نوع العقار</th>
                     <th>المدينة</th>
                     <th>الملاحظات</th>
-                    <th>سجل انتقالات الحالة</th>
+                    <th>سجل تغيير الحالات</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -157,10 +172,16 @@ class DashboardExportHelper {
         for (int i = 0; i < leads.length; i++) {
           final l = leads[i];
           final phonesStr = l.phones.map((p) => p.phoneNumber).join('<br>');
-          final notesStr = l.notes.map((n) => '• <b>${n.userName ?? "موظف"}:</b> ${n.noteText}').join('<br>');
+          final notesStr = l.notes.isEmpty
+              ? '—'
+              : l.notes.map((n) => '• ${n.noteText}').join('<br>');
           final logsStr = l.logs
               .where((log) => log.action == 'status_changed')
-              .map((log) => '${log.oldStatusName ?? "—"} ➔ ${log.newStatusName ?? "—"} (${DateFormat("yyyy/MM/dd").format(log.createdAt)})')
+              .map((log) {
+                final dateStr = DateFormat("dd/MM/yyyy HH:mm").format(log.createdAt);
+                final changerStr = log.createdByName != null ? ' بواسطة (${log.createdByName})' : '';
+                return '• $dateStr$changerStr: تم تحويل العميل من (${log.oldStatusName ?? "—"}) الي (${log.newStatusName ?? "—"})';
+              })
               .join('<br>');
 
           buf.write('''
@@ -169,12 +190,17 @@ class DashboardExportHelper {
               <td><b>${l.clientName}</b></td>
               <td style="direction: ltr; text-align: left;">$phonesStr</td>
               <td>${l.assignedToName ?? '—'}</td>
+              <td>${l.createdAt != null ? DateFormat("dd/MM/yyyy HH:mm").format(l.createdAt!) : '—'}</td>
+              <td>${l.propertyCode ?? '—'}</td>
+              <td style="direction: rtl; text-align: right;">${l.descLeadNeed ?? '—'}</td>
+              <td>${l.platform ?? '—'}</td>
               <td>${l.leadStatus ?? '—'}</td>
+              <td>${l.exclusionReasonName ?? '—'}</td>
               <td>${l.listingType ?? '—'}</td>
               <td>${l.propertyType ?? '—'}</td>
               <td>${l.city ?? '—'}</td>
-              <td style="font-size: 10px;">$notesStr</td>
-              <td style="font-size: 10px;">$logsStr</td>
+              <td style="font-size: 10px; direction: rtl; text-align: right;">$notesStr</td>
+              <td style="font-size: 10px; direction: rtl; text-align: right;">$logsStr</td>
             </tr>
           ''');
         }

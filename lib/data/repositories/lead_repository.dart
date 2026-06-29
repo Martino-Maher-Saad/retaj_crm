@@ -75,8 +75,12 @@ class LeadRepository {
         fromDate: fromDate,
         toDate: toDate,
       );
-    } catch (e) {
-      throw 'حدث خطأ أثناء تحميل بيانات تقرير العملاء';
+    } catch (e, s) {
+      print("============== DATABASE FETCH EXCEL LEADS ERROR ==============");
+      print("Error: $e");
+      print("Stack trace: $s");
+      print("=============================================================");
+      throw 'حدث خطأ أثناء تحميل بيانات تقرير العملاء: $e';
     }
   }
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/di/injection_container.dart' as di;
@@ -42,16 +42,218 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  // Controllers for synchronized scrollbars
+  final ScrollController _topScrollController = ScrollController();
+  final ScrollController _bottomScrollController = ScrollController();
+
+  // Expanded states for notes and logs
+  final Set<int> _expandedNotes = {};
+  final Set<int> _expandedLogs = {};
+
+  final TextStyle headerStyle = TextStyle(
+    fontSize: 18.sp,
+    fontWeight: FontWeight.bold,
+    color: AppColors.textPrimary,
+    fontFamily: 'Cairo',
+  );
+
+  final TextStyle cellStyle = TextStyle(
+    fontSize: 18.sp,
+    color: AppColors.textPrimary,
+    fontFamily: 'Cairo',
+  );
+
   @override
   void initState() {
     super.initState();
     _loadLeads();
+
+    _topScrollController.addListener(() {
+      if (_topScrollController.offset != _bottomScrollController.offset) {
+        _bottomScrollController.jumpTo(_topScrollController.offset);
+      }
+    });
+
+    _bottomScrollController.addListener(() {
+      if (_bottomScrollController.offset != _topScrollController.offset) {
+        _topScrollController.jumpTo(_topScrollController.offset);
+      }
+    });
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _topScrollController.dispose();
+    _bottomScrollController.dispose();
     super.dispose();
+  }
+
+  Widget _cell(String text, double width, {bool isHeader = false, bool isBold = false, Color? color, TextDirection? textDirection}) {
+    return SizedBox(
+      width: width,
+      child: Text(
+        text,
+        style: isHeader
+            ? headerStyle
+            : cellStyle.copyWith(
+                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                color: color,
+              ),
+        overflow: TextOverflow.ellipsis,
+        maxLines: isHeader ? 2 : 3,
+        textDirection: textDirection,
+        textAlign: textDirection == TextDirection.rtl ? TextAlign.right : null,
+      ),
+    );
+  }
+
+  Widget _customCell(Widget child, double width) {
+    return SizedBox(
+      width: width,
+      child: child,
+    );
+  }
+
+  Widget _buildNotesCell(LeadModel lead, int idx) {
+    if (lead.notes.isEmpty) {
+      return SizedBox(
+        width: 300.w,
+        child: Text('—', style: cellStyle, textDirection: TextDirection.rtl, textAlign: TextAlign.right),
+      );
+    }
+
+    final isExpanded = _expandedNotes.contains(idx);
+    final List<String> notesList = lead.notes
+        .map((n) => '• ${n.noteText}')
+        .toList();
+    
+    final bool hasMore = notesList.length > 3 || notesList.any((note) => note.length > 100);
+    final List<String> displayedNotes = isExpanded
+        ? notesList
+        : notesList.take(3).map((note) => note.length > 100 ? '${note.substring(0, 97)}...' : note).toList();
+
+    return SizedBox(
+      width: 300.w,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ...displayedNotes.map((note) => Padding(
+                padding: EdgeInsets.only(bottom: 4.h),
+                child: Text(
+                  note,
+                  style: cellStyle,
+                  textDirection: TextDirection.rtl,
+                  textAlign: TextAlign.right,
+                ),
+              )),
+          if (hasMore) ...[
+            SizedBox(height: 4.h),
+            InkWell(
+              onTap: () {
+                setState(() {
+                  if (isExpanded) {
+                    _expandedNotes.remove(idx);
+                  } else {
+                    _expandedNotes.add(idx);
+                  }
+                });
+              },
+              child: Text(
+                isExpanded ? 'عرض أقل' : 'المزيد...',
+                style: TextStyle(
+                  fontSize: 14.sp,
+                  color: Colors.blue,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Cairo',
+                ),
+              ),
+            ),
+          ]
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLogsCell(LeadModel lead, int idx) {
+    final statusLogs = lead.logs
+        .where((log) => log.action == 'status_changed')
+        .map((log) {
+          final dateStr = DateFormat("dd/MM/yyyy HH:mm").format(log.createdAt);
+          final changerStr = log.createdByName != null ? ' بواسطة (${log.createdByName})' : '';
+          return '• $dateStr$changerStr: تم تحويل العميل من (${log.oldStatusName ?? "—"}) الي (${log.newStatusName ?? "—"})';
+        })
+        .toList();
+
+    if (statusLogs.isEmpty) {
+      return SizedBox(
+        width: 350.w,
+        child: Text('—', style: cellStyle, textDirection: TextDirection.rtl, textAlign: TextAlign.right),
+      );
+    }
+
+    final isExpanded = _expandedLogs.contains(idx);
+    final bool hasMore = statusLogs.length > 3;
+    final List<String> displayedLogs = isExpanded
+        ? statusLogs
+        : statusLogs.take(3).toList();
+
+    return SizedBox(
+      width: 350.w,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ...displayedLogs.map((log) => Padding(
+                padding: EdgeInsets.only(bottom: 4.h),
+                child: Text(
+                  log,
+                  style: cellStyle,
+                  textDirection: TextDirection.rtl,
+                  textAlign: TextAlign.right,
+                ),
+              )),
+          if (hasMore) ...[
+            SizedBox(height: 4.h),
+            InkWell(
+              onTap: () {
+                setState(() {
+                  if (isExpanded) {
+                    _expandedLogs.remove(idx);
+                  } else {
+                    _expandedLogs.add(idx);
+                  }
+                });
+              },
+              child: Text(
+                isExpanded ? 'عرض أقل' : 'المزيد...',
+                style: TextStyle(
+                  fontSize: 14.sp,
+                  color: Colors.blue,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Cairo',
+                ),
+              ),
+            ),
+          ]
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPhonesCell(LeadModel lead) {
+    if (lead.phones.isEmpty) {
+      return Text('—', style: cellStyle);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: lead.phones.map((p) => Text(p.phoneNumber, style: cellStyle)).toList(),
+    );
   }
 
   @override
@@ -97,7 +299,11 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
       } else {
         _leads = filtered;
       }
-    } catch (e) {
+    } catch (e, s) {
+      print("============== LEADS INVENTORY ERROR DETECTED ==============");
+      print("Error loading dashboard leads table: $e");
+      print("Stack trace: $s");
+      print("==========================================================");
       _errorMessage = e.toString();
     } finally {
       setState(() => _isLoading = false);
@@ -434,85 +640,105 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
                 borderRadius: BorderRadius.circular(12.r),
               ),
               clipBehavior: Clip.antiAlias,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-                  dataRowMinHeight: 85.h,
-                  dataRowMaxHeight: 120.h,
-                  headingRowHeight: 65.h,
-                  columns: [
-                    DataColumn(label: Text('#', style: AppTextStyles.tableHeader.copyWith(fontSize: 19.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'))),
-                    DataColumn(label: Text('اسم العميل', style: AppTextStyles.tableHeader.copyWith(fontSize: 19.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'))),
-                    DataColumn(label: Text('أرقام الهاتف', style: AppTextStyles.tableHeader.copyWith(fontSize: 19.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'))),
-                    DataColumn(label: Text('المسؤول', style: AppTextStyles.tableHeader.copyWith(fontSize: 19.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'))),
-                    DataColumn(label: Text('الحالة الحالية', style: AppTextStyles.tableHeader.copyWith(fontSize: 19.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'))),
-                    DataColumn(label: Text('نوع الإعلان', style: AppTextStyles.tableHeader.copyWith(fontSize: 19.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'))),
-                    DataColumn(label: Text('نوع العقار', style: AppTextStyles.tableHeader.copyWith(fontSize: 19.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'))),
-                    DataColumn(label: Text('المدينة', style: AppTextStyles.tableHeader.copyWith(fontSize: 19.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'))),
-                    DataColumn(label: Text('الملاحظات', style: AppTextStyles.tableHeader.copyWith(fontSize: 19.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'))),
-                    DataColumn(label: Text('سجل تغيير الحالات', style: AppTextStyles.tableHeader.copyWith(fontSize: 19.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'))),
-                  ],
-                  rows: _leads.asMap().entries.map((entry) {
-                    final idx = entry.key;
-                    final lead = entry.value;
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // المؤشر العلوي للتمرير الأفقي (Top Scrollbar)
+                  Scrollbar(
+                    controller: _topScrollController,
+                    thumbVisibility: true,
+                    trackVisibility: true,
+                    child: SingleChildScrollView(
+                      controller: _topScrollController,
+                      scrollDirection: Axis.horizontal,
+                      child: SizedBox(
+                        width: 2880.w,
+                        height: 12.h,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 6.h),
+                  // جدول البيانات الأساسي مع التمرير المتزامن
+                  Scrollbar(
+                    controller: _bottomScrollController,
+                    child: SingleChildScrollView(
+                      controller: _bottomScrollController,
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        columnSpacing: 16.w,
+                        headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                        dataRowMinHeight: 65.h,
+                        dataRowMaxHeight: double.infinity,
+                        headingRowHeight: 65.h,
+                        columns: [
+                          DataColumn(label: _cell('#', 50.w, isHeader: true)),
+                          DataColumn(label: _cell('اسم العميل', 180.w, isHeader: true)),
+                          DataColumn(label: _cell('أرقام الهاتف', 150.w, isHeader: true)),
+                          DataColumn(label: _cell('المسؤول', 150.w, isHeader: true)),
+                          DataColumn(label: _cell('تاريخ الإضافة', 160.w, isHeader: true)),
+                          DataColumn(label: _cell('كود العقار', 120.w, isHeader: true)),
+                          DataColumn(label: _cell('طلب العميل', 250.w, isHeader: true)),
+                          DataColumn(label: _cell('المنصة', 130.w, isHeader: true)),
+                          DataColumn(label: _cell('الحالة الحالية', 150.w, isHeader: true)),
+                          DataColumn(label: _cell('سبب الاستبعاد', 160.w, isHeader: true)),
+                          DataColumn(label: _cell('نوع الإعلان', 130.w, isHeader: true)),
+                          DataColumn(label: _cell('نوع العقار', 130.w, isHeader: true)),
+                          DataColumn(label: _cell('المدينة', 130.w, isHeader: true)),
+                          DataColumn(label: _cell('الملاحظات', 300.w, isHeader: true)),
+                          DataColumn(label: _cell('سجل تغيير الحالات', 350.w, isHeader: true)),
+                        ],
+                        rows: _leads.asMap().entries.map((entry) {
+                          final idx = entry.key;
+                          final lead = entry.value;
 
-                    final phones = lead.phones.map((p) => p.phoneNumber).join('\n');
-                    final notes = lead.notes
-                        .map((n) => '• ${n.userName ?? "موظف"}: ${n.noteText}')
-                        .join('\n');
-
-                    final logs = lead.logs
-                        .where((log) => log.action == 'status_changed')
-                        .map((log) =>
-                            '${log.oldStatusName ?? "—"} ➔ ${log.newStatusName ?? "—"} (${DateFormat("MM/dd").format(log.createdAt)})')
-                        .join('\n');
-
-                    return DataRow(
-                      cells: [
-                        DataCell(Text('${idx + 1}', style: AppTextStyles.tableCellSub.copyWith(fontSize: 18.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'))),
-                        DataCell(Text(lead.clientName, style: AppTextStyles.tableCellMain.copyWith(fontWeight: FontWeight.w900, fontSize: 20.sp, fontFamily: 'Cairo'))),
-                        DataCell(Text(phones, style: AppTextStyles.tableCellSub.copyWith(fontSize: 18.sp, fontFamily: 'Cairo'), textAlign: TextAlign.left)),
-                        DataCell(Text(lead.assignedToName ?? '—', style: AppTextStyles.tableCellSub.copyWith(fontSize: 18.sp, fontFamily: 'Cairo'))),
-                        DataCell(
-                          Container(
-                            padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-                            decoration: BoxDecoration(
-                              color: AppColors.brandPrimary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(6.r),
-                            ),
-                            child: Text(lead.leadStatus ?? '—', style: AppTextStyles.tableCellSub.copyWith(color: AppColors.brandPrimary, fontWeight: FontWeight.bold, fontSize: 18.sp, fontFamily: 'Cairo')),
-                          ),
-                        ),
-                        DataCell(Text(lead.listingType ?? '—', style: AppTextStyles.tableCellSub.copyWith(fontSize: 18.sp, fontFamily: 'Cairo'))),
-                        DataCell(Text(lead.propertyType ?? '—', style: AppTextStyles.tableCellSub.copyWith(fontSize: 18.sp, fontFamily: 'Cairo'))),
-                        DataCell(Text(lead.city ?? '—', style: AppTextStyles.tableCellSub.copyWith(fontSize: 18.sp, fontFamily: 'Cairo'))),
-                        DataCell(
-                          SizedBox(
-                            width: 300.w,
-                            child: Text(
-                              notes.isEmpty ? '—' : notes,
-                              style: AppTextStyles.tableCellSub.copyWith(fontSize: 17.sp, fontFamily: 'Cairo'),
-                              maxLines: 4,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          SizedBox(
-                            width: 320.w,
-                            child: Text(
-                              logs.isEmpty ? '—' : logs,
-                              style: AppTextStyles.tableCellSub.copyWith(fontSize: 17.sp, fontFamily: 'Cairo'),
-                              maxLines: 4,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  }).toList(),
-                ),
+                          return DataRow(
+                            cells: [
+                              DataCell(_cell('${idx + 1}', 50.w, isBold: true)),
+                              DataCell(_cell(lead.clientName, 180.w, isBold: true)),
+                              DataCell(_customCell(_buildPhonesCell(lead), 150.w)),
+                              DataCell(_cell(lead.assignedToName ?? '—', 150.w)),
+                              DataCell(_cell(
+                                lead.createdAt != null
+                                    ? DateFormat('dd/MM/yyyy HH:mm', 'en').format(lead.createdAt!)
+                                    : '—',
+                                160.w,
+                              )),
+                              DataCell(_cell(lead.propertyCode ?? '—', 120.w)),
+                              DataCell(_cell(lead.descLeadNeed ?? '—', 250.w, textDirection: TextDirection.rtl)),
+                              DataCell(_cell(lead.platform ?? '—', 130.w)),
+                              DataCell(
+                                _customCell(
+                                  Container(
+                                    padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.brandPrimary.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(6.r),
+                                    ),
+                                    child: Text(
+                                      lead.leadStatus ?? '—',
+                                      style: cellStyle.copyWith(
+                                        color: AppColors.brandPrimary,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  150.w,
+                                ),
+                              ),
+                              DataCell(_cell(lead.exclusionReasonName ?? '—', 160.w)),
+                              DataCell(_cell(lead.listingType ?? '—', 130.w)),
+                              DataCell(_cell(lead.propertyType ?? '—', 130.w)),
+                              DataCell(_cell(lead.city ?? '—', 130.w)),
+                              DataCell(_customCell(_buildNotesCell(lead, idx), 300.w)),
+                              DataCell(_customCell(_buildLogsCell(lead, idx), 350.w)),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
         ],

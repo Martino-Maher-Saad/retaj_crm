@@ -73,6 +73,7 @@ class LeadLogEntryModel {
   final DateTime createdAt;
   final String? oldStatusName;
   final String? newStatusName;
+  final String? createdByName;
 
   const LeadLogEntryModel({
     required this.id,
@@ -80,17 +81,24 @@ class LeadLogEntryModel {
     required this.createdAt,
     this.oldStatusName,
     this.newStatusName,
+    this.createdByName,
   });
 
   factory LeadLogEntryModel.fromJson(Map<String, dynamic> json) {
     final oldStatusMap = json['old_status'] as Map<String, dynamic>?;
     final newStatusMap = json['new_status'] as Map<String, dynamic>?;
+    final creatorMap = json['creator'] as Map<String, dynamic>?;
+    final creatorName = creatorMap != null
+        ? '${creatorMap['first_name'] ?? ''} ${creatorMap['last_name'] ?? ''}'.trim()
+        : null;
+
     return LeadLogEntryModel(
       id: json['id']?.toString() ?? '',
       action: json['action']?.toString() ?? '',
       createdAt: DateTime.parse(json['created_at']).toLocal(),
       oldStatusName: oldStatusMap?['name_ar']?.toString(),
       newStatusName: newStatusMap?['name_ar']?.toString(),
+      createdByName: creatorName?.isNotEmpty == true ? creatorName : null,
     );
   }
 }
