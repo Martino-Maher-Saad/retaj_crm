@@ -385,11 +385,18 @@ class LeadService {
 
   /// إضافة ملاحظة من شاشة التفاصيل — عملية واحدة لا تحتاج RPC
   Future<LeadModel> addNote(String leadId, String noteText) async {
+    final text = noteText.trim();
     await _supabase.from('lead_notes').insert({
       'lead_id': leadId,
       'user_id': _supabase.auth.currentUser?.id,
-      'note_text': noteText.trim(),
+      'note_text': text,
     });
+    
+    // التحديث في جدول العملاء مباشرة لتسريع جلب البيانات وتقليل الضغط
+    await _supabase.from('leads').update({
+      'last_comment': text,
+    }).eq('id', leadId);
+    
     return await getLeadById(leadId);
   }
 

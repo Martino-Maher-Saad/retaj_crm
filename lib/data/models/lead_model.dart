@@ -128,6 +128,7 @@ class LeadModel {
 
   // حقول أخرى
   final String? descLeadNeed;
+  final String? lastComment;
   final String? propertyCode;
   final List<LeadNoteModel> notes;
   final List<LeadLogEntryModel> logs;
@@ -169,6 +170,7 @@ class LeadModel {
     this.communicationChannel,
     this.exclusionReasonName,
     this.descLeadNeed,
+    this.lastComment,
     this.propertyCode,
     this.notes = const [],
     this.logs = const [],
@@ -208,6 +210,7 @@ class LeadModel {
     String? communicationChannel,
     String? exclusionReasonName,
     String? descLeadNeed,
+    String? lastComment,
     String? propertyCode,
     List<LeadNoteModel>? notes,
     List<LeadLogEntryModel>? logs,
@@ -246,6 +249,7 @@ class LeadModel {
       communicationChannel: communicationChannel ?? this.communicationChannel,
       exclusionReasonName: exclusionReasonName ?? this.exclusionReasonName,
       descLeadNeed: descLeadNeed ?? this.descLeadNeed,
+      lastComment: lastComment ?? this.lastComment,
       propertyCode: propertyCode ?? this.propertyCode,
       notes: notes ?? this.notes,
       logs: logs ?? this.logs,
@@ -354,6 +358,7 @@ class LeadModel {
       exclusionReasonId: json['exclusion_reason_id']?.toString(),
       
       descLeadNeed: json['desc_lead_need'],
+      lastComment: json['last_comment'],
       propertyCode: json['property_code'],
       budgetFrom: json['budget_from'] != null
           ? num.tryParse(json['budget_from'].toString()) : null,
