@@ -6,14 +6,12 @@ class PropertyListHeader extends StatelessWidget {
   final int totalCount;
   final VoidCallback onAdd;
   final VoidCallback? onFilter;
-  final Widget? searchBar;
 
   const PropertyListHeader({
     super.key,
     required this.totalCount,
     required this.onAdd,
     this.onFilter,
-    this.searchBar,
   });
 
   @override
@@ -26,7 +24,6 @@ class PropertyListHeader extends StatelessWidget {
       totalCount: totalCount,
       onFilter: onFilter,
       filterLabel: 'فلاتر',
-      searchBar: searchBar,
     );
   }
 }

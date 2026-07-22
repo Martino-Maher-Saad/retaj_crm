@@ -123,7 +123,7 @@ class _AdminPropertyTaskCardState extends State<AdminPropertyTaskCard> {
                   _infoCol(
                     Icons.location_on_outlined,
                     'الموقع',
-                    " ${widget.property.cityAr}",
+                    "${widget.property.governorateAr}",
                   ),
                   if (widget.property.createdByName != null)
                     _infoCol(

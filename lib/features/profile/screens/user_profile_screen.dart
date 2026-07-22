@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl_phone_field/intl_phone_field.dart' as intl_phone_field;
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
@@ -267,29 +266,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       ),
                       SizedBox(height: AppConstants.p16),
 
-                      intl_phone_field.IntlPhoneField(
-                        decoration: InputDecoration(
-                          labelText: 'رقم الهاتف',
-                          filled: true,
-                          fillColor: Colors.grey.withValues(alpha: 0.05),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10.r),
-                            borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10.r),
-                            borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
-                          ),
-                        ),
-                        initialCountryCode: 'EG',
-                        initialValue: _phoneController.text,
-                        onChanged: (phone) {
-                          _phoneController.text = phone.completeNumber;
-                        },
-                        validator: (v) {
-                          if (v == null || v.completeNumber.isEmpty) return 'مطلوب';
-                          return null;
-                        },
+                      RetajTextField(
+                        controller: _phoneController,
+                        label: 'رقم الهاتف',
+                        prefixIcon: Icons.phone_outlined,
+                        keyboardType: TextInputType.phone,
                       ),
                       SizedBox(height: AppConstants.p32),
 

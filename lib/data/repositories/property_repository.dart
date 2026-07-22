@@ -64,7 +64,6 @@ class PropertyRepository {
     }
   }
 
-
   Future<List<PropertyModel>> getMyProperties(String uid, int f, int t) async {
     final data = await _pService.getMyProperties(userId: uid, from: f, to: t);
     return data.map((e) => PropertyModel.fromJson(e)).toList();

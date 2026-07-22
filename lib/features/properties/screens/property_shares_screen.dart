@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_roles.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../cubit/property_shares_cubit.dart';
 import '../widgets/property_share_card.dart';
@@ -31,14 +30,14 @@ class _PropertySharesScreenState extends State<PropertySharesScreen> {
     _adminCubit = di.sl<AdminUsersCubit>();
     _sharesCubit = PropertySharesCubit(widget.user.id);
     final role = widget.user.role;
-    if (widget.user.appRole.isAtLeast(AppRole.manager)) {
+    if (role == 'admin' || role == 'manager' || role == 'ceo') {
       _adminCubit.fetchAllUsers();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool canFilter = widget.user.appRole.isAtLeast(AppRole.manager);
+    final bool canFilter = widget.user.role == 'admin' || widget.user.role == 'manager' || widget.user.role == 'ceo';
 
     return BlocProvider.value(
       value: _sharesCubit,

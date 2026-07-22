@@ -21,14 +21,7 @@ class AuthRepository {
       }
 
       final profileData = await _authService.getUserProfile(response.user!.id);
-      final profile = ProfileModel.fromJson(profileData);
-      
-      if (!profile.isActive) {
-        await _authService.signOut();
-        throw AuthCustomException("عفواً، تم إيقاف هذا الحساب. يرجى مراجعة الإدارة.");
-      }
-      
-      return profile;
+      return ProfileModel.fromJson(profileData);
 
     } on ServerException {
       rethrow;
@@ -46,14 +39,7 @@ class AuthRepository {
       if (session == null) return null;
 
       final profileData = await _authService.getUserProfile(session.user.id);
-      final profile = ProfileModel.fromJson(profileData);
-      
-      if (!profile.isActive) {
-        await _authService.signOut();
-        return null;
-      }
-      
-      return profile;
+      return ProfileModel.fromJson(profileData);
     } catch (e) {
       return null;
     }

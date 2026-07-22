@@ -175,41 +175,62 @@ class EmployeeDashboardView extends StatelessWidget {
                 SizedBox(height: 20.h),
               ],
 
-              // ─── 4 Summary Cards (EngazCRM Style) ───
-              LayoutBuilder(builder: (context, constraints) {
-                final isWide = constraints.maxWidth > 800;
-                return Wrap(
-                  spacing: 16.w,
-                  runSpacing: 16.h,
-                  children: [
-                    _buildEngazCard(
-                      title: 'إجمالي العملاء',
+              // Summary Cards Grid
+              Row(
+                children: [
+                  Expanded(
+                    child: DashboardStatCard(
+                      title: 'عدد عملائي الكلي',
                       value: '${data.leadsCount}',
-                      trend: null,
-                      isWide: isWide,
+                      icon: Icons.people_outline_rounded,
+                      color: AppColors.brandPrimary,
                     ),
-                    _buildEngazCard(
-                      title: 'إجمالي العقارات',
+                  ),
+                  SizedBox(width: 14.w),
+                  Expanded(
+                    child: DashboardStatCard(
+                      title: 'عدد العقارات الكلية بالشركة',
                       value: '${data.propertiesCount}',
-                      trend: null,
-                      isWide: isWide,
+                      icon: Icons.home_work_outlined,
+                      color: AppColors.warning,
                     ),
-                    _buildEngazCard(
-                      title: 'تم التعاقد',
+                  ),
+                ],
+              ),
+              SizedBox(height: 14.h),
+              Row(
+                children: [
+                  Expanded(
+                    child: DashboardStatCard(
+                      title: 'نسبة التحويل للعملاء',
+                      value: '${data.conversionRate.toStringAsFixed(1)}%',
+                      icon: Icons.percent_rounded,
+                      color: const Color(0xFF8B5CF6),
+                    ),
+                  ),
+                  SizedBox(width: 14.w),
+                  Expanded(
+                    child: DashboardStatCard(
+                      title: 'التعاقدات المكتملة',
                       value: '${data.contractedCount}',
-                      trend: null,
-                      isWide: isWide,
+                      icon: Icons.handshake_outlined,
+                      color: AppColors.success,
                     ),
-                    _buildEngazCard(
-                      title: 'عملاء متأخرون (Stale)',
-                      value: '${data.staleLeadsCount}',
-                      trend: null,
-                      isWide: isWide,
-                      isAlert: data.staleLeadsCount > 0,
-                    ),
-                  ],
-                );
-              }),
+                  ),
+                ],
+              ),
+              SizedBox(height: 14.h),
+              DashboardStatCard(
+                title: 'متوسط وقت الإغلاق (أيام)',
+                value: data.avgClosingDays == 0
+                    ? 'لا توجد تعاقدات بعد'
+                    : data.avgClosingDays < 1
+                    ? 'أقل من يوم'
+                    : '${data.avgClosingDays.toStringAsFixed(1)} يوم',
+                icon: Icons.timer_rounded,
+                color: const Color(0xFF0EA5E9),
+                subtitle: 'الوقت المستغرق من إنشاء العميل وحتى التعاقد الفعلي',
+              ),
               SizedBox(height: 32.h),
 
               // ─── [ GROUP 1: LEAD REPORTS & CHARTS ] ───
@@ -975,76 +996,6 @@ class EmployeeDashboardView extends StatelessWidget {
             );
           }).toList(),
         ),
-      ),
-    );
-  }
-
-  Widget _buildEngazCard({
-    required String title,
-    required String value,
-    String? trend,
-    required bool isWide,
-    bool isAlert = false,
-  }) {
-    return Container(
-      width: isWide ? 220.w : 150.w,
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: isAlert ? Colors.red.shade50 : Colors.white,
-        borderRadius: BorderRadius.circular(16.r),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-        border: isAlert ? Border.all(color: Colors.red.shade200, width: 1.5) : null,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 16.sp,
-              color: isAlert ? Colors.red.shade700 : Colors.grey[600],
-              fontWeight: FontWeight.w600,
-              fontFamily: 'Cairo',
-            ),
-          ),
-          SizedBox(height: 12.h),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 28.sp,
-              fontWeight: FontWeight.bold,
-              color: isAlert ? Colors.red.shade700 : AppColors.textPrimary,
-            ),
-          ),
-          if (trend != null) ...[
-            SizedBox(height: 8.h),
-            Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8.r),
-                  ),
-                  child: Text(
-                    trend,
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      color: Colors.green[700],
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
       ),
     );
   }

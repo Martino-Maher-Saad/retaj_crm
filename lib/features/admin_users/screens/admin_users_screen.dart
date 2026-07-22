@@ -6,9 +6,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
-import '../../../core/constants/app_roles.dart';
-import '../../../core/di/injection_container.dart' as di;
-import '../../../core/utils/static_data_manager.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/widgets/retaj_shared_fields.dart';
 import '../../../data/models/profile_model.dart';
@@ -16,8 +13,7 @@ import '../cubit/admin_users_cubit.dart';
 import '../cubit/admin_users_state.dart';
 
 class AdminUsersScreen extends StatefulWidget {
-  final ProfileModel currentUser;
-  const AdminUsersScreen({super.key, required this.currentUser});
+  const AdminUsersScreen({super.key});
 
   @override
   State<AdminUsersScreen> createState() => _AdminUsersScreenState();
@@ -31,16 +27,13 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   }
 
   void _showAddUserBottomSheet() {
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (_) => BlocProvider.value(
         value: context.read<AdminUsersCubit>(),
-        child: Dialog(
-          child: SizedBox(
-            width: 500,
-            child: _AddUserForm(currentUser: widget.currentUser),
-          ),
-        ),
+        child: const _AddUserForm(),
       ),
     );
   }
@@ -50,43 +43,32 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       context: context,
       builder: (_) => BlocProvider.value(
         value: context.read<AdminUsersCubit>(),
-        child: _EditUserDialog(user: user, currentUser: widget.currentUser),
+        child: _EditUserDialog(user: user),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        backgroundColor: AppColors.bgMain,
-        appBar: AppBar(
-          title: Text('إدارة حسابات الموظفين', style: AppTextStyles.h2),
-          backgroundColor: AppColors.bgSurface,
-          elevation: 0,
-          centerTitle: true,
-          bottom: const TabBar(
-            labelColor: AppColors.brandPrimary,
-            unselectedLabelColor: AppColors.textSecondary,
-            indicatorColor: AppColors.brandPrimary,
-            tabs: [
-              Tab(text: 'الحسابات النشطة', icon: Icon(Icons.check_circle_outline)),
-              Tab(text: 'الحسابات الموقوفة', icon: Icon(Icons.block)),
-            ],
-          ),
+    return Scaffold(
+      backgroundColor: AppColors.bgMain,
+      appBar: AppBar(
+        title: Text('إدارة حسابات الموظفين', style: AppTextStyles.h2),
+        backgroundColor: AppColors.bgSurface,
+        elevation: 0,
+        centerTitle: true,
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: "admin_users_fab",
+        onPressed: _showAddUserBottomSheet,
+        backgroundColor: AppColors.brandPrimary,
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text(
+          'إضافة موظف',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          heroTag: "admin_users_fab",
-          onPressed: _showAddUserBottomSheet,
-          backgroundColor: AppColors.brandPrimary,
-          icon: const Icon(Icons.add, color: Colors.white),
-          label: const Text(
-            'إضافة موظف',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-        ),
-        body: BlocConsumer<AdminUsersCubit, AdminUsersState>(
+      ),
+      body: BlocConsumer<AdminUsersCubit, AdminUsersState>(
         listener: (context, state) {
           if (state is AdminUsersError) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -150,118 +132,105 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           }
           final cubitState = context.read<AdminUsersCubit>().state;
           if (cubitState is AdminUsersLoaded) {
-            final activeUsers = cubitState.users.where((u) => u.isActive).toList();
-            final inactiveUsers = cubitState.users.where((u) => !u.isActive).toList();
-            return TabBarView(
-              children: [
-                RefreshIndicator(
-                  onRefresh: () => context.read<AdminUsersCubit>().fetchAllUsers(),
-                  child: _buildUsersTable(activeUsers, context, isActiveTab: true),
-                ),
-                RefreshIndicator(
-                  onRefresh: () => context.read<AdminUsersCubit>().fetchAllUsers(),
-                  child: _buildUsersTable(inactiveUsers, context, isActiveTab: false),
-                ),
-              ],
+            final users = cubitState.users;
+            return RefreshIndicator(
+              onRefresh: () => context.read<AdminUsersCubit>().fetchAllUsers(),
+              child: ListView.separated(
+                padding: EdgeInsets.all(
+                  AppConstants.p16,
+                ).copyWith(bottom: 80.h),
+                itemCount: users.length,
+                separatorBuilder: (_, __) => SizedBox(height: AppConstants.p16),
+                itemBuilder: (context, index) {
+                  final user = users[index];
+                  return Container(
+                    padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16.r),
+                      border: Border.all(color: AppColors.borderSubtle, width: 1.w),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.02),
+                          blurRadius: 10.r,
+                          offset: const Offset(0, 4),
+                        )
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 24.r,
+                          backgroundColor: AppColors.bgMain,
+                          backgroundImage:
+                              user.imageUrl != null && user.imageUrl!.isNotEmpty
+                              ? NetworkImage(user.imageUrl!)
+                              : null,
+                          child:
+                              (user.imageUrl == null || user.imageUrl!.isEmpty)
+                              ? Icon(
+                                  Icons.person,
+                                  color: AppColors.textDisabled,
+                                )
+                              : null,
+                        ),
+                        SizedBox(width: 12.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(user.fullName, style: AppTextStyles.h3),
+                              SizedBox(height: 4.h),
+                              Text(
+                                user.email,
+                                style: AppTextStyles.h1.copyWith(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12.sp,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                          decoration: BoxDecoration(
+                            color: user.isAdmin
+                                ? AppColors.brandAccent.withOpacity(0.1)
+                                : AppColors.brandPrimary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20.r),
+                          ),
+                          child: Text(
+                            user.role.toUpperCase(),
+                            style: AppTextStyles.chipLabel.copyWith(
+                              color: user.isAdmin
+                                  ? AppColors.brandAccent
+                                  : AppColors.brandPrimary,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.edit_outlined,
+                            color: AppColors.textSecondary,
+                          ),
+                          onPressed: () => _showEditUserDialog(user),
+                        ),
+                      ],
+                    ),
+                  ).animate().fade(duration: 300.ms).slideY(begin: 0.1, end: 0, duration: 300.ms, curve: Curves.easeOut);
+                },
+              ),
             );
           }
           return const SizedBox();
         },
-      ),
-    ));
-  }
-
-  Widget _buildUsersTable(List<ProfileModel> users, BuildContext context, {required bool isActiveTab}) {
-    if (users.isEmpty) {
-      return Center(
-        child: Text(
-          isActiveTab ? 'لا يوجد حسابات نشطة' : 'لا يوجد حسابات موقوفة',
-          style: AppTextStyles.h3.copyWith(color: AppColors.textSecondary),
-        ),
-      );
-    }
-    return SingleChildScrollView(
-      scrollDirection: Axis.vertical,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width),
-          child: Padding(
-            padding: EdgeInsets.all(AppConstants.p16),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16.r),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
-                ],
-              ),
-              child: DataTable(
-                headingRowColor: WidgetStateProperty.all(AppColors.brandPrimary.withOpacity(0.05)),
-                dataRowMinHeight: 60.h,
-                dataRowMaxHeight: 60.h,
-                columns: [
-                  const DataColumn(label: Text('الموظف', style: TextStyle(fontWeight: FontWeight.bold))),
-                  const DataColumn(label: Text('البريد الإلكتروني', style: TextStyle(fontWeight: FontWeight.bold))),
-                  const DataColumn(label: Text('الصلاحية', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text(isActiveTab ? 'إجراءات' : 'إعادة تفعيل', style: const TextStyle(fontWeight: FontWeight.bold))),
-                ],
-                rows: users.map((user) {
-                  return DataRow(
-                    color: !isActiveTab ? WidgetStateProperty.all(Colors.grey.withOpacity(0.05)) : null,
-                    cells: [
-                    DataCell(Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 16.r,
-                          backgroundImage: user.imageUrl != null ? NetworkImage(user.imageUrl!) : null,
-                          child: user.imageUrl == null ? const Icon(Icons.person, size: 16) : null,
-                        ),
-                        SizedBox(width: 8.w),
-                        Text(user.fullName, style: TextStyle(fontWeight: FontWeight.bold, color: isActiveTab ? Colors.black : Colors.grey)),
-                      ],
-                    )),
-                    DataCell(Text(user.email, style: TextStyle(color: isActiveTab ? Colors.black : Colors.grey))),
-                    DataCell(Container(
-                      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-                      decoration: BoxDecoration(
-                        color: user.isAdmin ? AppColors.brandAccent.withOpacity(0.1) : AppColors.brandPrimary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20.r),
-                      ),
-                      child: Text(
-                        user.role.toUpperCase(),
-                        style: AppTextStyles.chipLabel.copyWith(
-                          color: isActiveTab ? (user.isAdmin ? AppColors.brandAccent : AppColors.brandPrimary) : Colors.grey,
-                        ),
-                      ),
-                    )),
-                    DataCell(isActiveTab 
-                      ? IconButton(
-                          icon: const Icon(Icons.edit_outlined, color: AppColors.textSecondary),
-                          onPressed: () => _showEditUserDialog(user),
-                        )
-                      : TextButton.icon(
-                          onPressed: () {
-                            context.read<AdminUsersCubit>().reactivateUser(user.id);
-                          },
-                          icon: const Icon(Icons.restore, color: Colors.green),
-                          label: const Text('إعادة تفعيل', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-                        )
-                    ),
-                  ]);
-                }).toList(),
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }
 }
 
 class _AddUserForm extends StatefulWidget {
-  final ProfileModel currentUser;
-  const _AddUserForm({required this.currentUser});
+  const _AddUserForm();
 
   @override
   State<_AddUserForm> createState() => _AddUserFormState();
@@ -345,12 +314,20 @@ class _AddUserFormState extends State<_AddUserForm> {
               RetajDropdown<String>(
                 label: 'الصلاحية',
                 value: _selectedRole,
-                items: AppPermissions.creatableRoles(widget.currentUser.appRole).map((role) {
-                  return DropdownMenuItem<String>(
-                    value: role.toDbString(),
-                    child: Text(role.nameAr),
-                  );
-                }).toList(),
+                items: const [
+                  DropdownMenuItem<String>(
+                    value: 'sales',
+                    child: Text('Sales (موظف مبيعات)'),
+                  ),
+                  DropdownMenuItem<String>(
+                    value: 'manager',
+                    child: Text('Manager (مدير القسم)'),
+                  ),
+                  DropdownMenuItem<String>(
+                    value: 'admin',
+                    child: Text('Admin (إدارة كاملة)'),
+                  ),
+                ],
                 onChanged: (v) => setState(() => _selectedRole = v!),
               ),
               SizedBox(height: 24.h),
@@ -402,8 +379,7 @@ class _AddUserFormState extends State<_AddUserForm> {
 
 class _EditUserDialog extends StatefulWidget {
   final ProfileModel user;
-  final ProfileModel currentUser;
-  const _EditUserDialog({required this.user, required this.currentUser});
+  const _EditUserDialog({required this.user});
 
   @override
   State<_EditUserDialog> createState() => _EditUserDialogState();
@@ -452,19 +428,24 @@ class _EditUserDialogState extends State<_EditUserDialog> {
             RetajDropdown<String>(
               label: 'تغيير الصلاحية',
               value: _selectedRole,
-              items: () {
-                final roles = AppPermissions.creatableRoles(widget.currentUser.appRole).toList();
-                final currentRoleObj = AppRole.fromString(_selectedRole);
-                if (!roles.contains(currentRoleObj)) {
-                  roles.add(currentRoleObj);
-                }
-                return roles.map((role) {
-                  return DropdownMenuItem<String>(
-                    value: role.toDbString(),
-                    child: Text(role.nameAr),
-                  );
-                }).toList();
-              }(),
+              items: const [
+                DropdownMenuItem<String>(
+                  value: 'user',
+                  child: Text('User (عام)'),
+                ),
+                DropdownMenuItem<String>(
+                  value: 'sales',
+                  child: Text('Sales'),
+                ),
+                DropdownMenuItem<String>(
+                  value: 'manager',
+                  child: Text('Manager'),
+                ),
+                DropdownMenuItem<String>(
+                  value: 'admin',
+                  child: Text('Admin'),
+                ),
+              ],
               onChanged: (v) => setState(() => _selectedRole = v!),
             ),
           ],
@@ -475,18 +456,18 @@ class _EditUserDialogState extends State<_EditUserDialog> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             TextButton(
-              onPressed: (widget.user.id == widget.currentUser.id || widget.user.appRole == AppRole.superAdmin) ? null : () {
+              onPressed: () {
                 showDialog(
                   context: context,
                   builder: (_) => BlocProvider.value(
                     value: context.read<AdminUsersCubit>(),
-                    child: _DeleteUserConfirmationDialog(user: widget.user, currentUser: widget.currentUser),
+                    child: _DeleteUserConfirmationDialog(user: widget.user),
                   ),
                 );
               },
-              child: Text(
-                'إيقاف الحساب ونقل العهدة',
-                style: TextStyle(color: (widget.user.id == widget.currentUser.id || widget.user.appRole == AppRole.superAdmin) ? Colors.grey : AppColors.brandAccent, fontWeight: FontWeight.bold),
+              child: const Text(
+                'حذف الحساب',
+                style: TextStyle(color: AppColors.brandAccent, fontWeight: FontWeight.bold),
               ),
             ),
             Row(
@@ -545,8 +526,7 @@ class _EditUserDialogState extends State<_EditUserDialog> {
 
 class _DeleteUserConfirmationDialog extends StatefulWidget {
   final ProfileModel user;
-  final ProfileModel currentUser;
-  const _DeleteUserConfirmationDialog({required this.user, required this.currentUser});
+  const _DeleteUserConfirmationDialog({required this.user});
 
   @override
   State<_DeleteUserConfirmationDialog> createState() => _DeleteUserConfirmationDialogState();
@@ -554,58 +534,17 @@ class _DeleteUserConfirmationDialog extends StatefulWidget {
 
 class _DeleteUserConfirmationDialogState extends State<_DeleteUserConfirmationDialog> {
   final _nameCtrl = TextEditingController();
-  String? _replaceWithId;
   bool _canDelete = false;
-  int? _leadsCount;
-  int? _propertiesCount;
-  bool _isLoadingCounts = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchCounts();
-  }
-
-  Future<void> _fetchCounts() async {
-    try {
-      final counts = await context.read<AdminUsersCubit>().getEmployeeCustodyCount(widget.user.id);
-      if (mounted) {
-        setState(() {
-          _leadsCount = counts['leads'];
-          _propertiesCount = counts['properties'];
-          _isLoadingCounts = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoadingCounts = false);
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoadingCounts) {
-      return const AlertDialog(
-        content: SizedBox(
-          height: 100,
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      );
-    }
-
-    final hasCustody = (_leadsCount != null && _leadsCount! > 0) || (_propertiesCount != null && _propertiesCount! > 0);
-
     return AlertDialog(
-      title: Text(hasCustody ? 'إيقاف الحساب ونقل العهدة' : 'إيقاف الحساب', style: const TextStyle(color: AppColors.brandAccent)),
+      title: const Text('تحذير خطير: حذف نهائي', style: TextStyle(color: AppColors.brandAccent)),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(hasCustody 
-            ? 'سيتم إيقاف هذا الحساب لمنعه من الدخول. يمتلك هذا الموظف ($_leadsCount عميل) و ($_propertiesCount عقار).\nيجب عليك اختيار موظف بديل لتنتقل إليه كل هذه العهدة.'
-            : 'هذا الموظف لا يمتلك أي عملاء أو عقارات. يمكنك إيقاف الحساب مباشرة.'
-          ),
+          const Text('سيتم حذف هذا الحساب نهائياً، وسيتم معه مسح جميع العقارات والعملاء المرتبطين به بسبب نظام الـ Cascade.'),
           SizedBox(height: 16.h),
           Text('للتأكيد، يرجى كتابة الاسم الأول للموظف בדיוק: "${widget.user.firstName}"', style: const TextStyle(fontWeight: FontWeight.bold)),
           SizedBox(height: 8.h),
@@ -619,23 +558,6 @@ class _DeleteUserConfirmationDialogState extends State<_DeleteUserConfirmationDi
               border: OutlineInputBorder(),
             ),
           ),
-          if (hasCustody) ...[
-            SizedBox(height: 16.h),
-            const Text('إجباري: اختر موظف لنقل العهدة إليه:', style: TextStyle(fontWeight: FontWeight.bold)),
-            SizedBox(height: 8.h),
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(border: OutlineInputBorder()),
-              hint: const Text('اختر الموظف البديل (مطلوب)'),
-              value: _replaceWithId,
-              items: di.sl<StaticDataManager>()
-                  .employees
-                  .where((e) => e.id != widget.user.id)
-                  .map((e) => DropdownMenuItem(value: e.id, child: Text("${e.firstName} ${e.lastName}")))
-                  .toList(),
-              validator: (value) => value == null ? 'الرجاء اختيار موظف بديل' : null,
-              onChanged: (v) => setState(() => _replaceWithId = v),
-            ),
-          ],
         ],
       ),
       actions: [
@@ -644,12 +566,8 @@ class _DeleteUserConfirmationDialogState extends State<_DeleteUserConfirmationDi
           builder: (context, state) {
             final isLoading = state is AdminUsersLoading;
             return ElevatedButton(
-              onPressed: _canDelete && (!hasCustody || _replaceWithId != null) && !isLoading ? () {
-                context.read<AdminUsersCubit>().deactivateUser(
-                  widget.user.id, 
-                  replaceWithId: _replaceWithId ?? widget.currentUser.id, // Fallback if no custody
-                  adminId: widget.currentUser.id
-                ).then((_) {
+              onPressed: _canDelete && !isLoading ? () {
+                context.read<AdminUsersCubit>().deleteUser(widget.user.id).then((_) {
                   if (mounted && context.read<AdminUsersCubit>().state is AdminActionSuccess) {
                     Navigator.pop(context); // إغلاق نافذة التأكيد
                     Navigator.pop(context); // إغلاق نافذة التعديل
@@ -659,7 +577,7 @@ class _DeleteUserConfirmationDialogState extends State<_DeleteUserConfirmationDi
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.brandAccent),
               child: isLoading 
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
-                : Text(hasCustody ? 'إيقاف ونقل' : 'إيقاف', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                : const Text('حذف نهائي', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             );
           }
         )

@@ -43,10 +43,7 @@ class DashboardCubit extends Cubit<DashboardState> {
       final data = results[0] as DashboardStatsModel;
       final propStats = results[1] as PropertyAddedStats;
       emit(EmployeeDashboardLoaded(data: data, startDate: start, endDate: end, propertyAddedStats: propStats));
-    } catch (e, stacktrace) {
-      print('=== ERROR IN loadEmployeeDashboard ===');
-      print(e);
-      print(stacktrace);
+    } catch (e) {
       emit(DashboardError(e.toString()));
     }
   }
@@ -71,10 +68,7 @@ class DashboardCubit extends Cubit<DashboardState> {
       final data = results[0] as DashboardStatsModel;
       final propStats = results[1] as PropertyAddedStats;
       emit(EmployeeDashboardLoaded(data: data, startDate: startDate, endDate: endDate, propertyAddedStats: propStats));
-    } catch (e, stacktrace) {
-      print('=== ERROR IN changeEmployeePeriod ===');
-      print(e);
-      print(stacktrace);
+    } catch (e) {
       emit(DashboardError(e.toString()));
     }
   }
@@ -104,10 +98,7 @@ class DashboardCubit extends Cubit<DashboardState> {
         selectedEmployeeName: employeeName,
         propertyAddedStats: propStats,
       ));
-    } catch (e, stacktrace) {
-      print('=== ERROR IN loadManagerDashboard ===');
-      print(e);
-      print(stacktrace);
+    } catch (e) {
       emit(DashboardError(e.toString()));
     }
   }

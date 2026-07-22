@@ -3,14 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:shimmer/shimmer.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_roles.dart';
 import '../../../data/models/lead_model.dart';
-import '../../../data/models/form_field_model.dart';
 import '../cubit/leads_cubit.dart';
-import '../../../core/utils/static_data_manager.dart';
-import '../../../core/di/injection_container.dart' as di;
 
 class LeadCard extends StatefulWidget {
   final LeadModel lead;
@@ -21,8 +16,6 @@ class LeadCard extends StatefulWidget {
   final VoidCallback? onRestore;
   final VoidCallback onTap;
   final VoidCallback? onPinToggle;
-  /// لو كان true يعني إن هذا العميل تحدّث للتو عبر realtime — يعمل وميضاً لحظياً
-  final bool isFlashing;
 
   const LeadCard({
     super.key,
@@ -34,7 +27,6 @@ class LeadCard extends StatefulWidget {
     this.onRestore,
     required this.onTap,
     this.onPinToggle,
-    this.isFlashing = false,
   });
 
   @override
@@ -46,7 +38,6 @@ class _LeadCardState extends State<LeadCard> {
   int _duplicateCount = 0;
   bool _isLoadingDuplicates = false;
   List<LeadModel> _duplicates = [];
-  bool _isUpdating = false;
 
   @override
   void initState() {
@@ -54,22 +45,8 @@ class _LeadCardState extends State<LeadCard> {
     _checkDuplicates();
   }
 
-  @override
-  void didUpdateWidget(covariant LeadCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // لو تغيّرت بيانات العميل أو وصل من realtime — عمل shimmer وميض
-    if (oldWidget.lead != widget.lead || (!oldWidget.isFlashing && widget.isFlashing)) {
-      setState(() => _isUpdating = true);
-      Future.delayed(const Duration(milliseconds: 900), () {
-        if (mounted) {
-          setState(() => _isUpdating = false);
-        }
-      });
-    }
-  }
-
   void _checkDuplicates() async {
-    final bool isManagerOrAdmin = AppRole.fromString(widget.role).isAtLeast(AppRole.manager);
+    final bool isManagerOrAdmin = widget.role == 'manager' || widget.role == 'admin' || widget.role == 'ceo';
     if (!isManagerOrAdmin || widget.lead.phones.isEmpty) return;
 
     if (mounted) setState(() => _isLoadingDuplicates = true);
@@ -177,28 +154,6 @@ class _LeadCardState extends State<LeadCard> {
     return '?';
   }
 
-  Map<String, dynamic> _getDynamicValues(LeadModel lead) {
-    return {
-      'property_code': lead.propertyCode,
-      'desc_lead_need': lead.descLeadNeed,
-      'budget_from': lead.budgetFrom,
-      'budget_to': lead.budgetTo,
-      'listing_type_id': lead.listingTypeId,
-      'property_type_id': lead.propertyTypeId,
-      'city_id': lead.cityId,
-      'platform_id': lead.platformId,
-      'channel_id': lead.channelId,
-      'rate_id': lead.rateId,
-      'last_activity_type_id': lead.lastActivityTypeId,
-      'assigned_to_at': lead.assignedToAt?.toIso8601String(),
-      'scheduled_deadline_at': lead.scheduledDeadlineAt?.toIso8601String(),
-      'last_comment': lead.lastComment,
-      'transferred_by': lead.transferredBy,
-      'transferred_from': lead.transferredFrom,
-      if (lead.customFields != null) ...lead.customFields!,
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
     final bool isManagerOrAdmin =
@@ -206,45 +161,13 @@ class _LeadCardState extends State<LeadCard> {
     final Color sColor = _statusColor(widget.lead.leadStatus);
     final bool hasPlatform = widget.lead.platformId != null;
 
-    final dataManager = di.sl<StaticDataManager>();
-    final visibleFields = dataManager.getFormFieldsForRole(widget.role, onlyForm: false);
-    bool isVisibleInCard(String key) => visibleFields.any((f) => f.fieldKey == key && f.showInCard);
-
-    final showName = isVisibleInCard('client_name');
-    final showPhone = isVisibleInCard('phone_primary') || isVisibleInCard('phones');
-    final showStatus = isVisibleInCard('lead_status');
-    final showPlatform = isVisibleInCard('platform_id');
-    final showAssigned = isVisibleInCard('assigned_to');
-    
-    // حقول النظام الجديدة
-    final showRate = isVisibleInCard('rate_id');
-    final showLastActivity = isVisibleInCard('last_activity_type_id');
-    final showAssignedAt = isVisibleInCard('assigned_to_at');
-    final showTransferredFrom = isVisibleInCard('transferred_from');
-    final showTransferredBy = isVisibleInCard('transferred_by');
-    final showLastComment = isVisibleInCard('last_comment');
-
-    final dynamicValues = _getDynamicValues(widget.lead);
-    final manualKeys = ['client_name', 'phone_primary', 'phones', 'lead_status', 'platform_id', 'assigned_to', 'rate_id', 'last_activity_type_id', 'assigned_to_at', 'transferred_from', 'transferred_by', 'last_comment'];
-
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
       onExit: (_) => setState(() => _isHovering = false),
       cursor: SystemMouseCursors.click,
-      child: _isUpdating 
-        ? Shimmer.fromColors(
-            baseColor: Colors.white,
-            highlightColor: AppColors.brandPrimary.withOpacity(0.3),
-            child: _buildCardContent(hasPlatform, sColor, showName, showAssigned, isManagerOrAdmin, showStatus, showPlatform, showPhone, showRate, showLastActivity, showAssignedAt, showTransferredFrom, showTransferredBy, showLastComment, visibleFields, manualKeys, dynamicValues, dataManager),
-          )
-        : _buildCardContent(hasPlatform, sColor, showName, showAssigned, isManagerOrAdmin, showStatus, showPlatform, showPhone, showRate, showLastActivity, showAssignedAt, showTransferredFrom, showTransferredBy, showLastComment, visibleFields, manualKeys, dynamicValues, dataManager),
-    );
-  }
-
-  Widget _buildCardContent(bool hasPlatform, Color sColor, bool showName, bool showAssigned, bool isManagerOrAdmin, bool showStatus, bool showPlatform, bool showPhone, bool showRate, bool showLastActivity, bool showAssignedAt, bool showTransferredFrom, bool showTransferredBy, bool showLastComment, List<FormFieldModel> visibleFields, List<String> manualKeys, Map<String, dynamic> dynamicValues, StaticDataManager dataManager) {
-    return AnimatedContainer(
+      child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        margin: EdgeInsets.symmetric(horizontal: 24.w, vertical: 20.h),
+        margin: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
         transform: _isHovering
             ? (Matrix4.identity()..scale(1.005))
             : Matrix4.identity(),
@@ -277,7 +200,7 @@ class _LeadCardState extends State<LeadCard> {
             onTap: widget.onTap,
             borderRadius: BorderRadius.circular(20.r),
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 32.w, vertical: 36.h),
+              padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 20.h),
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
@@ -336,18 +259,8 @@ class _LeadCardState extends State<LeadCard> {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          CircleAvatar(
-                            radius: 42.r,
-                            backgroundColor: sColor.withValues(alpha: 0.15),
-                            child: Text(
-                              _initials,
-                              style: TextStyle(
-                                color: sColor,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 28.sp,
-                              ),
-                            ),
-                          ),
+                          // Avatar
+                          _buildAvatar(sColor),
                           SizedBox(width: 18.w),
 
                           // الاسم + الهاتف
@@ -355,20 +268,19 @@ class _LeadCardState extends State<LeadCard> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                if (showName)
-                                  Text(
-                                    widget.lead.clientName,
-                                    style: TextStyle(
-                                      fontSize: 30.sp,
-                                      fontWeight: FontWeight.w800,
-                                      color: const Color(0xFF111827),
-                                      height: 1.2,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                Text(
+                                  widget.lead.clientName,
+                                  style: TextStyle(
+                                    fontSize: 26.sp,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF111827),
+                                    height: 1.2,
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                                 SizedBox(height: 8.h),
-                                if (showPhone && _primaryPhone != null)
+                                if (_primaryPhone != null)
                                   GestureDetector(
                                     onTap: () =>
                                         _copyPhone(_primaryPhone!.phoneNumber),
@@ -384,7 +296,7 @@ class _LeadCardState extends State<LeadCard> {
                                         Text(
                                           _primaryPhone!.phoneNumber,
                                           style: TextStyle(
-                                            fontSize: 24.sp,
+                                            fontSize: 20.sp,
                                             fontWeight: FontWeight.w700,
                                             color: AppColors.brandPrimary,
                                             letterSpacing: 0.5,
@@ -400,7 +312,7 @@ class _LeadCardState extends State<LeadCard> {
                                       ],
                                     ),
                                   )
-                                else if (showPhone)
+                                else
                                   Text(
                                     'لا يوجد رقم هاتف',
                                     style: TextStyle(
@@ -428,42 +340,29 @@ class _LeadCardState extends State<LeadCard> {
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           // حالة العميل
-                          if (showStatus)
-                            _buildBadge(
-                              label: widget.lead.leadStatus ?? 'غير محدد',
-                              color: sColor,
-                              icon: Icons.circle,
-                              iconSize: 8,
-                            ),
-
-                          // تقييم العميل
-                          if (showRate && widget.lead.rateName != null)
-                            _buildBadge(
-                              label: widget.lead.rateName!,
-                              color: widget.lead.rateColorHex != null 
-                                  ? Color(int.parse(widget.lead.rateColorHex!.replaceAll('#', '0xFF'))) 
-                                  : Colors.orange,
-                              icon: Icons.star_rounded,
-                              iconSize: 16,
-                            ),
+                          _buildBadge(
+                            label: widget.lead.leadStatus ?? 'غير محدد',
+                            color: sColor,
+                            icon: Icons.circle,
+                            iconSize: 8,
+                          ),
 
                           // منصة المصدر
-                          if (showPlatform)
-                            if (hasPlatform)
-                              _buildBadge(
-                                label: widget.lead.platform!,
-                                color: const Color(0xFF6366F1),
-                                icon: Icons.campaign_outlined,
-                                iconSize: 15,
-                              )
-                            else
-                              _buildBadge(
-                                label: 'منصة غير محددة',
-                                color: Colors.red,
-                                icon: Icons.warning_amber_rounded,
-                                iconSize: 15,
-                                isOutlined: true,
-                              ),
+                          if (hasPlatform)
+                            _buildBadge(
+                              label: widget.lead.platform!,
+                              color: const Color(0xFF6366F1),
+                              icon: Icons.campaign_outlined,
+                              iconSize: 15,
+                            )
+                          else
+                            _buildBadge(
+                              label: 'منصة غير محددة',
+                              color: Colors.red,
+                              icon: Icons.warning_amber_rounded,
+                              iconSize: 15,
+                              isOutlined: true,
+                            ),
 
                           // تاريخ الإنشاء
                           if (widget.lead.createdAt != null)
@@ -493,112 +392,14 @@ class _LeadCardState extends State<LeadCard> {
 
                           // الموظف المسؤول
                           if (isManagerOrAdmin &&
-                              showAssigned &&
                               widget.lead.assignedToName != null)
                             _buildBadge(
-                              label: 'المسؤول: ${widget.lead.assignedToName!}',
+                              label: widget.lead.assignedToName!,
                               color: AppColors.brandPrimary,
                               icon: Icons.person_outline_rounded,
                               iconSize: 15,
                               isOutlined: true,
                             ),
-                            
-                          // محول من
-                          if (isManagerOrAdmin && showTransferredFrom && widget.lead.transferredFromName != null)
-                            _buildBadge(
-                              label: 'محول من: ${widget.lead.transferredFromName!}',
-                              color: Colors.purple,
-                              icon: Icons.transform_rounded,
-                              iconSize: 15,
-                              isOutlined: true,
-                            ),
-                            
-                          // محول بواسطة
-                          if (isManagerOrAdmin && showTransferredBy && widget.lead.transferredByName != null)
-                            _buildBadge(
-                              label: 'بواسطة: ${widget.lead.transferredByName!}',
-                              color: Colors.deepPurple,
-                              icon: Icons.admin_panel_settings_outlined,
-                              iconSize: 15,
-                              isOutlined: true,
-                            ),
-
-                          // وقت التحويل / الاستلام
-                          if (showAssignedAt && widget.lead.assignedToAt != null)
-                            _buildBadge(
-                              label: 'استلام: ${DateFormat('EEE dd/MM/yyyy', 'ar').format(widget.lead.assignedToAt!)}',
-                              color: Colors.teal,
-                              icon: Icons.login_rounded,
-                              iconSize: 14,
-                              isOutlined: true,
-                            ),
-                            
-                          // نوع آخر أكشن
-                          if (showLastActivity && widget.lead.lastActivityTypeName != null)
-                            _buildBadge(
-                              label: 'آخر أكشن: ${widget.lead.lastActivityTypeName!}',
-                              color: Colors.deepOrange,
-                              icon: Icons.local_activity_outlined,
-                              iconSize: 14,
-                              isOutlined: true,
-                            ),
-                            
-                          // آخر ملاحظة
-                          if (showLastComment && widget.lead.lastComment != null)
-                            Container(
-                              width: double.infinity,
-                              padding: EdgeInsets.all(8.r),
-                              margin: EdgeInsets.only(top: 4.h),
-                              decoration: BoxDecoration(
-                                color: Colors.amber.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(8.r),
-                                border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Icon(Icons.notes_rounded, size: 16.sp, color: Colors.amber[800]),
-                                  SizedBox(width: 6.w),
-                                  Expanded(
-                                    child: Text(
-                                      widget.lead.lastComment!,
-                                      style: TextStyle(
-                                        fontSize: 14.sp,
-                                        color: Colors.amber[900],
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                          // ── الحقول الديناميكية الإضافية التي ليس لها شكل مخصص ──
-                          ...visibleFields.where((f) => f.showInCard && !manualKeys.contains(f.fieldKey)).map((f) {
-                            final val = dynamicValues[f.fieldKey];
-                            if (val == null || val.toString().isEmpty) return const SizedBox.shrink();
-                            
-                            String displayValue = val.toString();
-                            if (f.inputType == FormFieldInputType.checkbox) {
-                              displayValue = (val == true || val == 'true' || val == 1) ? 'نعم ✓' : 'لا ✗';
-                            } else if (f.inputType == FormFieldInputType.date) {
-                              try { displayValue = DateFormat('dd/MM/yyyy').format(DateTime.parse(val.toString())); } catch (_) {}
-                            } else if (f.inputType == FormFieldInputType.selectStatic) {
-                              try { displayValue = f.options.firstWhere((o) => o.value == val.toString()).label; } catch (_) {}
-                            } else if (f.inputType == FormFieldInputType.selectRef && f.refTable != null) {
-                              try { displayValue = dataManager.getRefTableOptions(f.refTable!).firstWhere((o) => o.id == val.toString()).nameAr; } catch (_) {}
-                            }
-                            
-                            return _buildBadge(
-                              label: '${f.titleAr}: $displayValue',
-                              color: Colors.blueGrey,
-                              icon: Icons.info_outline_rounded,
-                              iconSize: 14,
-                              isOutlined: true,
-                            );
-                          }),
                         ],
                       ),
                     ],
@@ -608,6 +409,7 @@ class _LeadCardState extends State<LeadCard> {
             ),
           ),
         ),
+      ),
     );
   }
 

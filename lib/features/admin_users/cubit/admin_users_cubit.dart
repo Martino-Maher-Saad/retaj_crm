@@ -75,33 +75,12 @@ class AdminUsersCubit extends Cubit<AdminUsersState> {
     }
   }
 
-  Future<void> deactivateUser(String targetUserId, {required String replaceWithId, required String adminId}) async {
+  Future<void> deleteUser(String targetUserId) async {
     final currentState = state;
     emit(AdminUsersLoading());
     try {
-      await _adminUserService.deactivateUser(targetUserId, replaceWithId: replaceWithId, adminId: adminId);
-      emit(const AdminActionSuccess("تم إيقاف حساب الموظف ونقل عهدته بنجاح!"));
-      await fetchAllUsers();
-    } catch (e) {
-      emit(AdminUsersError(e.toString()));
-      if (currentState is AdminUsersLoaded) emit(currentState);
-    }
-  }
-
-  Future<Map<String, int>> getEmployeeCustodyCount(String targetUserId) async {
-    try {
-      return await _adminUserService.getEmployeeCustodyCount(targetUserId);
-    } catch (e) {
-      throw Exception(e.toString());
-    }
-  }
-
-  Future<void> reactivateUser(String targetUserId) async {
-    final currentState = state;
-    emit(AdminUsersLoading());
-    try {
-      await _adminUserService.reactivateUser(targetUserId);
-      emit(const AdminActionSuccess("تم إعادة تفعيل حساب الموظف بنجاح!"));
+      await _adminUserService.deleteUser(targetUserId);
+      emit(const AdminActionSuccess("تم حذف حساب الموظف وكل البيانات المتعلقة به بنجاح!"));
       await fetchAllUsers();
     } catch (e) {
       emit(AdminUsersError(e.toString()));

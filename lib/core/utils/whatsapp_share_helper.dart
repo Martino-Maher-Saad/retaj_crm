@@ -17,7 +17,7 @@ class WhatsappShareHelper {
     buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
     buffer.writeln('📋 *نوع العقار والإعلان:* ${property.propertyTypeAr} - ${property.listingTypeAr}');
     buffer.writeln('💰 *السعر:* ${property.price.toCurrency()} ج.م');
-    buffer.writeln('📍 *المدينة:* ${property.cityAr}');
+    buffer.writeln('📍 *المحافظة / المدينة:* ${property.governorateAr} - ${property.cityAr}');
     if (property.regionAr != null && property.regionAr!.isNotEmpty) {
       buffer.writeln('🏘️ *المنطقة:* ${property.regionAr}');
     }
@@ -33,7 +33,7 @@ class WhatsappShareHelper {
     buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
     buffer.writeln('📋 *نوع العقار والإعلان:* ${property.propertyTypeAr} - ${property.listingTypeAr}');
     buffer.writeln('💰 *السعر:* ${property.price.toCurrency()} ج.م');
-    buffer.writeln('📍 *المدينة:* ${property.cityAr}');
+    buffer.writeln('📍 *المحافظة / المدينة:* ${property.governorateAr} - ${property.cityAr}');
     if (property.regionAr != null && property.regionAr!.isNotEmpty) {
       buffer.writeln('🏘️ *المنطقة:* ${property.regionAr}');
     }

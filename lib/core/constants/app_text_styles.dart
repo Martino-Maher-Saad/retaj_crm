@@ -11,8 +11,8 @@ class AppTextStyles {
     required Color color,
     double height = 1.4,
   }) {
-    // زيادة حجم الخطوط بنسبة 50% تقريباً ليكون أوضح
-    final double scaledSize = fontSize * 1.5; 
+    // زيادة حجم الخطوط بنسبة 35% تقريباً ليكون أوضح
+    final double scaledSize = fontSize * 1.35; 
     
     return TextStyle(
       fontSize: scaledSize.sp,

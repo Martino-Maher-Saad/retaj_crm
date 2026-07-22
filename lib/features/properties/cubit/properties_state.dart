@@ -13,8 +13,6 @@ class PropertiesSuccess extends PropertiesState {
   final bool isSearching;
   final bool isFiltering;
   final bool hasMoreSmartSearch;
-  /// IDs العقارات اللي اتحدثت للتو عبر realtime — تُستخدم لعمل وميض لحظي
-  final Set<String> flashingIds;
 
   PropertiesSuccess({
     this.myProperties = const [],
@@ -25,7 +23,6 @@ class PropertiesSuccess extends PropertiesState {
     this.isSearching = false,
     this.isFiltering = false,
     this.hasMoreSmartSearch = true,
-    this.flashingIds = const {},
   });
 
   PropertiesSuccess copyWith({
@@ -37,7 +34,6 @@ class PropertiesSuccess extends PropertiesState {
     bool? isSearching,
     bool? isFiltering,
     bool? hasMoreSmartSearch,
-    Set<String>? flashingIds,
   }) {
     return PropertiesSuccess(
       myProperties: myProperties ?? this.myProperties,
@@ -48,7 +44,6 @@ class PropertiesSuccess extends PropertiesState {
       isSearching: isSearching ?? this.isSearching,
       isFiltering: isFiltering ?? this.isFiltering,
       hasMoreSmartSearch: hasMoreSmartSearch ?? this.hasMoreSmartSearch,
-      flashingIds: flashingIds ?? this.flashingIds,
     );
   }
 }

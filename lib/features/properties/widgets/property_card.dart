@@ -5,7 +5,6 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_roles.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../../../core/utils/property_cache_manager.dart';
@@ -45,18 +44,6 @@ class PropertyCard extends StatefulWidget {
 
 class _PropertyCardState extends State<PropertyCard> {
   bool _isHovering = false;
-  bool _isUpdating = false;
-
-  @override
-  void didUpdateWidget(covariant PropertyCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.property != widget.property) {
-      setState(() => _isUpdating = true);
-      Future.delayed(const Duration(milliseconds: 600), () {
-        if (mounted) setState(() => _isUpdating = false);
-      });
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +56,9 @@ class _PropertyCardState extends State<PropertyCard> {
 
     final bool isMine = widget.property.createdBy == widget.currentUserId;
     final bool isManagerOrAdmin =
-        AppRole.fromString(widget.role).isAtLeast(AppRole.manager);
+        widget.role == 'manager' ||
+        widget.role == 'admin' ||
+        widget.role == 'ceo';
     final bool shouldMask = widget.role == 'sales' && !isMine;
 
     // تنسيق التاريخ
@@ -117,17 +106,13 @@ class _PropertyCardState extends State<PropertyCard> {
                   ),
                 ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(22.r),
-          child: Stack(
-            children: [
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: widget.onTap,
-                  borderRadius: BorderRadius.circular(22.r),
-                  child: Column(
-                    children: [
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: widget.onTap,
+            borderRadius: BorderRadius.circular(22.r),
+            child: Column(
+              children: [
                 // ─── Banner تحذير للمبيعات ───
                 if (shouldMask)
                   Container(
@@ -152,7 +137,7 @@ class _PropertyCardState extends State<PropertyCard> {
                   ),
 
                 Padding(
-                  padding: EdgeInsets.all(36.w),
+                  padding: EdgeInsets.all(20.w),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -167,9 +152,9 @@ class _PropertyCardState extends State<PropertyCard> {
                               fadeOutDuration: Duration.zero,
                               useOldImageOnUrlChange: true,
                               imageUrl: displayUrl,
-                              width: 480.w, // Increased from 420
-                              height: 320.h, // Increased from 280
-                              memCacheWidth: 600,
+                              width: 370.w,
+                              height: 250.h,
+                              memCacheWidth: 500,
                               fit: BoxFit.cover,
                               placeholder: (context, url) => Container(
                                 color: AppColors.bgMain,
@@ -273,7 +258,7 @@ class _PropertyCardState extends State<PropertyCard> {
                                   child: Text(
                                     "${widget.property.listingTypeAr} — ${widget.property.propertyTypeAr}",
                                     style: AppTextStyles.tableCellSub.copyWith(
-                                      fontSize: 22.sp,
+                                      fontSize: 18.sp,
                                       color: AppColors.brandPrimary,
                                       fontWeight: FontWeight.w800,
                                     ),
@@ -292,7 +277,7 @@ class _PropertyCardState extends State<PropertyCard> {
                             Text(
                               "${widget.property.price.toCurrency()} ج.م",
                               style: AppTextStyles.h2.copyWith(
-                                fontSize: 40.sp,
+                                fontSize: 34.sp,
                                 fontWeight: FontWeight.w900,
                                 color: const Color(0xFF10B981),
                               ),
@@ -308,9 +293,9 @@ class _PropertyCardState extends State<PropertyCard> {
                                 SizedBox(width: 6.w),
                                 Expanded(
                                   child: Text(
-                                    " ${widget.property.cityAr}",
+                                    "${widget.property.governorateAr} — ${widget.property.cityAr}",
                                     style: AppTextStyles.tableCellSub.copyWith(
-                                      fontSize: 24.sp,
+                                      fontSize: 20.sp,
                                       color: AppColors.textPrimary,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -480,21 +465,9 @@ class _PropertyCardState extends State<PropertyCard> {
             ),
           ),
         ),
-        if (_isUpdating)
-          Positioned(
-            top: 0, left: 0, right: 0,
-            child: LinearProgressIndicator(
-              backgroundColor: Colors.transparent,
-              color: AppColors.brandPrimary.withValues(alpha: 0.6),
-              minHeight: 3.h,
-            ),
-          ),
-      ],
-    ),
-  ),
-),
-);
-}
+      ),
+    );
+  }
 
   Widget _actionButton(
     dynamic icon,

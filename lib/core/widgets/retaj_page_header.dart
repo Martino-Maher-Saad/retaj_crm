@@ -12,11 +12,8 @@ class RetajPageHeader extends StatelessWidget {
   final VoidCallback onAdd;
   final VoidCallback? onFilter;
   final String? filterLabel;
-  final VoidCallback? onExport;
-  final String? exportLabel;
   final Widget? searchBar;
-  final VoidCallback? onClearFilter;
-  final bool hasActiveFilters;
+  final Widget? extraAction;
 
   const RetajPageHeader({
     super.key,
@@ -27,11 +24,8 @@ class RetajPageHeader extends StatelessWidget {
     this.totalCount,
     this.onFilter,
     this.filterLabel,
-    this.onExport,
-    this.exportLabel,
     this.searchBar,
-    this.onClearFilter,
-    this.hasActiveFilters = false,
+    this.extraAction,
   });
 
   @override
@@ -65,17 +59,17 @@ class RetajPageHeader extends StatelessWidget {
                           SizedBox(width: 10.w),
                           Container(
                             padding: EdgeInsets.symmetric(
-                                horizontal: 16.w, vertical: 6.h),
+                                horizontal: 10.w, vertical: 3.h),
                             decoration: BoxDecoration(
                               color: AppColors.brandPrimary.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(24.r),
+                              borderRadius: BorderRadius.circular(20.r),
                             ),
                             child: Text(
                               '$totalCount',
                               style: TextStyle(
                                 color: AppColors.brandPrimary,
-                                fontSize: 18.sp,
-                                fontWeight: FontWeight.w800,
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
@@ -94,15 +88,6 @@ class RetajPageHeader extends StatelessWidget {
                   ],
                 ),
               ),
-
-              // ─── شريط البحث (مدمج في نفس الصف) ───
-              if (searchBar != null) ...[
-                Expanded(
-                  flex: 2,
-                  child: searchBar!,
-                ),
-                SizedBox(width: 12.w),
-              ],
 
               // ─── أزرار الإجراءات ───
               if (onFilter != null) ...[
@@ -123,40 +108,11 @@ class RetajPageHeader extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12.r)),
                   ),
                 ),
-                if (hasActiveFilters && onClearFilter != null) ...[
-                  SizedBox(width: 8.w),
-                  Tooltip(
-                    message: 'إلغاء الفلتر',
-                    child: IconButton(
-                      onPressed: onClearFilter,
-                      icon: Icon(Icons.filter_alt_off_rounded, color: Colors.redAccent, size: 22.sp),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.redAccent.withValues(alpha: 0.1),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
-                      ),
-                    ),
-                  ),
-                ],
                 SizedBox(width: 12.w),
               ],
-              if (onExport != null) ...[
-                OutlinedButton.icon(
-                  onPressed: onExport,
-                  icon: Icon(Icons.file_download_outlined,
-                      size: 20.sp, color: Colors.green),
-                  label: Text(exportLabel ?? 'تصدير',
-                      style: TextStyle(
-                          fontSize: 14.sp, color: Colors.green,
-                          fontWeight: FontWeight.w600)),
-                  style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: 16.w, vertical: 12.h),
-                    side: BorderSide(color: Colors.green.shade200),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.r)),
-                    backgroundColor: Colors.green.shade50,
-                  ),
-                ),
+              
+              if (extraAction != null) ...[
+                extraAction!,
                 SizedBox(width: 12.w),
               ],
 
@@ -207,6 +163,12 @@ class RetajPageHeader extends StatelessWidget {
               ),
             ],
           ),
+
+          // ─── شريط البحث (اختياري) ───
+          if (searchBar != null) ...[
+            SizedBox(height: 14.h),
+            searchBar!,
+          ],
         ],
       ),
     );

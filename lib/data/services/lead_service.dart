@@ -1,77 +1,62 @@
-import 'package:collection/collection.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/lead_model.dart';
 import '../models/profile_model.dart';
-import '../../core/constants/app_roles.dart';
 import '../../core/di/injection_container.dart' as di;
 import '../../core/utils/static_data_manager.dart';
 
 class LeadService {
   final _supabase = Supabase.instance.client;
 
-  static bool _isManagerOrAdmin(String role) =>
-      AppRole.fromString(role).isAtLeast(AppRole.manager);
+  static bool _isManagerOrAdmin(String role) {
+    final lowerRole = role.toLowerCase().trim();
+    return lowerRole == 'manager' || lowerRole == 'admin' || lowerRole == 'ceo';
+  }
 
   // ─── SELECT للقائمة (بدون notes لتسريع التحميل) ───
   static const _selectList =
       '*, '
       'assignee:profiles!leads_assigned_to_fkey(first_name, last_name), '
       'creator:profiles!leads_created_by_fk(first_name, last_name), '
-      'lead_statuses!status_id(name_ar, delay_value, delay_unit), '
+      'lead_statuses!status_id(name_ar), '
       'lead_platforms!platform_id(name_ar), '
       'property_types!property_type_id(name_ar), '
       'listing_types!listing_type_id(name_ar), '
       'communication_channels!channel_id(name_ar), '
       'cities!city_id(name), '
+      'governorates!governorate_id(name), '
       'lead_exclusion_reasons!exclusion_reason_id(name_ar), '
-      'lead_phones(id, phone_number, is_primary), '
-      'lead_logs(id, activity_type_id, created_at, notes, scheduled_at, changed_by, old_status_id, new_status_id, is_answered)';
+      'lead_phones(id, phone_number, is_primary)';
 
   static const _selectDetail =
       '*, '
       'assignee:profiles!leads_assigned_to_fkey(first_name, last_name), '
       'creator:profiles!leads_created_by_fk(first_name, last_name), '
-      'lead_statuses!status_id(name_ar, delay_value, delay_unit), '
+      'lead_statuses!status_id(name_ar), '
       'lead_platforms!platform_id(name_ar), '
       'property_types!property_type_id(name_ar), '
       'listing_types!listing_type_id(name_ar), '
       'communication_channels!channel_id(name_ar), '
       'cities!city_id(name), '
+      'governorates!governorate_id(name), '
       'lead_exclusion_reasons!exclusion_reason_id(name_ar), '
       'lead_phones(id, phone_number, is_primary), '
-      'lead_logs(id, activity_type_id, created_at, notes, scheduled_at, changed_by, old_status_id, new_status_id, is_answered), '
       'lead_notes(id, note_text, created_at, user_id, user:profiles!lead_notes_user_id_fkey(first_name, last_name))';
 
-  // نفس الـ _selectDetail بدون lead_logs — تُجلب بـ fetchLeadLogs() منفصلة
   static const _selectExcelTable =
       '*, '
       'assignee:profiles!leads_assigned_to_fkey(first_name, last_name), '
       'creator:profiles!leads_created_by_fk(first_name, last_name), '
-      'lead_statuses!status_id(name_ar, delay_value, delay_unit), '
+      'lead_statuses!status_id(name_ar), '
       'lead_platforms!platform_id(name_ar), '
       'property_types!property_type_id(name_ar), '
       'listing_types!listing_type_id(name_ar), '
       'communication_channels!channel_id(name_ar), '
       'cities!city_id(name), '
+      'governorates!governorate_id(name), '
       'lead_exclusion_reasons!exclusion_reason_id(name_ar), '
       'lead_phones(id, phone_number, is_primary), '
-      'lead_logs(id, activity_type_id, created_at, notes, scheduled_at, changed_by, old_status_id, new_status_id, is_answered), '
-      'lead_notes(id, note_text, created_at, user_id, user:profiles!lead_notes_user_id_fkey(first_name, last_name))';
-
-  // لعدم جلب الـ logs لتوفير الكاش
-  static const _selectBasic =
-      '*, '
-      'assignee:profiles!leads_assigned_to_fkey(first_name, last_name), '
-      'creator:profiles!leads_created_by_fk(first_name, last_name), '
-      'lead_statuses!status_id(name_ar, delay_value, delay_unit), '
-      'lead_platforms!platform_id(name_ar), '
-      'property_types!property_type_id(name_ar), '
-      'listing_types!listing_type_id(name_ar), '
-      'communication_channels!channel_id(name_ar), '
-      'cities!city_id(name), '
-      'lead_exclusion_reasons!exclusion_reason_id(name_ar), '
-      'lead_phones(id, phone_number, is_primary), '
-      'lead_notes(id, note_text, created_at, user_id, user:profiles!lead_notes_user_id_fkey(first_name, last_name))';
+      'lead_notes(id, note_text, created_at, user_id, user:profiles!lead_notes_user_id_fkey(first_name, last_name)), '
+      'lead_logs(id, action, created_at, creator:profiles!lead_logs_changed_by_fkey(first_name, last_name), old_status:lead_statuses!old_status_id(name_ar), new_status:lead_statuses!new_status_id(name_ar))';
 
   Future<List<LeadModel>> fetchAllLeads({
     required String role,
@@ -83,13 +68,13 @@ class LeadService {
     String? leadStatusId,
     String? propertyTypeId,
     String? listingTypeId,
+    int? governorateId,
     int? cityId,
     DateTime? fromDate,
     DateTime? toDate,
-    bool? isTrash,
-    List<String>? statusIds,
-    bool? isTransferred, // للعملاء المحولين
-    bool? delayFilter, // للعملاء المتأخرين
+    bool? isArchived = false, // القيمة الافتراضية هنا لا تجلب الأرشيف
+    bool? isStagnant, // إذا كان true يجلب اللي مر عليهم يومين بدون تحديث
+    bool? isForTasks, // يجلب العملاء المتأخرين والمحولين معاً
   }) async {
     dynamic query = _supabase.from('leads').select(_selectList);
 
@@ -99,40 +84,47 @@ class LeadService {
       query = query.eq('assigned_to', filterByEmployeeId);
     }
 
-    if (isTrash == true) {
-      query = query.eq('is_active', false);
+    final archiveStatuses = ['34f6f48c-3179-4b83-b34e-edc3fdc2e3d4', '6d5c7b17-9ef7-48ee-a9f6-0575cc390278']; // مستبعد و تم التعاقد
+
+    if (isArchived == true) {
+      query = query.filter('status_id', 'in', archiveStatuses);
+    } else if (isArchived == false) {
+      query = query.not('status_id', 'in', archiveStatuses);
+    }
+
+    if (isStagnant == true) {
+      final oneMonthAgo = DateTime.now().subtract(const Duration(days: 30)).toIso8601String();
+      query = query.lte('updated_at', oneMonthAgo);
+    }
+
+    if (isForTasks == true) {
+      final twoDaysAgo = DateTime.now().subtract(const Duration(hours: 48)).toIso8601String();
+      if (!_isManagerOrAdmin(role)) {
+        query = query.or('and(status_updated_at.lte.$twoDaysAgo,assigned_to.eq.$userId),and(transferred_from.not.is.null,assigned_to.eq.$userId)');
+      } else if (filterByEmployeeId != null && filterByEmployeeId.isNotEmpty) {
+        query = query.or('and(status_updated_at.lte.$twoDaysAgo,assigned_to.eq.$filterByEmployeeId),and(transferred_from.not.is.null,assigned_to.eq.$filterByEmployeeId)');
+      } else {
+        query = query.or('status_updated_at.lte.$twoDaysAgo,transferred_from.not.is.null');
+      }
     } else {
-      query = query.or('is_active.eq.true,is_active.is.null');
-    }
-
-    if (statusIds != null && statusIds.isNotEmpty) {
-      query = query.filter('status_id', 'in', statusIds);
-    }
-
-    if (isTransferred == true) {
-      query = query.not('transferred_from', 'is', null);
+      if (!_isManagerOrAdmin(role)) {
+        query = query.eq('assigned_to', userId);
+      } else if (filterByEmployeeId != null && filterByEmployeeId.isNotEmpty) {
+        query = query.eq('assigned_to', filterByEmployeeId);
+      }
     }
 
     if (platformId != null && platformId.isNotEmpty) query = query.eq('platform_id', platformId);
     if (leadStatusId != null && leadStatusId.isNotEmpty) query = query.eq('status_id', leadStatusId);
     if (propertyTypeId != null && propertyTypeId.isNotEmpty) query = query.eq('property_type_id', propertyTypeId);
     if (listingTypeId != null && listingTypeId.isNotEmpty) query = query.eq('listing_type_id', listingTypeId);
+    if (governorateId != null) query = query.eq('governorate_id', governorateId);
     if (cityId != null) query = query.eq('city_id', cityId);
     if (fromDate != null) query = query.gte('created_at', fromDate.toIso8601String());
     if (toDate != null) query = query.lte('created_at', toDate.toIso8601String());
 
     // ترتيب بحيث يظهر المثبت (is_pinned = true) أولاً
     query = query.order('is_pinned', ascending: false).order('created_at', ascending: false);
-
-    if (delayFilter == true) {
-      final response = await _supabase.rpc('get_delayed_leads', params: {
-        'p_user_id': userId,
-        'p_role': role,
-        'p_from': from,
-        'p_to': to,
-      });
-      return (response as List).map((e) => LeadModel.fromJson(e)).toList();
-    }
 
     final response = await query.range(from, to - 1);
     return (response as List).map((e) => LeadModel.fromJson(e)).toList();
@@ -146,15 +138,15 @@ class LeadService {
     String? leadStatusId,
     String? propertyTypeId,
     String? listingTypeId,
+    int? governorateId,
     int? cityId,
     DateTime? fromDate,
     DateTime? toDate,
-    bool? isTrash,
-    List<String>? statusIds,
-    bool? isTransferred,
-    bool? delayFilter,
+    bool? isArchived = false,
+    bool? isStagnant,
+    bool? isForTasks,
   }) async {
-    var query = _supabase.from('leads').select(delayFilter == true ? _selectList : 'id');
+    var query = _supabase.from('leads').select('*');
 
     if (!_isManagerOrAdmin(role)) {
       query = query.eq('assigned_to', userId);
@@ -162,35 +154,44 @@ class LeadService {
       query = query.eq('assigned_to', filterByEmployeeId);
     }
 
-    if (isTrash == true) {
-      query = query.eq('is_active', false);
+    final archiveStatuses = ['34f6f48c-3179-4b83-b34e-edc3fdc2e3d4', '6d5c7b17-9ef7-48ee-a9f6-0575cc390278']; // مستبعد و تم التعاقد
+
+    if (isArchived == true) {
+      query = query.filter('status_id', 'in', archiveStatuses);
+    } else if (isArchived == false) {
+      query = query.not('status_id', 'in', archiveStatuses);
+    }
+
+    if (isStagnant == true) {
+      final oneMonthAgo = DateTime.now().subtract(const Duration(days: 30)).toIso8601String();
+      query = query.lte('updated_at', oneMonthAgo);
+    }
+    
+    if (isForTasks == true) {
+      final twoDaysAgo = DateTime.now().subtract(const Duration(hours: 48)).toIso8601String();
+      if (!_isManagerOrAdmin(role)) {
+        query = query.or('and(status_updated_at.lte.$twoDaysAgo,assigned_to.eq.$userId),and(transferred_from.not.is.null,assigned_to.eq.$userId)');
+      } else if (filterByEmployeeId != null && filterByEmployeeId.isNotEmpty) {
+        query = query.or('and(status_updated_at.lte.$twoDaysAgo,assigned_to.eq.$filterByEmployeeId),and(transferred_from.not.is.null,assigned_to.eq.$filterByEmployeeId)');
+      } else {
+        query = query.or('status_updated_at.lte.$twoDaysAgo,transferred_from.not.is.null');
+      }
     } else {
-      query = query.or('is_active.eq.true,is_active.is.null');
-    }
-
-    if (statusIds != null && statusIds.isNotEmpty) {
-      query = query.filter('status_id', 'in', statusIds);
-    }
-
-    if (isTransferred == true) {
-      query = query.not('transferred_from', 'is', null);
+      if (!_isManagerOrAdmin(role)) {
+        query = query.eq('assigned_to', userId);
+      } else if (filterByEmployeeId != null && filterByEmployeeId.isNotEmpty) {
+        query = query.eq('assigned_to', filterByEmployeeId);
+      }
     }
 
     if (platformId != null && platformId.isNotEmpty) query = query.eq('platform_id', platformId);
     if (leadStatusId != null && leadStatusId.isNotEmpty) query = query.eq('status_id', leadStatusId);
     if (propertyTypeId != null && propertyTypeId.isNotEmpty) query = query.eq('property_type_id', propertyTypeId);
     if (listingTypeId != null && listingTypeId.isNotEmpty) query = query.eq('listing_type_id', listingTypeId);
+    if (governorateId != null) query = query.eq('governorate_id', governorateId);
     if (cityId != null) query = query.eq('city_id', cityId);
     if (fromDate != null) query = query.gte('created_at', fromDate.toIso8601String());
     if (toDate != null) query = query.lte('created_at', toDate.toIso8601String());
-
-    if (delayFilter == true) {
-      final response = await _supabase.rpc('get_delayed_leads_count', params: {
-        'p_user_id': userId,
-        'p_role': role,
-      });
-      return (response as int?) ?? 0;
-    }
 
     final response = await query.limit(0).count(CountOption.exact);
     return response.count ?? 0;
@@ -247,7 +248,7 @@ class LeadService {
       'p_listing_type_id':  lead.listingTypeId,
       'p_channel_id':       lead.channelId,
       'p_city_id':          lead.cityId,
-      'p_governorate_id':   null,
+      'p_governorate_id':   lead.governorateId,
       'p_property_code':    lead.propertyCode,
       'p_desc_lead_need':   lead.descLeadNeed,
       'p_budget_from':      lead.budgetFrom,
@@ -260,20 +261,37 @@ class LeadService {
       'p_notes':            notesJson,
     });
 
-    if ((lead.customFields != null && lead.customFields!.isNotEmpty) || lead.rateId != null || lead.lastActivityTypeId != null || lead.transferredFrom != null || lead.transferredBy != null || lead.lastComment != null || lead.assignedToAt != null || lead.scheduledDeadlineAt != null) {
-      await _supabase.from('leads').update({
-        if (lead.customFields != null && lead.customFields!.isNotEmpty) 'custom_fields': lead.customFields,
-        if (lead.rateId != null) 'rate_id': lead.rateId,
-        if (lead.lastActivityTypeId != null) 'last_activity_type_id': lead.lastActivityTypeId,
-        if (lead.transferredFrom != null) 'transferred_from': lead.transferredFrom,
-        if (lead.transferredBy != null) 'transferred_by': lead.transferredBy,
-        if (lead.lastComment != null) 'last_comment': lead.lastComment,
-        if (lead.assignedToAt != null) 'assigned_to_at': lead.assignedToAt!.toIso8601String(),
-        if (lead.scheduledDeadlineAt != null) 'scheduled_deadline_at': lead.scheduledDeadlineAt!.toIso8601String(),
-      }).eq('id', leadId);
-    }
-
     return await getLeadById(leadId.toString());
+  }
+
+  /// إضافة مجموعة عملاء دفعة واحدة (مقسمة لباتشات لحماية السيرفر)
+  Future<void> bulkInsertLeads(
+    List<LeadModel> leads,
+    Function(int processed, int total) onProgress,
+  ) async {
+    const int batchSize = 5;
+    int processed = 0;
+
+    for (var i = 0; i < leads.length; i += batchSize) {
+      final end = (i + batchSize < leads.length) ? i + batchSize : leads.length;
+      final batch = leads.sublist(i, end);
+
+      await Future.wait(batch.map((lead) {
+        return addLead(
+          lead,
+          lead.phones,
+          notes: lead.notes,
+        );
+      }));
+
+      processed += batch.length;
+      onProgress(processed, leads.length);
+
+      // تأخير بسيط لتجنب الـ Rate Limiting في النسخة المجانية
+      if (end < leads.length) {
+        await Future.delayed(const Duration(milliseconds: 300));
+      }
+    }
   }
 
   /// تحديث عميل — يستخدم RPC للـ Smart Sync
@@ -295,7 +313,7 @@ class LeadService {
       'p_listing_type_id':  lead.listingTypeId,
       'p_channel_id':       lead.channelId,
       'p_city_id':          lead.cityId,
-      'p_governorate_id':   null,
+      'p_governorate_id':   lead.governorateId,
       'p_property_code':    lead.propertyCode,
       'p_desc_lead_need':   lead.descLeadNeed,
       'p_budget_from':      lead.budgetFrom,
@@ -308,16 +326,9 @@ class LeadService {
       'p_new_note':         newNote ?? '',
     });
 
-    // تحديث الحقول التي لا يدعمها الـ RPC بشكل منفصل
+    // تحديث المحول منه بشكل منفصل لعدم دعمه في الـ RPC
     await _supabase.from('leads').update({
-      if (lead.transferredFrom != null) 'transferred_from': lead.transferredFrom,
-      if (lead.transferredBy != null) 'transferred_by': lead.transferredBy,
-      if (lead.customFields != null) 'custom_fields': lead.customFields,
-      if (lead.rateId != null) 'rate_id': lead.rateId,
-      if (lead.lastActivityTypeId != null) 'last_activity_type_id': lead.lastActivityTypeId,
-      if (lead.lastComment != null) 'last_comment': lead.lastComment,
-      if (lead.assignedToAt != null) 'assigned_to_at': lead.assignedToAt!.toIso8601String(),
-      if (lead.scheduledDeadlineAt != null) 'scheduled_deadline_at': lead.scheduledDeadlineAt!.toIso8601String(),
+      'transferred_from': lead.transferredFrom
     }).eq('id', id);
 
     return await getLeadById(id);
@@ -330,76 +341,9 @@ class LeadService {
     }).eq('id', id);
   }
 
-  Future<void> archiveLead(String id, bool isArchived) async {
-    final expectedIsActive = !isArchived;
-    final response = await _supabase.from('leads').update({
-      'is_active': expectedIsActive,
-      'deleted_at': isArchived ? DateTime.now().toIso8601String() : null,
-      'updated_at': DateTime.now().toIso8601String(),
-    }).eq('id', id).select();
-
-    if (response.isEmpty) {
-      throw 'حدث خطأ: لا تملك صلاحية التعديل على هذا العميل، أو أن العميل غير موجود.';
-    }
-    
-    if (response.first['is_active'] != expectedIsActive) {
-      throw 'حدث خطأ: قاعدة البيانات ترفض تغيير حالة العميل (Trigger Error).';
-    }
-  }
-
-  Future<LeadModel> transferLead({
-    required String leadId,
-    required String fromEmployeeId,
-    required String toEmployeeId,
-    required String changedBy,
-    String? notes,
-  }) async {
-    final dataManager = di.sl<StaticDataManager>();
-    final options = dataManager.getRefTableOptions('activity_types');
-    String? transferActivityId;
-    try {
-      transferActivityId = options.firstWhere((o) => o.nameAr.contains('تحويل') || (o.extra?['name_en']?.toString().toLowerCase().contains('transfer') ?? false)).id;
-    } catch (_) {}
-
-    await _supabase.from('lead_logs').insert({
-      'lead_id': leadId,
-      if (transferActivityId != null) 'activity_type_id': transferActivityId,
-      'transferred_from_id': fromEmployeeId,
-      'transferred_to_id': toEmployeeId,
-      'changed_by': changedBy,
-      'notes': notes,
-    });
-
-    return await getLeadById(leadId);
-  }
-
-  Future<void> addLeadAction({
-    required String leadId,
-    required String comment,
-    required String nextStatusId,
-    DateTime? scheduledAt,
-    String? meetingTypeId,
-    String? meetingPurposeId,
-    String? meetingLocation,
-    String? exclusionReasonId,
-    String? propertyCode,
-    double? companyProfit,
-  }) async {
-    await _supabase.rpc('add_lead_action_v3', params: {
-      'p_lead_id': leadId,
-      'p_comment': comment,
-      'p_next_status_id': nextStatusId,
-      'p_scheduled_at': scheduledAt?.toIso8601String(),
-      'p_meeting_type_id': meetingTypeId,
-      'p_meeting_purpose_id': meetingPurposeId,
-      'p_meeting_location': meetingLocation,
-      'p_exclusion_reason_id': exclusionReasonId,
-      'p_property_code': propertyCode,
-      'p_company_profit': companyProfit,
-    });
-  }
-
-  Future<LeadModel> updateLeadStatus(String leadId, String statusId, {bool isExcluded = false}) async {
+  /// تحديث حالة العميل فقط وتفريغ المحول منه لإنهاء المهمة
+  Future<LeadModel> updateLeadStatus(String leadId, String statusId) async {
+    final isExcluded = statusId == '34f6f48c-3179-4b83-b34e-edc3fdc2e3d4';
     await _supabase
         .from('leads')
         .update({
@@ -412,7 +356,8 @@ class LeadService {
     return await getLeadById(leadId);
   }
 
-  Future<LeadModel> updateLeadStatusAndEmployee(String leadId, String statusId, String employeeId, {bool isExcluded = false}) async {
+  Future<LeadModel> updateLeadStatusAndEmployee(String leadId, String statusId, String employeeId) async {
+    final isExcluded = statusId == '34f6f48c-3179-4b83-b34e-edc3fdc2e3d4';
     await _supabase
         .from('leads')
         .update({
@@ -434,6 +379,9 @@ class LeadService {
     return await getLeadById(leadId);
   }
 
+  Future<void> archiveLead(String leadId, bool isArchived) async {
+    await _supabase.from('leads').update({'is_archived': isArchived}).eq('id', leadId);
+  }
 
   /// إضافة ملاحظة من شاشة التفاصيل — عملية واحدة لا تحتاج RPC
   Future<LeadModel> addNote(String leadId, String noteText) async {
@@ -452,71 +400,6 @@ class LeadService {
         .eq('id', id)
         .single();
     return LeadModel.fromJson(response);
-  }
-
-  Future<LeadModel> getLeadByIdBasic(String id) async {
-    final response = await _supabase
-        .from('leads')
-        .select(_selectBasic)
-        .eq('id', id)
-        .single();
-    return LeadModel.fromJson(response);
-  }
-
-  /// جلب سجلات العميل بشكل منفصل مع عمل الـ joins عند الموظف (client-side)
-  /// باستخدام البيانات المحفوظة في StaticDataManager وقائمة الموظفين
-  Future<List<LeadLogEntryModel>> fetchLeadLogs(String leadId) async {
-    final response = await _supabase
-        .from('lead_logs')
-        .select('id, activity_type_id, created_at, notes, scheduled_at, changed_by, old_status_id, new_status_id, is_answered')
-        .eq('lead_id', leadId)
-        .order('created_at', ascending: false);
-
-    final dataManager = di.sl<StaticDataManager>();
-
-    return (response as List).map((json) {
-      // Client-side join: activity_type
-      final activityTypeId = json['activity_type_id']?.toString();
-      final activityType = activityTypeId != null
-          ? dataManager.getOptionById('activity_types', activityTypeId)
-          : null;
-
-      // Client-side join: statuses
-      final oldStatusId = json['old_status_id']?.toString();
-      final newStatusId = json['new_status_id']?.toString();
-      final oldStatus = oldStatusId != null
-          ? dataManager.getOptionById('lead_status', oldStatusId)
-          : null;
-      final newStatus = newStatusId != null
-          ? dataManager.getOptionById('lead_status', newStatusId)
-          : null;
-
-      // Client-side join: employee name
-      final changedById = json['changed_by']?.toString();
-      final employee = changedById != null
-          ? dataManager.employees.where((e) => e.id == changedById).firstOrNull
-          : null;
-      final changedByName = employee != null
-          ? '${employee.firstName ?? ''} ${employee.lastName ?? ''}'.trim()
-          : null;
-
-      // nameEn من الـ extra map
-      final activityNameEn = activityType?.extra?['name_en']?.toString();
-
-      return LeadLogEntryModel(
-        id: json['id']?.toString() ?? '',
-        action: activityType?.nameAr ?? '',
-        actionEn: activityNameEn,
-        createdAt: DateTime.parse(json['created_at']).toLocal(),
-        oldStatusName: oldStatus?.nameAr,
-        newStatusName: newStatus?.nameAr,
-        createdByName: changedByName?.isNotEmpty == true ? changedByName : null,
-        notes: json['notes']?.toString(),
-        scheduledAt: json['scheduled_at'] != null
-            ? DateTime.parse(json['scheduled_at']).toLocal()
-            : null,
-      );
-    }).toList();
   }
 
   Future<void> deleteLead(String id) async {
@@ -581,9 +464,9 @@ class LeadService {
     return [];
   }
 
-  /// يتحقق من التكرارات بناءً على آخر 7 أرقام
+  /// يتحقق من التكرارات بناءً على آخر 6 أرقام
   Future<List<LeadModel>> checkDuplicateLeadPhones(List<String> phones) async {
-    final suffixes = phones.map((p) => p.length >= 7 ? p.substring(p.length - 7) : p).where((s) => s.isNotEmpty).toList();
+    final suffixes = phones.map((p) => p.length >= 6 ? p.substring(p.length - 6) : p).where((s) => s.isNotEmpty).toList();
     if (suffixes.isEmpty) return [];
 
     final orConditions = suffixes.map((s) => 'phone_number.like.%$s').join(',');
@@ -598,49 +481,5 @@ class LeadService {
   Future<List<ProfileModel>> fetchAllEmployees() async {
     final response = await _supabase.from('profiles').select();
     return (response as List).map((e) => ProfileModel.fromJson(e)).toList();
-  }
-
-  // ─── المهملات (Trash) ───
-  Future<List<LeadModel>> fetchDeletedLeads() async {
-    // TODO: implement if we have soft delete, otherwise handled by is_deleted flag.
-    // Assuming there's no is_deleted flag in schema yet based on previous tasks.
-    return [];
-  }
-
-  // ─── سجل التكرارات (Duplicates) ───
-  Future<List<List<LeadModel>>> findDuplicateLeads({
-    required String role,
-    required String userId,
-  }) async {
-    // جيب مجموعات التكرار من الداتابيز
-    final groups = await _supabase.rpc('get_duplicate_lead_groups', params: {
-      'p_user_id': userId,
-      'p_role': role,
-    });
-
-    if ((groups as List).isEmpty) return [];
-
-    final List<List<LeadModel>> result = [];
-    for (final group in groups) {
-      final List<String> ids = List<String>.from(group['lead_ids']);
-      final leads = await _supabase
-          .from('leads')
-          .select(_selectList)
-          .inFilter('id', ids)
-          .order('created_at', ascending: false);
-      if ((leads as List).isNotEmpty) {
-        result.add((leads as List).map((e) => LeadModel.fromJson(e)).toList());
-      }
-    }
-    return result;
-  }
-
-  Future<void> mergeLeads(String primaryLeadId, List<String> secondaryIds, {String? assignedToId}) async {
-    if (secondaryIds.isEmpty) return;
-    await _supabase.rpc('merge_leads_atomic', params: {
-      'p_primary_id': primaryLeadId,
-      'p_secondary_ids': secondaryIds,
-      'p_assigned_to': assignedToId,
-    });
   }
 }

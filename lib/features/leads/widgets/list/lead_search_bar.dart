@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-
 import '../../../../core/constants/app_colors.dart';
 
 class LeadSearchBar extends StatefulWidget {
@@ -9,7 +8,7 @@ class LeadSearchBar extends StatefulWidget {
   final bool isSearching;
 
   const LeadSearchBar({
-    super.key,
+    super.key, 
     required this.onSearch,
     required this.onClear,
     required this.isSearching,
@@ -37,28 +36,22 @@ class _LeadSearchBarState extends State<LeadSearchBar> {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 8.h),
-      child: Row(
+      child: Column(
         children: [
           // البحث الذكي في متطلبات العملاء (دلالي)
-          Expanded(
-            flex: 2,
-            child: _buildSearchField(
-              hint: "بحث ذكي (سيمانتك)...",
-              type: 'general',
-              icon: Icons.auto_awesome,
-              keyboardType: TextInputType.text,
-            ),
+          _buildSearchField(
+            hint: "البحث الذكي في متطلبات العملاء (سيمانتك)...",
+            type: 'general',
+            icon: Icons.auto_awesome,
+            keyboardType: TextInputType.text,
           ),
-          SizedBox(width: 10.w),
+          SizedBox(height: 10.h),
           // بحث برقم العميل
-          Expanded(
-            flex: 1,
-            child: _buildSearchField(
-              hint: "بحث برقم الهاتف...",
-              type: 'phone',
-              icon: Icons.phone,
-              keyboardType: TextInputType.phone,
-            ),
+          _buildSearchField(
+            hint: "بحث برقم هاتف العميل...",
+            type: 'phone',
+            icon: Icons.phone,
+            keyboardType: TextInputType.phone,
           ),
         ],
       ),
@@ -84,10 +77,6 @@ class _LeadSearchBarState extends State<LeadSearchBar> {
       },
       decoration: InputDecoration(
         hintText: hint,
-        isDense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-        hintStyle: TextStyle(fontSize: 13.sp),
-        prefixIcon: Icon(icon, color: AppColors.brandPrimary, size: 20.sp),
         suffixIcon: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -126,6 +115,7 @@ class _LeadSearchBarState extends State<LeadSearchBar> {
           borderRadius: BorderRadius.circular(10.r),
           borderSide: BorderSide.none,
         ),
+        contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
       ),
     );
   }
