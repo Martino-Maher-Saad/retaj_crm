@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+
 import '../../../../core/constants/app_colors.dart';
 
 /// شريط البحث والفلترة السريعة في قائمة العقارات
@@ -15,7 +16,7 @@ class PropertySearchBar extends StatefulWidget {
   final ValueChanged<bool>? onToggleSearchAll;
 
   const PropertySearchBar({
-    super.key, 
+    super.key,
     required this.onSearch,
     required this.onFilterTap,
     required this.onClear,
@@ -48,41 +49,44 @@ class _PropertySearchBarState extends State<PropertySearchBar> {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 15.h),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: Column(
-              children: [
-                // 1. بحث عام (الذكاء الاصطناعي)
-                _buildSearchField(
-                  hint: "بحث عام / بالذكاء الاصطناعي...",
-                  type: 'general',
-                  icon: Icons.auto_awesome,
-                ),
-                SizedBox(height: 10.h),
-                // 2. بحث بكود العقار
-                _buildSearchField(
+          // الصف الأول: بحث بالكود وبحث برقم المالك
+          Row(
+            children: [
+              Expanded(
+                flex: 1,
+                child: _buildSearchField(
                   hint: "بحث بكود العقار...",
                   type: 'code',
                   icon: Icons.numbers,
                 ),
-                SizedBox(height: 10.h),
-                // 3. بحث برقم المالك
-                _buildSearchField(
+              ),
+              SizedBox(width: 10.w),
+              Expanded(
+                flex: 1,
+                child: _buildSearchField(
                   hint: "بحث برقم المالك...",
                   type: 'phone',
                   icon: Icons.phone,
                   keyboardType: TextInputType.phone,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          SizedBox(width: 10.w),
-
-          // ─── زر الفلاتر المتقدمة ───
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+          SizedBox(height: 10.h),
+          // الصف الثاني: البحث الذكي والفلاتر
+          Row(
             children: [
+              Expanded(
+                child: _buildSearchField(
+                  hint: "بحث عام / بالذكاء الاصطناعي...",
+                  type: 'general',
+                  icon: Icons.auto_awesome,
+                ),
+              ),
+              SizedBox(width: 10.w),
+              // ─── زر الفلاتر المتقدمة ───
               GestureDetector(
                 onTap: widget.onFilterTap,
                 child: Container(
@@ -90,27 +94,39 @@ class _PropertySearchBarState extends State<PropertySearchBar> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(10.r),
+                    border: Border.all(color: Colors.grey.shade300),
                   ),
                   child: const Icon(Icons.tune, color: AppColors.brandPrimary),
                 ),
               ),
               if (widget.showToggle) ...[
-                SizedBox(height: 15.h),
+                SizedBox(width: 10.w),
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-                  decoration: BoxDecoration(
-                    color: widget.searchAll ? AppColors.brandPrimary.withOpacity(0.1) : Colors.white,
-                    borderRadius: BorderRadius.circular(8.r),
-                    border: Border.all(color: widget.searchAll ? AppColors.brandPrimary : Colors.grey.shade300),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 12.w,
+                    vertical: 4.h,
                   ),
-                  child: Column(
+                  decoration: BoxDecoration(
+                    color: widget.searchAll
+                        ? AppColors.brandPrimary.withValues(alpha: 0.1)
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(8.r),
+                    border: Border.all(
+                      color: widget.searchAll
+                          ? AppColors.brandPrimary
+                          : Colors.grey.shade300,
+                    ),
+                  ),
+                  child: Row(
                     children: [
                       Text(
                         "الكل",
                         style: TextStyle(
-                          fontSize: 10.sp,
+                          fontSize: 12.sp,
                           fontWeight: FontWeight.bold,
-                          color: widget.searchAll ? AppColors.brandPrimary : Colors.grey,
+                          color: widget.searchAll
+                              ? AppColors.brandPrimary
+                              : Colors.grey,
                         ),
                       ),
                       Switch(
@@ -136,8 +152,8 @@ class _PropertySearchBarState extends State<PropertySearchBar> {
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
   }) {
-    // استخدم controllers مختلفة لكل نوع للسهولة، 
-    // ولكن لتجنب تكرار الكود حالياً سنعتمد على controller واحد ويتم تفريغه، 
+    // استخدم controllers مختلفة لكل نوع للسهولة،
+    // ولكن لتجنب تكرار الكود حالياً سنعتمد على controller واحد ويتم تفريغه،
     // أو نضع controller خاص بكل حقل. سنستخدم map.
     return TextField(
       controller: _controllers[type],
@@ -152,6 +168,10 @@ class _PropertySearchBarState extends State<PropertySearchBar> {
       },
       decoration: InputDecoration(
         hintText: hint,
+        isDense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+        hintStyle: TextStyle(fontSize: 13.sp),
+        prefixIcon: Icon(icon, color: AppColors.brandPrimary, size: 20.sp),
         suffixIcon: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -190,7 +210,6 @@ class _PropertySearchBarState extends State<PropertySearchBar> {
           borderRadius: BorderRadius.circular(10.r),
           borderSide: BorderSide.none,
         ),
-        contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
       ),
     );
   }

@@ -23,6 +23,12 @@ class DropdownRepository {
       _service.fetchAdvertisingPlatforms(),      // 7
       _service.fetchLeadExclusionReasons(),      // 8
       _service.fetchPropertyApprovalStatuses(),  // 9
+      _service.fetchStageTypes(),                // 10
+      _service.fetchTaskStatuses(),              // 11
+      _service.fetchMeetingTypes(),              // 12
+      _service.fetchMeetingPurposes(),           // 13
+      _service.fetchActivityTypes(),             // 14
+      _service.fetchLeadRates(),                 // 15
     ]);
 
     final govRaw = results[0] as List<Map<String, dynamic>>;
@@ -51,6 +57,12 @@ class DropdownRepository {
         'advertising_platform':  results[7] as List<LookupOptionModel>,
         'lead_exclusion_reasons': results[8] as List<LookupOptionModel>,
         'property_approval_statuses': results[9] as List<LookupOptionModel>,
+        'stage_types':           results[10] as List<LookupOptionModel>,
+        'task_status':         results[11] as List<LookupOptionModel>,
+        'meeting_types':         results[12] as List<LookupOptionModel>,
+        'meeting_purposes':      results[13] as List<LookupOptionModel>,
+        'activity_types':        results[14] as List<LookupOptionModel>,
+        'lead_rates':            results[15] as List<LookupOptionModel>,
       },
     );
   }
@@ -68,18 +80,26 @@ class DropdownRepository {
     String nameAr, {
     bool isLocation = false,
     int? governorateId,
-  }) => _service.addOption(tableName, nameAr, isLocation: isLocation, governorateId: governorateId);
+    Map<String, dynamic>? extraData,
+  }) => _service.addOption(tableName, nameAr, isLocation: isLocation, governorateId: governorateId, extraData: extraData);
 
   Future<LookupOptionModel> updateOption(
     String tableName,
     String id,
     String newName, {
     bool isLocation = false,
-  }) => _service.updateOption(tableName, id, newName, isLocation: isLocation);
+    Map<String, dynamic>? extraData,
+  }) => _service.updateOption(tableName, id, newName, isLocation: isLocation, extraData: extraData);
 
   Future<void> deactivateOption(String tableName, String id) =>
       _service.deactivateOption(tableName, id);
 
   Future<void> activateOption(String tableName, String id) =>
       _service.activateOption(tableName, id);
+
+  Future<void> deleteLeadStatus(String id, String? replaceWithId) =>
+      _service.deleteLeadStatus(id, replaceWithId);
+
+  Future<int> countLeadsWithStatus(String statusId) =>
+      _service.countLeadsWithStatus(statusId);
 }

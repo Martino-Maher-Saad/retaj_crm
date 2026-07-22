@@ -17,8 +17,10 @@ import '../widgets/list/property_shimmer_list.dart';
 import '../widgets/list/internal_share_dialog.dart' as import_helper;
 import '../widgets/property_card.dart';
 import '../widgets/list/advanced_filter_dialog.dart';
-import 'property_details_screen.dart';
+import 'property_preview_side_sheet.dart';
 import 'property_form_screen.dart';
+import '../widgets/list/properties_table_view.dart';
+import '../widgets/list/properties_grid_view.dart';
 
 class PropertiesListScreen extends StatefulWidget {
   final String userId;
@@ -45,6 +47,15 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
   bool get wantKeepAlive => true;
 
   void _onPropertySync() {
+    // Bulk Transfer: إعادة تحميل كل العقارات
+    if (_sync.consumeRefresh()) {
+      _cubit.fetchMyProperties(
+        userId: widget.userId,
+        role: widget.role,
+        isRefresh: true,
+      );
+      return;
+    }
     final updated = _sync.consumeUpdate();
     if (updated != null) {
       _cubit.patchProperty(updated);
@@ -59,42 +70,20 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
   @override
   void initState() {
     super.initState();
-    _cubit = di.sl<PropertiesCubit>()..fetchMyProperties(
-        userId: widget.userId, 
-        role: widget.role, 
-        isRefresh: true,
-      );
+    _cubit = di.sl<PropertiesCubit>()
+      ..setCurrentUser(widget.userId, widget.role)
+      ..fetchMyProperties(
+          userId: widget.userId,
+          role: widget.role,
+          isRefresh: true,
+        );
     _sync = di.sl<PropertySyncNotifier>()..addListener(_onPropertySync);
-
-    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
     _sync.removeListener(_onPropertySync);
-    _scrollController.dispose();
     super.dispose();
-  }
-
-  void _onScroll() {
-    if (_cubit.state is PropertiesSuccess) {
-      final pos = _scrollController.position;
-      if (pos.pixels >= pos.maxScrollExtent * 0.6) {
-        final current = _cubit.state as PropertiesSuccess;
-
-        // البحث لا يدعم pagination حالياً
-        if (current.isSearching) return;
-
-        // أثناء الفلتر: لازم نكمّل filteredProperties فقط
-        if (current.isFiltering) {
-          _cubit.loadMoreFilteredProperties();
-          return;
-        }
-
-        // بدون فلتر: كمّل القائمة الأساسية
-        _cubit.fetchMyProperties(userId: widget.userId, role: widget.role);
-      }
-    }
   }
 
   @override
@@ -108,10 +97,6 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
           body: BlocConsumer<PropertiesCubit, PropertiesState>(
             listener: (context, state) {
               if (state is PropertiesError) {
-                print('==================================================================');
-                print('❌ [PROPERTIES INVENTORY ERROR DETECTED]:');
-                print('Message: ${state.message}');
-                print('==================================================================');
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(state.message),
@@ -136,33 +121,29 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
                     totalCount: total,
                     onAdd: () => _openForm(context: context, cubit: _cubit),
                     onFilter: () => _openAdvancedFilter(context),
-                  ),
-                  PropertySearchBar(
-                    showToggle: widget.role == 'sales',
-                    searchAll: _cubit.searchAll,
-                    onToggleSearchAll: (val) {
-                      _cubit.toggleSearchAll(val);
-                      // If there is an active search, re-trigger it with new scope
-                      if (_cubit.state is PropertiesSuccess && (_cubit.state as PropertiesSuccess).isSearching) {
-                        _cubit.clearSearch();
-                      }
-                      setState(() {});
-                    },
-                    onSearch: (val, type) {
-                      final assignedToFilter = widget.role == 'sales'
-                          ? (_cubit.searchAll ? null : widget.userId)
-                          : null;
-                      if (type == 'general') {
-                        _cubit.smartSearch(val, assignedTo: assignedToFilter);
-                      } else {
-                        // For 'phone' type, it should always be restricted to user's properties for 'sales'
-                        final actualAssignedTo = (type == 'phone' && widget.role == 'sales') ? widget.userId : assignedToFilter;
-                        _cubit.search(val, type: type, assignedTo: actualAssignedTo);
-                      }
-                    },
-                    onFilterTap: () => _openAdvancedFilter(context),
-                    onClear: () => _cubit.clearSearch(),
-                    isSearching: state is PropertiesSuccess ? state.isSearching : false,
+                    searchBar: PropertySearchBar(
+                      showToggle: widget.role == 'sales',
+                      searchAll: _cubit.searchAll,
+                      onToggleSearchAll: (val) {
+                        _cubit.toggleSearchAll(val);
+                        if (_cubit.state is PropertiesSuccess && (_cubit.state as PropertiesSuccess).isSearching) {
+                          _cubit.clearSearch();
+                        }
+                        setState(() {});
+                        _cubit.fetchMyProperties(userId: widget.userId, role: widget.role);
+                      },
+                      onSearch: (val, type) {
+                        final actualAssignedTo = _cubit.searchAll ? null : widget.userId;
+                        if (type == 'general') {
+                          _cubit.smartSearch(val, assignedTo: actualAssignedTo);
+                        } else {
+                          _cubit.search(val, type: type, assignedTo: actualAssignedTo);
+                        }
+                      },
+                      onFilterTap: () => _openAdvancedFilter(context),
+                      onClear: () => _cubit.clearSearch(),
+                      isSearching: state is PropertiesSuccess ? state.isSearching : false,
+                    ),
                   ),
                   if (state is PropertiesSuccess && state.isFiltering)
                     Container(
@@ -219,6 +200,10 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
               ? successState.filteredTotalCount 
               : successState.myTotalCount;
 
+      final isLoadingMore = successState.isSearching 
+          ? _cubit.isLoadingMoreSmartSearch
+          : false;
+
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -230,90 +215,31 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: EdgeInsets.symmetric(horizontal: 10.w),
-              itemCount: properties.length +
-                  (successState.isSearching
-                      ? (successState.hasMoreSmartSearch ? 1 : 0)
-                      : (properties.length < totalCount ? 1 : 0)),
-              itemBuilder: (context, index) {
-                if (index == properties.length) {
-                  if (successState.isSearching) {
-                    return Center(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 20.h, horizontal: 30.w),
-                        child: _cubit.isLoadingMoreSmartSearch
-                            ? const CircularProgressIndicator()
-                            : OutlinedButton.icon(
-                                style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(color: AppColors.brandPrimary),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
-                                  padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 20.w),
-                                ),
-                                onPressed: () {
-                                  _cubit.loadMoreSmartSearch().then((_) {
-                                    setState(() {}); // trigger rebuild to update spinner state
-                                  });
-                                },
-                                icon: const Icon(Icons.refresh_rounded, color: AppColors.brandPrimary),
-                                label: Text(
-                                  "عرض المزيد من نتائج البحث 🔄",
-                                  style: TextStyle(
-                                    color: AppColors.brandPrimary,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14.sp,
-                                  ),
-                                ),
-                              ),
-                      ),
-                    );
-                  } else {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(8.0),
-                        child: CircularProgressIndicator(),
-                      ),
-                    );
-                  }
-                }
-                final property = properties[index];
-                return PropertyCard(
-                  key: ValueKey(property.id),
-                  property: property,
-                  currentUserId: widget.userId,
-                  role: widget.role,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => PropertyDetailsScreen(
-                        property: property,
-                        currentUserId: widget.userId,
-                        role: widget.role,
-                      ),
-                    ),
-                  ),
-                  onEdit: () =>
-                      _openForm(context: context, cubit: _cubit, property: property),
-                  onArchive: () => PropertyArchiveDialog.show(
-                    context,
-                    property,
-                    () => _cubit.archiveProperty(property.id, true),
-                  ),
-                  onDelete: () => PropertyDeleteDialog.show(
-                    context,
-                    property,
-                    () => _cubit.deleteFullProperty(property.id),
-                  ),
-                  onShareInternal: () => import_helper.InternalShareDialog.show(
-                    context,
-                    property,
-                    widget.userId,
-                    _cubit,
-                  ),
-                  onPinToggle: () => _cubit.togglePropertyPin(property),
-                );
-              },
+            child: PropertiesTableView(
+              properties: properties,
+              role: widget.role,
+              isLoadingMore: isLoadingMore,
+              hasMore: properties.length < totalCount,
+              onTap: _goToDetails,
+              onLoadMore: _handleLoadMore,
+              onEdit: (property) => _openForm(context: context, cubit: _cubit, property: property),
+              onArchive: (property) => PropertyArchiveDialog.show(
+                context,
+                property,
+                () => _cubit.archiveProperty(property.id, true),
+              ),
+              onDelete: (property) => PropertyDeleteDialog.show(
+                context,
+                property,
+                () => _cubit.deleteFullProperty(property.id),
+              ),
+              onShareInternal: (property) => import_helper.InternalShareDialog.show(
+                context,
+                property,
+                widget.userId,
+                _cubit,
+              ),
+              onPinToggle: (property) => _cubit.togglePropertyPin(property),
             ),
           ),
         ],
@@ -322,23 +248,96 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
     return const Center(child: CircularProgressIndicator());
   }
 
+  void _goToDetails(PropertyModel property) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'PropertyPreview',
+      transitionDuration: const Duration(milliseconds: 280),
+      pageBuilder: (context, anim1, anim2) {
+        return Align(
+          alignment: Alignment.centerRight,
+          child: Material(
+            elevation: 16,
+            child: PropertyPreviewSideSheet(
+              property: property,
+              currentUserId: widget.userId,
+              role: widget.role,
+              cubit: _cubit,
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (context, anim1, anim2, child) {
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(1, 0),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic)),
+          child: child,
+        );
+      },
+    ).then((result) {
+      if (result == true) {
+        _cubit.fetchMyProperties(
+          userId: widget.userId,
+          role: widget.role,
+          isRefresh: true,
+        );
+      }
+    });
+  }
+
+  void _handleLoadMore() {
+    final state = _cubit.state;
+    if (state is PropertiesSuccess) {
+      if (state.isSearching) {
+        if (state.hasMoreSmartSearch) {
+          _cubit.loadMoreSmartSearch().then((_) => setState(() {}));
+        }
+      } else if (state.isFiltering) {
+        _cubit.loadMoreFilteredProperties();
+      } else {
+        _cubit.fetchMyProperties(userId: widget.userId, role: widget.role);
+      }
+    }
+  }
+
   Future<void> _openForm({
     required BuildContext context,
     required PropertiesCubit cubit,
     PropertyModel? property,
   }) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => BlocProvider.value(
-          value: cubit,
-          child: PropertyFormScreen(
-            property: property,
-            userId: widget.userId,
-            userRole: widget.role,
+    await showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'PropertyForm',
+      transitionDuration: const Duration(milliseconds: 280),
+      pageBuilder: (context, anim1, anim2) {
+        return Align(
+          alignment: Alignment.centerRight,
+          child: Material(
+            elevation: 16,
+            child: BlocProvider.value(
+              value: cubit,
+              child: PropertyFormScreen(
+                property: property,
+                userId: widget.userId,
+                userRole: widget.role,
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
+      transitionBuilder: (context, anim1, anim2, child) {
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(1, 0),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic)),
+          child: child,
+        );
+      },
     );
   }
 

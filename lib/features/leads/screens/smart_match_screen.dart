@@ -28,10 +28,13 @@ class SmartMatchScreen extends StatefulWidget {
   State<SmartMatchScreen> createState() => _SmartMatchScreenState();
 }
 
-class _SmartMatchScreenState extends State<SmartMatchScreen> {
+class _SmartMatchScreenState extends State<SmartMatchScreen> with AutomaticKeepAliveClientMixin {
   late PropertiesCubit _cubit;
   final dataManager = di.sl<StaticDataManager>();
   int _visibleCount = 3;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -54,17 +57,10 @@ class _SmartMatchScreenState extends State<SmartMatchScreen> {
       listingTypeId = dataManager.getIdByName('listing_type', lead.listingType!);
     }
 
-    int? governorateId;
-    if (lead.governorate != null && lead.governorate!.isNotEmpty) {
-      try {
-        governorateId = dataManager.governorates.firstWhere((g) => g.name == lead.governorate).id;
-      } catch (_) {}
-    }
-
     int? cityId;
-    if (governorateId != null && lead.city != null && lead.city!.isNotEmpty) {
+    if (lead.city != null && lead.city!.isNotEmpty) {
       try {
-        cityId = dataManager.getCitiesByGovId(governorateId).firstWhere((c) => c.name == lead.city).id;
+        cityId = dataManager.allCities.firstWhere((c) => c.name == lead.city).id;
       } catch (_) {}
     }
 
@@ -81,7 +77,6 @@ class _SmartMatchScreenState extends State<SmartMatchScreen> {
     print("نص طلب العميل: ${lead.descLeadNeed}");
     print("مُعرّف نوع العقار: $propertyTypeId (${lead.propertyType})");
     print("مُعرّف نوع الإعلان: $listingTypeId (${lead.listingType})");
-    print("مُعرّف المحافظة: $governorateId (${lead.governorate})");
     print("مُعرّف المدينة: $cityId (${lead.city})");
     print("الميزانية من (المصححة): $minPrice إلى: $maxPrice");
     print("=================================================");
@@ -90,7 +85,6 @@ class _SmartMatchScreenState extends State<SmartMatchScreen> {
       lead.descLeadNeed ?? '',
       propertyTypeId: propertyTypeId,
       listingTypeId: listingTypeId,
-      governorateId: governorateId,
       cityId: cityId,
       minPrice: minPrice,
       maxPrice: maxPrice,
@@ -105,6 +99,7 @@ class _SmartMatchScreenState extends State<SmartMatchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return BlocProvider.value(
       value: _cubit,
       child: Scaffold(
@@ -302,12 +297,15 @@ class _MatchedPropertyCardState extends State<MatchedPropertyCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // السعر وكود العقار والمسؤول وبيانات المالك
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.start,
                       children: [
                         // اليمين: الكود والمسؤول
-                        Row(
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 14.w,
+                          runSpacing: 8.h,
                           children: [
                             Container(
                               padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),

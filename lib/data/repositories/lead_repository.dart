@@ -10,6 +10,23 @@ class LeadRepository {
 
   LeadRepository(this._leadService);
 
+  Future<LeadModel> getLeadById(String id) async {
+    try {
+      // السجلات (logs) يتم جلبها مدمجة مع بيانات العميل الآن
+      return await _leadService.getLeadById(id);
+    } catch (e) {
+      throw 'فشل في جلب تفاصيل العميل: $e';
+    }
+  }
+
+  Future<LeadModel> getLeadByIdBasic(String id) async {
+    try {
+      return await _leadService.getLeadByIdBasic(id);
+    } catch (e) {
+      throw 'فشل في جلب تفاصيل العميل: $e';
+    }
+  }
+
   Future<List<LeadModel>> getAllLeads({
     required String role,
     required String userId,
@@ -20,13 +37,13 @@ class LeadRepository {
     String? leadStatusId,
     String? propertyTypeId,
     String? listingTypeId,
-    int? governorateId,
     int? cityId,
     DateTime? fromDate,
     DateTime? toDate,
-    bool? isArchived = false,
-    bool? isStagnant,
-    bool? isForTasks,
+    bool? isTrash,
+    List<String>? statusIds,
+    bool? isTransferred,
+    bool? delayFilter,
   }) async {
     try {
       return await _leadService.fetchAllLeads(
@@ -39,18 +56,21 @@ class LeadRepository {
         leadStatusId: leadStatusId,
         propertyTypeId: propertyTypeId,
         listingTypeId: listingTypeId,
-        governorateId: governorateId,
         cityId: cityId,
         fromDate: fromDate,
         toDate: toDate,
-        isArchived: isArchived,
-        isStagnant: isStagnant,
-        isForTasks: isForTasks,
+        isTrash: isTrash,
+        statusIds: statusIds,
+        isTransferred: isTransferred,
+        delayFilter: delayFilter,
       );
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
-    } catch (e) {
-      throw 'حدث خطأ غير متوقع أثناء جلب البيانات';
+    } catch (e, stacktrace) {
+      print('=== ACTUAL REPO ERROR ===');
+      print(e);
+      print(stacktrace);
+      throw 'حدث خطأ غير متوقع أثناء جلب البيانات: $e';
     }
   }
 
@@ -92,13 +112,13 @@ class LeadRepository {
     String? leadStatusId,
     String? propertyTypeId,
     String? listingTypeId,
-    int? governorateId,
     int? cityId,
     DateTime? fromDate,
     DateTime? toDate,
-    bool? isArchived = false,
-    bool? isStagnant,
-    bool? isForTasks,
+    bool? isTrash,
+    List<String>? statusIds,
+    bool? isTransferred,
+    bool? delayFilter,
   }) async {
     try {
       return await _leadService.getLeadsCount(
@@ -109,13 +129,13 @@ class LeadRepository {
         leadStatusId: leadStatusId,
         propertyTypeId: propertyTypeId,
         listingTypeId: listingTypeId,
-        governorateId: governorateId,
         cityId: cityId,
         fromDate: fromDate,
         toDate: toDate,
-        isArchived: isArchived,
-        isStagnant: isStagnant,
-        isForTasks: isForTasks,
+        isTrash: isTrash,
+        statusIds: statusIds,
+        isTransferred: isTransferred,
+        delayFilter: delayFilter,
       );
     } catch (e) {
       return 0;
@@ -185,9 +205,9 @@ class LeadRepository {
     }
   }
 
-  Future<LeadModel> updateLeadStatus(String id, String statusId) async {
+  Future<LeadModel> updateLeadStatus(String id, String statusId, {bool isExcluded = false}) async {
     try {
-      return await _leadService.updateLeadStatus(id, statusId);
+      return await _leadService.updateLeadStatus(id, statusId, isExcluded: isExcluded);
     } on PostgrestException catch (e) {
       print('🚀 Supabase Error in updateLeadStatus: ${e.message} \n Details: ${e.details} \n Hint: ${e.hint}');
       throw _handlePostgrestError(e);
@@ -197,9 +217,9 @@ class LeadRepository {
     }
   }
 
-  Future<LeadModel> updateLeadStatusAndEmployee(String id, String statusId, String employeeId) async {
+  Future<LeadModel> updateLeadStatusAndEmployee(String id, String statusId, String employeeId, {bool isExcluded = false}) async {
     try {
-      return await _leadService.updateLeadStatusAndEmployee(id, statusId, employeeId);
+      return await _leadService.updateLeadStatusAndEmployee(id, statusId, employeeId, isExcluded: isExcluded);
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
@@ -217,6 +237,7 @@ class LeadRepository {
     }
   }
 
+
   Future<void> archiveLead(String id, bool isArchived) async {
     try {
       await _leadService.archiveLead(id, isArchived);
@@ -224,6 +245,58 @@ class LeadRepository {
       throw _handlePostgrestError(e);
     } catch (e) {
       throw 'فشل أرشفة العميل';
+    }
+  }
+
+  Future<LeadModel> transferLead({
+    required String leadId,
+    required String fromEmployeeId,
+    required String toEmployeeId,
+    required String changedBy,
+    String? notes,
+  }) async {
+    try {
+      return await _leadService.transferLead(
+        leadId: leadId,
+        fromEmployeeId: fromEmployeeId,
+        toEmployeeId: toEmployeeId,
+        changedBy: changedBy,
+        notes: notes,
+      );
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
+    } catch (e) {
+      throw 'فشل تحويل العميل: $e';
+    }
+  }
+
+  Future<void> addLeadAction({
+    required String leadId,
+    required String comment,
+    required String nextStatusId,
+    DateTime? scheduledAt,
+    String? meetingTypeId,
+    String? meetingPurposeId,
+    String? meetingLocation,
+    String? exclusionReasonId,
+    String? propertyCode,
+    double? companyProfit,
+  }) async {
+    try {
+      await _leadService.addLeadAction(
+        leadId: leadId,
+        comment: comment,
+        nextStatusId: nextStatusId,
+        scheduledAt: scheduledAt,
+        meetingTypeId: meetingTypeId,
+        meetingPurposeId: meetingPurposeId,
+        meetingLocation: meetingLocation,
+        exclusionReasonId: exclusionReasonId,
+        propertyCode: propertyCode,
+        companyProfit: companyProfit,
+      );
+    } catch (e) {
+      throw 'فشل إضافة الأكشن: $e';
     }
   }
 
@@ -249,7 +322,6 @@ class LeadRepository {
     required String query,
     String? propertyTypeId,
     String? listingTypeId,
-    int? governorateId,
     int? cityId,
     required String role,
     required String userId,
@@ -263,7 +335,6 @@ class LeadRepository {
         vector: vector,
         propertyTypeId: propertyTypeId,
         listingTypeId: listingTypeId,
-        governorateId: governorateId,
         cityId: cityId,
         role: role,
         userId: userId,
@@ -302,6 +373,22 @@ class LeadRepository {
         return 'خطأ في الوصول لجدول البيانات';
       default:
         return 'خطأ في السيرفر: ${e.message}';
+    }
+  }
+
+  Future<List<List<LeadModel>>> findDuplicateLeads({required String role, required String userId}) async {
+    try {
+      return await _leadService.findDuplicateLeads(role: role, userId: userId);
+    } catch (e) {
+      throw 'حدث خطأ أثناء جلب العملاء المكررين: $e';
+    }
+  }
+
+  Future<void> mergeLeads(String primaryLeadId, List<String> secondaryIds, {String? assignedToId}) async {
+    try {
+      await _leadService.mergeLeads(primaryLeadId, secondaryIds, assignedToId: assignedToId);
+    } on PostgrestException catch (e) {
+      throw 'حدث خطأ أثناء دمج العملاء: $e';
     }
   }
 }

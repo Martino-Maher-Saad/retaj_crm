@@ -24,6 +24,9 @@ class LeadLoaded extends LeadState {
   final bool isLoadingMore;
   final bool isSearching;
   final List<ProfileModel> employees;
+  /// IDs العناصر اللي اتحدثت للتو عبر realtime — تُستخدم لعمل وميض لحظي
+  final Set<String> flashingIds;
+
   const LeadLoaded({
     required this.allLeads,
     required this.filteredLeads,
@@ -32,6 +35,7 @@ class LeadLoaded extends LeadState {
     this.isLoadingMore = false,
     this.isSearching = false,
     this.employees = const [],
+    this.flashingIds = const {},
   });
 
   LeadLoaded copyWith({
@@ -42,6 +46,7 @@ class LeadLoaded extends LeadState {
     bool? isLoadingMore,
     bool? isSearching,
     List<ProfileModel>? employees,
+    Set<String>? flashingIds,
   }) {
     return LeadLoaded(
       allLeads: allLeads ?? this.allLeads,
@@ -51,11 +56,12 @@ class LeadLoaded extends LeadState {
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       isSearching: isSearching ?? this.isSearching,
       employees: employees ?? this.employees,
+      flashingIds: flashingIds ?? this.flashingIds,
     );
   }
 
   @override
-  List<Object?> get props => [allLeads, filteredLeads, currentFilter, totalCount, isLoadingMore, isSearching, employees];
+  List<Object?> get props => [allLeads, filteredLeads, currentFilter, totalCount, isLoadingMore, isSearching, employees, flashingIds];
 }
 
 // حالة الخطأ

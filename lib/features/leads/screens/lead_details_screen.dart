@@ -6,11 +6,14 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../../../core/widgets/retaj_shared_fields.dart';
+import '../../../core/utils/static_data_manager.dart';
+import '../../../core/di/injection_container.dart';
 import '../../../data/models/lead_model.dart';
 import '../../../data/models/profile_model.dart';
 import '../cubit/leads_cubit.dart';
 import '../cubit/leads_state.dart';
 import 'smart_match_screen.dart';
+import '../widgets/details/lead_action_form_widget.dart';
 
 class LeadDetailsScreen extends StatefulWidget {
   final String leadId;
@@ -27,23 +30,15 @@ class LeadDetailsScreen extends StatefulWidget {
 }
 
 class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
-  final TextEditingController _noteController = TextEditingController();
-  bool _isAddingNote = false;
-  static const int _initialNotesCount = 3;
   bool _showAllNotes = false;
-
-  void _submitNote(LeadModel lead) {
-    final text = _noteController.text.trim();
-    if (text.isEmpty || _isAddingNote) return;
-    setState(() => _isAddingNote = true);
-    _noteController.clear();
-    context.read<LeadCubit>().addNote(lead.id!, text);
-  }
+  final int _initialNotesCount = 3;
 
   @override
-  void dispose() {
-    _noteController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<LeadCubit>().fetchLeadDetails(widget.leadId);
+    });
   }
 
   LeadModel? _getLatestLead(LeadState state) {
@@ -59,30 +54,7 @@ class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocConsumer<LeadCubit, LeadState>(
-      listener: (context, state) {
-        if (_isAddingNote) {
-          if (state is LeadLoaded) {
-            setState(() => _isAddingNote = false);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('✅ تم إضافة الملاحظة بنجاح'),
-                backgroundColor: Colors.green,
-                duration: Duration(seconds: 2),
-              ),
-            );
-          } else if (state is LeadError) {
-            setState(() => _isAddingNote = false);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('❌ فشل إضافة الملاحظة: ${state.message}'),
-                backgroundColor: Colors.red,
-                duration: const Duration(seconds: 3),
-              ),
-            );
-          }
-        }
-      },
+    return BlocBuilder<LeadCubit, LeadState>(
       builder: (context, state) {
         final lead = _getLatestLead(state);
 
@@ -172,14 +144,10 @@ class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
                     RetajFieldRow(
                       first: RetajTextField(
                         readOnly: true,
-                        label: 'المحافظة',
-                        initialValue: lead.governorate ?? '—',
-                      ),
-                      second: RetajTextField(
-                        readOnly: true,
                         label: 'المدينة',
                         initialValue: lead.city ?? '—',
                       ),
+                      second: const SizedBox.shrink(),
                     ),
                     RetajFieldRow(
                       first: RetajTextField(
@@ -250,9 +218,9 @@ class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
                     ],
                   ),
 
-                // ─── سجل الملاحظات ───
+                // ─── سجل الإجراءات والملاحظات (Timeline) ───
                 RetajSectionCard(
-                  title: 'سجل الملاحظات (${lead.notes.length})',
+                  title: 'سجل الإجراءات والملاحظات',
                   icon: Icons.notes_rounded,
                   iconColor: Colors.orange,
                   children: [
@@ -329,27 +297,52 @@ class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
   }
 
   Widget _buildNotesSection(LeadModel lead) {
-    final notes = [...lead.notes]
-      ..sort((a, b) {
-        if (a.createdAt == null && b.createdAt == null) return 0;
-        if (a.createdAt == null) return 1;
-        if (b.createdAt == null) return -1;
-        return b.createdAt!.compareTo(a.createdAt!);
-      });
+    // دمج الملاحظات والسجلات في قائمة واحدة للـ Timeline
+    final List<Map<String, dynamic>> timeline = [];
 
-    final displayCount = _showAllNotes ? notes.length : _initialNotesCount.clamp(0, notes.length);
+    for (var note in lead.notes) {
+      if (note.createdAt != null) {
+        timeline.add({
+          'is_log': false,
+          'date': note.createdAt!,
+          'title': 'ملاحظة جديدة',
+          'description': note.noteText,
+          'user': note.userName ?? 'غير معروف',
+          'icon': Icons.note_alt_outlined,
+          'color': Colors.blue,
+        });
+      }
+    }
+
+    for (var log in lead.logs) {
+      timeline.add({
+        'is_log': true,
+        'date': log.createdAt,
+        'title': log.action ?? 'تحديث الحالة',
+        'description': log.oldStatusName != null 
+            ? 'من ${log.oldStatusName} إلى ${log.newStatusName}'
+            : 'الحالة: ${log.newStatusName ?? "غير محدد"}',
+        'user': log.createdByName ?? 'النظام',
+        'icon': Icons.track_changes_outlined,
+        'color': Colors.orange,
+      });
+    }
+
+    timeline.sort((a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
+
+    final displayCount = _showAllNotes ? timeline.length : _initialNotesCount.clamp(0, timeline.length);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // قائمة الملاحظات
-        if (notes.isEmpty)
+        if (timeline.isEmpty)
           Padding(
             padding: EdgeInsets.symmetric(vertical: 8.h),
-            child: Text('لا توجد ملاحظات حتى الآن', style: TextStyle(color: Colors.grey, fontSize: 14.sp)),
+            child: Text('لا توجد سجلات حتى الآن', style: TextStyle(color: Colors.grey, fontSize: 14.sp)),
           )
         else ...[
-          ...notes.take(displayCount).map((note) => Container(
+          ...timeline.take(displayCount).map((item) => Container(
             margin: EdgeInsets.only(bottom: 10.h),
             padding: EdgeInsets.all(14.w),
             decoration: BoxDecoration(
@@ -362,91 +355,46 @@ class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
               children: [
                 Row(
                   children: [
-                    Container(
-                      width: 8.w, height: 8.h,
-                      decoration: BoxDecoration(color: AppColors.brandPrimary, shape: BoxShape.circle),
-                    ),
+                    Icon(item['icon'] as IconData, size: 18.sp, color: item['color'] as Color),
                     SizedBox(width: 8.w),
-                    if (note.userName != null)
-                      Text(note.userName!, style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w700, color: AppColors.brandPrimary)),
+                    Text(item['title'] as String, style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.bold, color: item['color'] as Color)),
                     const Spacer(),
-                    if (note.createdAt != null)
-                      Text(
-                        DateFormat('dd/MM/yyyy – HH:mm').format(note.createdAt!),
-                        style: TextStyle(fontSize: 11.sp, color: AppColors.textSecondary),
-                      ),
+                    Text(
+                      DateFormat('dd/MM/yyyy – HH:mm').format(item['date'] as DateTime),
+                      style: TextStyle(fontSize: 11.sp, color: AppColors.textSecondary),
+                    ),
                   ],
                 ),
                 SizedBox(height: 8.h),
-                Text(note.noteText, style: TextStyle(fontSize: 14.sp, height: 1.6)),
+                Text(item['description'] as String, style: TextStyle(fontSize: 14.sp, height: 1.6, fontWeight: item['is_log'] == true ? FontWeight.bold : FontWeight.normal)),
+                SizedBox(height: 6.h),
+                Row(
+                  children: [
+                    Icon(Icons.person_outline, size: 14.sp, color: Colors.grey),
+                    SizedBox(width: 4.w),
+                    Text(item['user'] as String, style: TextStyle(fontSize: 12.sp, color: Colors.grey)),
+                  ],
+                ),
               ],
             ),
           )),
 
-          if (notes.length > _initialNotesCount)
+          if (timeline.length > _initialNotesCount)
             TextButton.icon(
               onPressed: () => setState(() => _showAllNotes = !_showAllNotes),
               icon: Icon(_showAllNotes ? Icons.expand_less : Icons.expand_more, color: AppColors.brandPrimary, size: 20.sp),
               label: Text(
                 _showAllNotes
-                    ? 'إخفاء الملاحظات القديمة'
-                    : 'عرض المزيد (${notes.length - _initialNotesCount} ملاحظة)',
+                    ? 'إخفاء السجل القديم'
+                    : 'عرض المزيد (${timeline.length - _initialNotesCount} إجراء)',
                 style: TextStyle(color: AppColors.brandPrimary, fontSize: 13.sp),
               ),
             ),
         ],
 
-        // ─── حقل إضافة ملاحظة ───
+        // ─── إضافة إجراء جديد ───
         SizedBox(height: 48.h),
-        Container(
-          padding: EdgeInsets.all(14.w),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14.r),
-            border: Border.all(color: AppColors.borderSubtle),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('إضافة ملاحظة جديدة', style: AppTextStyles.h3.copyWith(fontSize: 14.sp, color: AppColors.textSecondary)),
-              SizedBox(height: 48.h),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _noteController,
-                      maxLines: 2,
-                      minLines: 1,
-                      decoration: InputDecoration(
-                        hintText: 'اكتب ملاحظة...',
-                        filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10.r),
-                          borderSide: const BorderSide(color: AppColors.borderSubtle),
-                        ),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 10.w),
-                  InkWell(
-                    onTap: _isAddingNote ? null : () => _submitNote(lead),
-                    child: CircleAvatar(
-                      radius: 24.r,
-                      backgroundColor: _isAddingNote
-                          ? AppColors.brandPrimary.withValues(alpha: 0.5)
-                          : AppColors.brandPrimary,
-                      child: _isAddingNote
-                          ? SizedBox(width: 16.w, height: 16.h, child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Icon(Icons.send_rounded, color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
+        LeadActionFormWidget(lead: lead),
       ],
     );
   }

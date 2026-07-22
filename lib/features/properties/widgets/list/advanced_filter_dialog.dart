@@ -26,7 +26,6 @@ class AdvancedFilterDialog extends StatefulWidget {
 class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
   final dataManager = di.sl<StaticDataManager>();
 
-  int? _selectedGovId;
   String? _selectedCityName;
   String? _selectedPropertyType;
   String? _selectedListingType;
@@ -47,7 +46,6 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
   void initState() {
     super.initState();
     final cubit = context.read<PropertiesCubit>();
-    _selectedGovId = cubit.filterGovernorateId;
     _searchAll = cubit.searchAll; // Sync searchAll selection
     
     // Reverse lookup for string representations
@@ -68,7 +66,6 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
         final allCities = dataManager.allCities;
         final city = allCities.firstWhere((c) => c.id == cubit.filterCityId);
         _selectedCityName = city.name;
-        _selectedGovId ??= city.governorateId;
       } catch (_) {}
     }
 
@@ -176,36 +173,14 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
                 (v) => setState(() => _selectedPropertyType = v),
               ),
               SizedBox(height: 14.h),
-              
-              // قائمة المحافظات المنسدلة
-              RetajDropdown<int>(
-                label: "المحافظة",
-                value: _selectedGovId,
-                items: dataManager.governorates
-                    .map(
-                      (g) => DropdownMenuItem<int>(
-                        value: g.id,
-                        child: Text(g.name),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (v) {
-                  setState(() {
-                    _selectedGovId = v;
-                    _selectedCityName = null; // تفريغ المدينة عند تغيير المحافظة
-                  });
-                },
-              ),
-              SizedBox(height: 14.h),
+
 
               // قائمة المدن المنسدلة
               RetajDropdown<String>(
                 label: "المدينة",
                 value: _selectedCityName,
-                items: _selectedGovId == null
-                    ? []
-                    : dataManager
-                        .getCitiesByGovId(_selectedGovId!)
+                items: dataManager
+                        .getActiveCities(includeName: _selectedCityName)
                         .map((c) => c.name)
                         .toSet()
                         .map(
@@ -215,9 +190,7 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
                           ),
                         )
                         .toList(),
-                onChanged: _selectedGovId == null
-                    ? null
-                    : (v) => setState(() => _selectedCityName = v),
+                onChanged: (v) => setState(() => _selectedCityName = v),
               ),
 
               SizedBox(height: 24.h),
@@ -350,12 +323,10 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
                             ? dataManager.getIdByName('listing_type', _selectedListingType!)
                             : null;
                         int? cityId;
-                        if (_selectedGovId != null && _selectedCityName != null) {
+                        if (_selectedCityName != null) {
                           try {
-                            cityId = dataManager
-                                .getCitiesByGovId(_selectedGovId!)
-                                .firstWhere((c) => c.name == _selectedCityName)
-                                .id;
+                            final cityObj = dataManager.allCities.firstWhere((c) => c.name == _selectedCityName);
+                            cityId = cityObj.id;
                           } catch (_) {}
                         }
 
@@ -368,7 +339,6 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
                           listingTypeId: listingTypeId,
                           propertyTypeId: propertyTypeId,
                           cityId: cityId,
-                          governorateId: _selectedGovId,
                           minPrice: parsedMinPrice,
                           maxPrice: parsedMaxPrice,
                           selectedEmployee: _selectedEmployee,

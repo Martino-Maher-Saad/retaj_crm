@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/constants/app_roles.dart';
 import '../../../core/di/injection_container.dart' as di;
 import '../../../core/utils/property_sync_notifier.dart';
 import '../../../core/utils/static_data_manager.dart';
@@ -95,7 +96,7 @@ class PropertyTasksCubit extends Cubit<PropertyTasksState> {
     }
 
     try {
-      final isAdmin = role == 'manager' || role == 'admin' || role == 'ceo';
+      final isAdmin = AppRole.fromString(role).isAtLeast(AppRole.manager);
       final String? assignedTo = isAdmin ? filteredEmployeeId : userId;
 
       final publishedId = '70bb0089-736b-4607-951d-916fbcc1cc07';

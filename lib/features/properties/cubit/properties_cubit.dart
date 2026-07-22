@@ -2,17 +2,132 @@ import 'dart:typed_data';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
+import '../../../core/constants/app_roles.dart';
 import '../../../core/di/injection_container.dart' as di;
 import '../../tasks/cubit/property_tasks_cubit.dart';
 import '../../../data/models/property_image_model.dart';
 import '../../../data/models/property_model.dart';
 import '../../../data/repositories/property_repository.dart';
+import '../../../data/services/realtime_sync_service.dart';
 import 'properties_state.dart';
 
 class PropertiesCubit extends Cubit<PropertiesState> {
   final PropertyRepository _repo;
-  PropertiesCubit(this._repo) : super(PropertiesInitial());
+  final RealtimeSyncService _realtime;
+
+  // ─── كاش صور العقارات ───
+  // تتحمل فقط عند فتح صفحة تفاصيل العقار، وتبقى مخزنة حتى يحصل تغيير عليها
+  final Map<String, List<PropertyImageModel>> _imagesCache = {};
+
+  List<PropertyImageModel>? getCachedImages(String propertyId) =>
+      _imagesCache[propertyId];
+
+  void updateImagesCache(String propertyId, List<PropertyImageModel> images) {
+    _imagesCache[propertyId] = images;
+  }
+
+  void invalidateImagesCache(String propertyId) {
+    _imagesCache.remove(propertyId);
+  }
+
+  // الـ userId والـ role للتحقق من صلاحية التحديث
+  String? _currentUserId;
+  String? _currentRole;
+
+  void setCurrentUser(String userId, String role) {
+    _currentUserId = userId;
+    _currentRole = role;
+  }
+
+  PropertiesCubit(this._repo, this._realtime) : super(PropertiesInitial()) {
+    _realtime.events.listen(_handleRealtimeEvent);
+  }
+
+  void _handleRealtimeEvent(RealtimePayload payload) {
+    if (state is! PropertiesSuccess) return;
+    final currentState = state as PropertiesSuccess;
+
+    if (payload.table == 'properties') {
+      if (payload.type == RealtimeOpType.update || payload.type == RealtimeOpType.insert) {
+        final propertyId = payload.newRecord['id']?.toString();
+        if (propertyId == null) return;
+
+        final assignedTo = payload.newRecord['assigned_to']?.toString();
+        final isMine = assignedTo == _currentUserId;
+        final isManager = AppRole.fromString(_currentRole ?? '').isAtLeast(AppRole.manager);
+
+        // هل العقار موجود حالياً في الكاش المحلي؟
+        final existsInMy = currentState.myProperties.any((p) => p.id == propertyId);
+        final existsInFiltered = currentState.filteredProperties.any((p) => p.id == propertyId);
+        final existsInSearched = currentState.searchedProperties.any((p) => p.id == propertyId);
+        final existsInCache = existsInMy || existsInFiltered || existsInSearched;
+
+        if (existsInCache) {
+          // موجود → حدّثه وأضف وميض
+          if (!isMine && !isManager) {
+            // لم يعد مُسنداً لنا → احذفه
+            final myProps = currentState.myProperties.where((p) => p.id != propertyId).toList();
+            final filteredProps = currentState.filteredProperties.where((p) => p.id != propertyId).toList();
+            final searchedProps = currentState.searchedProperties.where((p) => p.id != propertyId).toList();
+            emit(currentState.copyWith(
+              myProperties: myProps,
+              filteredProperties: filteredProps,
+              searchedProperties: searchedProps,
+              flashingIds: {},
+            ));
+            return;
+          }
+          // نجلب التفاصيل بدون الصور (الصور في الكاش المنفصل)
+          fetchPropertyDetails(propertyId, includeImages: false)
+              .then((_) => _flashItem(propertyId));
+        } else {
+          // مش موجود في الكاش
+          if (isMine || isManager) {
+            fetchPropertyDetails(propertyId, includeImages: false)
+                .then((_) => _flashItem(propertyId));
+          }
+          // موظف عادي وليس مُسنداً له → تجاهل
+        }
+      } else if (payload.type == RealtimeOpType.delete) {
+        final deletedId = payload.oldRecord['id']?.toString();
+        if (deletedId != null) {
+          final myProps = currentState.myProperties.where((p) => p.id != deletedId).toList();
+          final filteredProps = currentState.filteredProperties.where((p) => p.id != deletedId).toList();
+          final searchedProps = currentState.searchedProperties.where((p) => p.id != deletedId).toList();
+          invalidateImagesCache(deletedId);
+          emit(currentState.copyWith(
+            myProperties: myProps,
+            filteredProperties: filteredProps,
+            searchedProperties: searchedProps,
+            flashingIds: {},
+          ));
+        }
+      }
+    } else if (payload.table == 'property_images') {
+      // تغيير في الصور → نبطل كاش الصور فقط بدون fetchPropertyDetails كامل
+      if (payload.type == RealtimeOpType.insert || payload.type == RealtimeOpType.delete) {
+        final propertyId = payload.type == RealtimeOpType.insert
+            ? payload.newRecord['property_id']?.toString()
+            : payload.oldRecord['property_id']?.toString();
+        if (propertyId != null) {
+          // نبطل كاش الصور عشان لما يفتح صفحة تفاصيل العقار تجلب الصور الجديدة
+          invalidateImagesCache(propertyId);
+        }
+      }
+    }
+  }
+
+  /// يضيف وميضاً لحظياً على العقار المحدَّث — يختفي بعد 1.2 ثانية
+  void _flashItem(String id) {
+    if (state is! PropertiesSuccess || isClosed) return;
+    final st = state as PropertiesSuccess;
+    emit(st.copyWith(flashingIds: {id}));
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      if (state is PropertiesSuccess && !isClosed) {
+        emit((state as PropertiesSuccess).copyWith(flashingIds: {}));
+      }
+    });
+  }
 
   // ─── Filter state — بالـ IDs الجديدة ───
   String? _filterAssignedTo;
@@ -80,7 +195,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
       if (isRefresh) emit(PropertiesLoading());
 
       final isManagerOrAdmin =
-          role == 'manager' || role == 'admin' || role == 'ceo';
+          AppRole.fromString(role).isAtLeast(AppRole.manager);
       final count = isManagerOrAdmin
           ? await _repo.fetchFilterCount()
           : await _repo.fetchMyCount(userId);
@@ -131,7 +246,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     emit(PropertiesLoading());
     try {
       String? filterUserId;
-      if (role == 'manager' || role == 'admin' || role == 'ceo') {
+      if (AppRole.fromString(role).isAtLeast(AppRole.manager)) {
         filterUserId = selectedEmployee;
       } else if (!searchAll) {
         filterUserId = currentUserId;
@@ -584,5 +699,41 @@ class PropertiesCubit extends Cubit<PropertiesState> {
       receiverId: receiverId,
       note: note,
     );
+  }
+
+  /// جلب تفاصيل عقار محدد وتحديثه في الكاش
+  /// [includeImages] = false عند الاستدعاء من الـ realtime (الصور في كاش منفصل)
+  Future<void> fetchPropertyDetails(String propertyId, {bool includeImages = true}) async {
+    if (state is PropertiesSuccess) {
+      final st = state as PropertiesSuccess;
+      try {
+        final detailedProperty = await _repo.getPropertyById(propertyId);
+
+        // هل موجود في القوائم؟ لو لا → أضفه في myProperties
+        final existsInMy = st.myProperties.any((p) => p.id == propertyId);
+        final existsInFiltered = st.filteredProperties.any((p) => p.id == propertyId);
+        final existsInSearched = st.searchedProperties.any((p) => p.id == propertyId);
+
+        final updatedMyProps = existsInMy
+            ? st.myProperties.map((p) => p.id == propertyId ? detailedProperty : p).toList()
+            : [detailedProperty, ...st.myProperties];
+
+        final updatedFilteredProps = existsInFiltered
+            ? st.filteredProperties.map((p) => p.id == propertyId ? detailedProperty : p).toList()
+            : st.filteredProperties;
+
+        final updatedSearchedProps = existsInSearched
+            ? st.searchedProperties.map((p) => p.id == propertyId ? detailedProperty : p).toList()
+            : st.searchedProperties;
+
+        emit(st.copyWith(
+          myProperties: updatedMyProps,
+          filteredProperties: updatedFilteredProps,
+          searchedProperties: updatedSearchedProps,
+        ));
+      } catch (e) {
+        // تجاهل الخطأ — لا نريد crash بسبب حدث realtime
+      }
+    }
   }
 }

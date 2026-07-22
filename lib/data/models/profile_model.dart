@@ -1,3 +1,5 @@
+import 'package:retaj_crm/core/constants/app_roles.dart';
+
 class ProfileModel {
   final String id;
   final String email;
@@ -6,6 +8,8 @@ class ProfileModel {
   final String? lastName;
   final String? phone;
   final String? imageUrl;
+  final String? teamId;
+  final bool isActive;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -17,6 +21,8 @@ class ProfileModel {
     this.lastName,
     this.phone,
     this.imageUrl,
+    this.teamId,
+    this.isActive = true,
     this.createdAt,
     this.updatedAt,
   });
@@ -30,8 +36,12 @@ class ProfileModel {
       lastName: json['last_name'],
       phone: json['phone'],
       imageUrl: json['image_url'],
-      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
-      updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
+      teamId: json['team_id'],
+      isActive: json['is_active'] ?? true,
+      createdAt:
+          json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
+      updatedAt:
+          json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
     );
   }
 
@@ -43,6 +53,8 @@ class ProfileModel {
       'last_name': lastName,
       'phone': phone,
       'image_url': imageUrl,
+      'team_id': teamId,
+      'is_active': isActive,
     };
   }
 
@@ -54,6 +66,8 @@ class ProfileModel {
     String? lastName,
     String? phone,
     String? imageUrl,
+    String? teamId,
+    bool? isActive,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -65,17 +79,42 @@ class ProfileModel {
       lastName: lastName ?? this.lastName,
       phone: phone ?? this.phone,
       imageUrl: imageUrl ?? this.imageUrl,
+      teamId: teamId ?? this.teamId,
+      isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
+  // ─── الاسم الكامل ───
   String get fullName {
-    final name = "${firstName ?? ''} ${lastName ?? ''}".trim();
-    return name.isEmpty ? "مستخدم بدون اسم" : name;
+    final name = '${firstName ?? ''} ${lastName ?? ''}'.trim();
+    return name.isEmpty ? 'مستخدم بدون اسم' : name;
   }
-  
-  bool get isAdmin => role == 'admin';
-  bool get isManager => role == 'manager';
+
+  // ─── AppRole ───
+  AppRole get appRole => AppRole.fromString(role);
+
+  // ─── Helpers للتحقق من الدور ───
   bool get isSales => role == 'sales';
+  bool get isLeader => role == 'leader';
+  bool get isManager => role == 'manager';
+  bool get isAdmin => role == 'admin';
+  bool get isSuperAdmin => role == 'super_admin';
+
+  /// هل لديه صلاحيات admin أو أعلى
+  bool get isAdminOrAbove => appRole.isAtLeast(AppRole.admin);
+
+  /// هل لديه صلاحيات manager أو أعلى
+  bool get isManagerOrAbove => appRole.isAtLeast(AppRole.manager);
+
+  /// هل لديه صلاحيات leader أو أعلى
+  bool get isLeaderOrAbove => appRole.isAtLeast(AppRole.leader);
+
+  // ─── الاسم العربي للدور ───
+  String get roleNameAr => appRole.nameAr;
+
+  @override
+  String toString() =>
+      'ProfileModel(id: $id, email: $email, role: $role, name: $fullName)';
 }

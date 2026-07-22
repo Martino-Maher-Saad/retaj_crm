@@ -195,7 +195,7 @@ class _PropertyShareCardState extends State<PropertyShareCard> {
                             Icon(Icons.location_on_outlined, size: 18.sp, color: Colors.grey),
                             SizedBox(width: 6.w),
                             Text(
-                              "${property.governorateAr} — ${property.cityAr}",
+                              " ${property.cityAr}",
                               style: TextStyle(fontSize: 16.sp, color: Colors.grey[800]),
                             ),
                           ],

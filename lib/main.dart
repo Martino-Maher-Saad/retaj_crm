@@ -11,6 +11,7 @@ import 'features/auth/cubit/auth_cubit.dart';
 import 'features/auth/cubit/auth_states.dart';
 import 'features/auth/screens/login_web_screen.dart';
 import 'features/layout/screens/layout_screen.dart';
+import 'data/services/realtime_sync_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +24,7 @@ void main() async {
   );
 
   await di.sl<StaticDataManager>().initialize();
+  di.sl<RealtimeSyncService>().initialize();
 
   runApp(
     BlocProvider(
@@ -67,18 +69,20 @@ class RootAuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AuthCubit, AuthStates>(
-      builder: (context, state) {
-        if (state is AuthSuccess) {
-          return LayoutScreen(user: state.user);
-        } else if (state is AuthLoading) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        } else {
-          return const LoginWebScreen();
-        }
-      },
+    return SelectionArea(
+      child: BlocBuilder<AuthCubit, AuthStates>(
+        builder: (context, state) {
+          if (state is AuthSuccess) {
+            return LayoutScreen(user: state.user);
+          } else if (state is AuthLoading) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          } else {
+            return const LoginWebScreen();
+          }
+        },
+      ),
     );
   }
 }

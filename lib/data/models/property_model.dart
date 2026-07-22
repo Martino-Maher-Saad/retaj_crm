@@ -39,7 +39,6 @@ class PropertyModel {
   final String descAr;
   final String listingTypeAr;
   final String propertyTypeAr;
-  final String governorateAr;
   final String cityAr;
   final String? regionAr;
   final String? locationInDetails;
@@ -60,7 +59,6 @@ class PropertyModel {
   final String? listingTypeId;
   final String? sourceId;
   final int? cityId;
-  final int? governorateId;
   final String? approvalStatusId;
   final String? approvalStatusName;
 
@@ -77,7 +75,6 @@ class PropertyModel {
     required this.descAr,
     required this.listingTypeAr,
     required this.propertyTypeAr,
-    required this.governorateAr,
     required this.cityAr,
     this.regionAr,
     this.locationInDetails,
@@ -94,7 +91,6 @@ class PropertyModel {
     this.listingTypeId,
     this.sourceId,
     this.cityId,
-    this.governorateId,
     this.approvalStatusId,
     this.approvalStatusName,
     this.isPinned = false,
@@ -116,7 +112,6 @@ class PropertyModel {
     final propTypeMap = json['property_types'] as Map<String, dynamic>?;
     final listTypeMap = json['listing_types'] as Map<String, dynamic>?;
     final sourceMap   = json['property_sources'] as Map<String, dynamic>?;
-    final govMap      = json['governorates'] as Map<String, dynamic>?;
     final cityMapData = json['cities'] as Map<String, dynamic>?;
 
     // المنصات الإعلانية من جدول property_platforms
@@ -140,7 +135,6 @@ class PropertyModel {
       descAr: json['desc_ar'] ?? '',
       listingTypeAr:  listTypeMap?['name_ar'] ?? json['listing_type_ar'] ?? '',
       propertyTypeAr: propTypeMap?['name_ar'] ?? json['property_type_ar'] ?? '',
-      governorateAr:  govMap?['name'] ?? json['governorate_ar'] ?? '',
       cityAr:         cityMapData?['name'] ?? json['city_ar'] ?? '',
       source:         sourceMap?['name_ar'] ?? json['source'],
       regionAr: json['region_ar'],
@@ -178,7 +172,6 @@ class PropertyModel {
       listingTypeId:  json['listing_type_id']?.toString(),
       sourceId:       json['source_id']?.toString(),
       cityId:         json['city_id'] != null ? int.tryParse(json['city_id'].toString()) : null,
-      governorateId:  json['governorate_id'] != null ? int.tryParse(json['governorate_id'].toString()) : null,
       approvalStatusId: json['approval_status_id']?.toString(),
       approvalStatusName: json['property_approval_statuses']?['name_ar']?.toString(),
       isPinned:       json['is_pinned'] == true,
@@ -208,7 +201,6 @@ class PropertyModel {
       if (listingTypeId != null) 'listing_type_id': listingTypeId,
       if (sourceId != null) 'source_id': sourceId,
       if (cityId != null) 'city_id': cityId,
-      if (governorateId != null) 'governorate_id': governorateId,
       if (approvalStatusId != null) 'approval_status_id': approvalStatusId,
       'is_pinned': isPinned,
     };
@@ -227,7 +219,6 @@ class PropertyModel {
     String? descAr,
     String? listingTypeAr,
     String? propertyTypeAr,
-    String? governorateAr,
     String? cityAr,
     String? regionAr,
     String? locationInDetails,
@@ -244,7 +235,6 @@ class PropertyModel {
     String? listingTypeId,
     String? sourceId,
     int? cityId,
-    int? governorateId,
     String? approvalStatusId,
     String? approvalStatusName,
   }) {
@@ -261,7 +251,6 @@ class PropertyModel {
       descAr: descAr ?? this.descAr,
       listingTypeAr: listingTypeAr ?? this.listingTypeAr,
       propertyTypeAr: propertyTypeAr ?? this.propertyTypeAr,
-      governorateAr: governorateAr ?? this.governorateAr,
       cityAr: cityAr ?? this.cityAr,
       regionAr: regionAr ?? this.regionAr,
       locationInDetails: locationInDetails ?? this.locationInDetails,
@@ -278,7 +267,6 @@ class PropertyModel {
       listingTypeId: listingTypeId ?? this.listingTypeId,
       sourceId: sourceId ?? this.sourceId,
       cityId: cityId ?? this.cityId,
-      governorateId: governorateId ?? this.governorateId,
       approvalStatusId: approvalStatusId ?? this.approvalStatusId,
       approvalStatusName: approvalStatusName ?? this.approvalStatusName,
     );

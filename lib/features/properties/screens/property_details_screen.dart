@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_roles.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../../../core/widgets/retaj_shared_fields.dart';
 import '../../../data/models/property_model.dart';
@@ -20,7 +21,7 @@ class PropertyDetailsScreen extends StatelessWidget {
   });
 
   bool get isOwner => property.createdBy == currentUserId;
-  bool get isManagerOrAdmin => role == 'manager' || role == 'admin' || role == 'ceo';
+  bool get isManagerOrAdmin => AppRole.fromString(role).isAtLeast(AppRole.manager);
   bool get shouldMask => role == 'sales' && !isOwner;
 
   @override
@@ -138,14 +139,10 @@ class PropertyDetailsScreen extends StatelessWidget {
                 RetajFieldRow(
                   first: RetajTextField(
                     readOnly: true,
-                    label: 'المحافظة',
-                    initialValue: property.governorateAr,
-                  ),
-                  second: RetajTextField(
-                    readOnly: true,
                     label: 'المدينة',
-                    initialValue: property.cityAr,
+                    initialValue: property.cityAr.isNotEmpty ? property.cityAr : '—',
                   ),
+                  second: const SizedBox.shrink(),
                 ),
                 if (property.regionAr != null && property.regionAr!.isNotEmpty)
                   RetajTextField(

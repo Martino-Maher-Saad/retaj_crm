@@ -43,8 +43,7 @@ class LeadTasksCubit extends Cubit<LeadTasksState> {
         role: role,
         userId: userId,
         filterByEmployeeId: filterByEmployeeId,
-        isArchived: false,
-        isForTasks: true,
+        isTrash: false,
       );
       final leads = await _repository.getAllLeads(
         role: role,
@@ -52,8 +51,7 @@ class LeadTasksCubit extends Cubit<LeadTasksState> {
         from: 0,
         to: 200,
         filterByEmployeeId: filterByEmployeeId,
-        isArchived: false,
-        isForTasks: true,
+        isTrash: false,
       );
 
       emit(LeadTasksLoaded(
@@ -83,7 +81,7 @@ class LeadTasksCubit extends Cubit<LeadTasksState> {
         from: current.leads.length,
         to: current.leads.length + 100,
         filterByEmployeeId: _filterByEmployeeId,
-        isArchived: false,
+        isTrash: false,
       );
 
       emit(current.copyWith(

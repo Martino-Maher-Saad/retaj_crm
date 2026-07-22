@@ -29,13 +29,11 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
   String? _selectedPlatform;
   String? _selectedPropertyType;
   String? _selectedListingType;
-  int? _selectedGovId;
   String? _selectedCityName;
   String? _selectedEmployee;
   DateTime? _fromDate;
   DateTime? _toDate;
-  bool _isStagnant = false;
-  bool _isArchived = false;
+
 
   // حالة الـ leads تُجلب من dataManager (لا hardcode)
   List<String> get _statuses => dataManager.getOptions('lead_status');
@@ -62,9 +60,7 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
   void initState() {
     super.initState();
     final cubit = context.read<LeadCubit>();
-    _selectedGovId = cubit.currentGovernorateId;
-    _isStagnant = cubit.currentIsStagnant ?? false;
-    _isArchived = cubit.currentIsArchived ?? false;
+
     _selectedEmployee = cubit.currentFilterByEmployeeId;
     _fromDate = cubit.currentFromDate;
     _toDate = cubit.currentToDate;
@@ -94,7 +90,6 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
         final allCities = dataManager.allCities;
         final city = allCities.firstWhere((c) => c.id == cubit.currentCityId);
         _selectedCityName = city.name;
-        _selectedGovId ??= city.governorateId;
       } catch (_) {}
     }
   }
@@ -103,6 +98,15 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
   Widget build(BuildContext context) {
     final employees = dataManager.employees;
     final isManager = widget.role == 'manager' || widget.role == 'admin';
+
+    final visibleFields = dataManager.getFormFieldsForRole(widget.role, onlyForm: false);
+    bool canFilterField(String key) => visibleFields.any((f) => f.fieldKey == key && f.canFilter);
+
+    final showStatus = canFilterField('lead_status');
+    final showPlatform = canFilterField('platform_id');
+    final showPropertyType = canFilterField('property_type_id');
+    final showListingType = canFilterField('listing_type_id');
+    final showCity = canFilterField('city_id');
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -151,70 +155,68 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // ─── Row 1: حالة العميل + المنصة ───
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildDropdown(
-                                'حالة العميل',
-                                Icons.flag_outlined,
-                                _statuses,
-                                _selectedLeadStatus,
-                                (v) => setState(() => _selectedLeadStatus = v),
-                              ),
-                            ),
-                            SizedBox(width: 12.w),
-                            Expanded(
-                              child: _buildDropdown(
-                                'المنصة',
-                                Icons.source_outlined,
-                                dataManager.getOptions('platform'),
-                                _selectedPlatform,
-                                (v) => setState(() => _selectedPlatform = v),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 14.h),
+                        if (showStatus || showPlatform)
+                          Row(
+                            children: [
+                              if (showStatus)
+                                Expanded(
+                                  child: _buildDropdown(
+                                    'حالة العميل',
+                                    Icons.flag_outlined,
+                                    _statuses,
+                                    _selectedLeadStatus,
+                                    (v) => setState(() => _selectedLeadStatus = v),
+                                  ),
+                                ),
+                              if (showStatus && showPlatform) SizedBox(width: 12.w),
+                              if (showPlatform)
+                                Expanded(
+                                  child: _buildDropdown(
+                                    'المنصة',
+                                    Icons.source_outlined,
+                                    dataManager.getOptions('platform'),
+                                    _selectedPlatform,
+                                    (v) => setState(() => _selectedPlatform = v),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        if (showStatus || showPlatform) SizedBox(height: 14.h),
 
                         // ─── Row 2: نوع العقار + نوع الإعلان ───
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildDropdown(
-                                'نوع العقار',
-                                Icons.home_work_outlined,
-                                dataManager.getOptions('property_type'),
-                                _selectedPropertyType,
-                                (v) => setState(() => _selectedPropertyType = v),
-                              ),
-                            ),
-                            SizedBox(width: 12.w),
-                            Expanded(
-                              child: _buildDropdown(
-                                'نوع الإعلان',
-                                Icons.sell_outlined,
-                                dataManager.getOptions('listing_type'),
-                                _selectedListingType,
-                                (v) => setState(() => _selectedListingType = v),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 14.h),
+                        if (showPropertyType || showListingType)
+                          Row(
+                            children: [
+                              if (showPropertyType)
+                                Expanded(
+                                  child: _buildDropdown(
+                                    'نوع العقار',
+                                    Icons.home_work_outlined,
+                                    dataManager.getOptions('property_type'),
+                                    _selectedPropertyType,
+                                    (v) => setState(() => _selectedPropertyType = v),
+                                  ),
+                                ),
+                              if (showPropertyType && showListingType) SizedBox(width: 12.w),
+                              if (showListingType)
+                                Expanded(
+                                  child: _buildDropdown(
+                                    'نوع الإعلان',
+                                    Icons.sell_outlined,
+                                    dataManager.getOptions('listing_type'),
+                                    _selectedListingType,
+                                    (v) => setState(() => _selectedListingType = v),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        if (showPropertyType || showListingType) SizedBox(height: 14.h),
 
-                        // ─── Row 3: المحافظة + المدينة ───
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildGovDropdown(),
-                            ),
-                            SizedBox(width: 12.w),
-                            Expanded(
-                              child: _buildCityDropdown(),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 14.h),
+                        // ─── Row 3: المدينة ───
+                        if (showCity) ...[
+                          _buildCityDropdown(),
+                          SizedBox(height: 14.h),
+                        ],
 
                         // ─── تاريخ الإضافة ───
                         _sectionLabel('تاريخ الإضافة', Icons.calendar_month_outlined),
@@ -267,45 +269,7 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
                         ],
                         SizedBox(height: 14.h),
                         
-                        // ─── فلاتر إضافية (أكثر من يومين + الأرشيف) ───
-                        _sectionLabel('حالة متقدمة', Icons.local_fire_department_outlined),
-                        SizedBox(height: 8.h),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Material(
-                                color: Colors.transparent,
-                                child: CheckboxListTile(
-                                  title: Text('لم تتغير حالتهم منذ أكثر من يومين', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold)),
-                                  value: _isStagnant,
-                                  contentPadding: EdgeInsets.zero,
-                                  controlAffinity: ListTileControlAffinity.leading,
-                                  dense: true,
-                                  activeColor: AppColors.brandPrimary,
-                                  onChanged: (v) => setState(() => _isStagnant = v ?? false),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Material(
-                                color: Colors.transparent,
-                                child: CheckboxListTile(
-                                  title: Text('العملاء المؤرشفين فقط', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold)),
-                                  value: _isArchived,
-                                  contentPadding: EdgeInsets.zero,
-                                  controlAffinity: ListTileControlAffinity.leading,
-                                  dense: true,
-                                  activeColor: AppColors.brandPrimary,
-                                  onChanged: (v) => setState(() => _isArchived = v ?? false),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+
                       ],
                     ),
                   ),
@@ -324,13 +288,11 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
                               _selectedPlatform = null;
                               _selectedPropertyType = null;
                               _selectedListingType = null;
-                              _selectedGovId = null;
                               _selectedCityName = null;
                               _selectedEmployee = null;
                               _fromDate = null;
                               _toDate = null;
-                              _isStagnant = false;
-                              _isArchived = false;
+
                             });
                           },
                           icon: Icon(Icons.clear_all, size: 18.sp),
@@ -361,11 +323,9 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
                                 ? dataManager.getIdByName('listing_type', _selectedListingType!)
                                 : null;
                             int? cityId;
-                            if (_selectedGovId != null && _selectedCityName != null) {
+                            if (_selectedCityName != null) {
                               try {
-                                final cityObj = dataManager
-                                    .getCitiesByGovId(_selectedGovId!)
-                                    .firstWhere((c) => c.name == _selectedCityName);
+                                final cityObj = dataManager.allCities.firstWhere((c) => c.name == _selectedCityName);
                                 cityId = cityObj.id;
                               } catch (_) {}
                             }
@@ -377,13 +337,11 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
                               platformId: platformId,
                               propertyTypeId: propertyTypeId,
                               listingTypeId: listingTypeId,
-                              governorateId: _selectedGovId,
                               cityId: cityId,
                               filterByEmployeeId: _selectedEmployee,
                               fromDate: _fromDate,
                               toDate: _toDate,
-                              isStagnant: _isStagnant ? true : null,
-                              isArchived: _isArchived,
+                              isAdvancedFilter: true,
                             );
                             Navigator.pop(context);
                           },
@@ -441,35 +399,7 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
     );
   }
 
-  Widget _buildGovDropdown() {
-    return RetajDropdown<int>(
-      label: 'المحافظة',
-      prefixIcon: Icons.location_on_outlined,
-      value: _selectedGovId,
-      items: [
-        const DropdownMenuItem<int>(
-          value: null,
-          child: Text('الكل'),
-        ),
-        ...dataManager.governorates.map(
-          (g) => DropdownMenuItem<int>(
-            value: g.id,
-            child: Text(g.name),
-          ),
-        ),
-      ],
-      onChanged: (v) => setState(() {
-        _selectedGovId = v;
-        _selectedCityName = null;
-      }),
-    );
-  }
-
   Widget _buildCityDropdown() {
-    final cities = _selectedGovId == null
-        ? <String>[]
-        : dataManager.getCitiesByGovId(_selectedGovId!).map((c) => c.name).toSet().toList();
-
     return RetajDropdown<String>(
       label: 'المدينة',
       prefixIcon: Icons.location_city_outlined,
@@ -479,16 +409,15 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
           value: null,
           child: Text('الكل'),
         ),
-        ...cities
-            .map(
-              (name) => DropdownMenuItem<String>(
-                value: name,
-                child: Text(name),
-              ),
-            )
+        ...dataManager
+            .getActiveCities(includeName: _selectedCityName)
+            .map((c) => DropdownMenuItem<String>(
+                  value: c.name,
+                  child: Text(c.name),
+                ))
             .toList(),
       ],
-      onChanged: _selectedGovId == null ? null : (v) => setState(() => _selectedCityName = v),
+      onChanged: (v) => setState(() => _selectedCityName = v),
     );
   }
 

@@ -345,9 +345,9 @@ class PropertyService {
         .eq('id', propertyId);
   }
 
-  /// يتحقق من التكرارات للعقار بناءً على آخر 6 أرقام من رقم المالك
+  /// يتحقق من التكرارات للعقار بناءً على آخر 7 أرقام من رقم المالك
   Future<List<Map<String, dynamic>>> checkDuplicatePropertyPhone(String ownerPhone) async {
-    final suffix = ownerPhone.length >= 6 ? ownerPhone.substring(ownerPhone.length - 6) : ownerPhone;
+    final suffix = ownerPhone.length >= 7 ? ownerPhone.substring(ownerPhone.length - 7) : ownerPhone;
     if (suffix.isEmpty) return [];
 
     final response = await _client

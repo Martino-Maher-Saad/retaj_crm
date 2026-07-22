@@ -45,7 +45,13 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
     'advertising_platforms':  _CategoryConfig(label: 'منصات الإعلان',       icon: Icons.ads_click_outlined,     tableName: 'advertising_platforms',  color: Color(0xFFB91C1C)),
     'lead_exclusion_reasons': _CategoryConfig(label: 'أسباب الاستبعاد',      icon: Icons.block_outlined,         tableName: 'lead_exclusion_reasons', color: Color(0xFFDC2626)),
     'property_approval_statuses': _CategoryConfig(label: 'حالات الموافقة',     icon: Icons.verified_user_outlined, tableName: 'property_approval_statuses', color: Color(0xFF047857)),
-    'locations':              _CategoryConfig(label: 'المحافظات والمدن',    icon: Icons.location_on_outlined,   tableName: '',       isLocation: true, color: Color(0xFF374151)),
+    'stage_types':            _CategoryConfig(label: 'أنواع المراحل (Stage)', icon: Icons.linear_scale,           tableName: 'stage_types',            color: Color(0xFF4338CA)),
+    'task_statuses':          _CategoryConfig(label: 'حالات المهام',       icon: Icons.task_alt_outlined,      tableName: 'task_statuses',          color: Color(0xFF059669)),
+    'meeting_types':          _CategoryConfig(label: 'أنواع الاجتماعات',   icon: Icons.handshake_outlined,     tableName: 'meeting_types',          color: Color(0xFFD97706)),
+    'meeting_purposes':       _CategoryConfig(label: 'أغراض الاجتماعات',  icon: Icons.lightbulb_outline,      tableName: 'meeting_purposes',       color: Color(0xFFEA580C)),
+    'activity_types':         _CategoryConfig(label: 'أنواع الأنشطة',      icon: Icons.local_activity_outlined,tableName: 'activity_types',         color: Color(0xFF4F46E5)),
+    'lead_rates':             _CategoryConfig(label: 'تقييمات العملاء',      icon: Icons.star_rate_outlined,     tableName: 'lead_rates',             color: Color(0xFFF59E0B)),
+    'locations':              _CategoryConfig(label: 'المدن والمناطق',    icon: Icons.location_on_outlined,   tableName: 'cities',       isLocation: true, color: Color(0xFF374151)),
   };
 
   String _selectedKey = 'lead_statuses';
@@ -53,10 +59,8 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
 
   // كل البيانات محمّلة مرة واحدة في الذاكرة
   final Map<String, List<LookupOptionModel>> _cache = {};
-  List<Map<String, dynamic>> _govData = [];
 
   final _addCtrl = TextEditingController();
-  int? _selectedGovId;
 
   @override
   void initState() {
@@ -80,19 +84,13 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
       final futures = <Future>[];
       final keys = <String>[];
       for (final e in _cats.entries) {
-        if (!e.value.isLocation) {
-          keys.add(e.key);
-          futures.add(_repository.fetchAllForAdmin(e.value.tableName));
-        }
+        keys.add(e.key);
+        futures.add(_repository.fetchAllForAdmin(e.value.tableName, isLocation: e.value.isLocation));
       }
-      final results = await Future.wait([
-        ...futures,
-        _repository.fetchGovernoratesWithCitiesForAdmin(),
-      ]);
+      final results = await Future.wait(futures);
       for (int i = 0; i < keys.length; i++) {
         _cache[keys[i]] = results[i] as List<LookupOptionModel>;
       }
-      _govData = results.last as List<Map<String, dynamic>>;
     } catch (e) {
       _showErr('فشل التحميل: $e');
     }
@@ -101,66 +99,157 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
 
   Future<void> _reloadCurrent() async {
     try {
-      if (_cur.isLocation) {
-        _govData = await _repository.fetchGovernoratesWithCitiesForAdmin();
-      } else {
-        _cache[_selectedKey] = await _repository.fetchAllForAdmin(_cur.tableName);
-      }
+      _cache[_selectedKey] = await _repository.fetchAllForAdmin(_cur.tableName, isLocation: _cur.isLocation);
       setState(() {});
     } catch (e) {
       _showErr('خطأ في التحديث');
     }
   }
 
-  Future<void> _addItem() async {
-    final text = _addCtrl.text.trim();
-    if (text.isEmpty) return;
+  Future<void> _showItemForm({String? table, LookupOptionModel? item, bool isLoc = false}) async {
+    final t = table ?? _cur.tableName;
+    final isEdit = item != null;
+    final ctrl = TextEditingController(text: item?.nameAr ?? '');
+    
+    String? selectedStageTypeId = item?.extra?['stage_type_id'];
+    String? delayValueStr = item?.extra?['delay_value']?.toString();
+    String? selectedDelayUnit = item?.extra?['delay_unit'] ?? 'days';
+    String? selectedBehavior = item?.extra?['behavior'];
+    bool isDefault = item?.extra?['is_default'] == true;
+    
+    final stageTypes = _dataManager.getOptionModels('stage_types');
+
+    final res = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              title: Text(isEdit ? 'تعديل القيمة' : 'إضافة قيمة جديدة', style: AppTextStyles.h3),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: ctrl,
+                      autofocus: true,
+                      decoration: const InputDecoration(labelText: 'الاسم'),
+                    ),
+                    if (t == 'lead_statuses') ...[
+                      SizedBox(height: 16.h),
+                      DropdownButtonFormField<String>(
+                        decoration: const InputDecoration(labelText: 'مرحلة العميل (Stage Type)', border: OutlineInputBorder()),
+                        value: selectedStageTypeId,
+                        items: stageTypes.map((e) => DropdownMenuItem(value: e.id, child: Text(e.nameAr))).toList(),
+                        onChanged: (v) => setDialogState(() => selectedStageTypeId = v),
+                      ),
+                      SizedBox(height: 16.h),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              initialValue: delayValueStr,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(labelText: 'مدة التأخير (رقم)', border: OutlineInputBorder()),
+                              onChanged: (v) => delayValueStr = v,
+                            ),
+                          ),
+                          SizedBox(width: 8.w),
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              decoration: const InputDecoration(labelText: 'وحدة الزمن', border: OutlineInputBorder()),
+                              value: selectedDelayUnit,
+                              items: const [
+                                DropdownMenuItem(value: 'minutes', child: Text('دقائق')),
+                                DropdownMenuItem(value: 'hours', child: Text('ساعات')),
+                                DropdownMenuItem(value: 'days', child: Text('أيام')),
+                              ],
+                              onChanged: (v) => setDialogState(() => selectedDelayUnit = v),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 16.h),
+                      CheckboxListTile(
+                        title: const Text('تعيين كحالة افتراضية (Default)'),
+                        subtitle: const Text('يتم تعيين هذه الحالة تلقائياً للعملاء الجدد', style: TextStyle(fontSize: 12)),
+                        value: isDefault,
+                        onChanged: (v) => setDialogState(() => isDefault = v ?? false),
+                        controlAffinity: ListTileControlAffinity.leading,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ],
+                    if (t == 'stage_types') ...[
+                      SizedBox(height: 16.h),
+                      DropdownButtonFormField<String>(
+                        decoration: const InputDecoration(labelText: 'نوع السلوك (Behavior)', border: OutlineInputBorder()),
+                        value: selectedBehavior,
+                        items: const [
+                          DropdownMenuItem(value: 'following', child: Text('متابعة')),
+                          DropdownMenuItem(value: 'meeting', child: Text('اجتماع')),
+                          DropdownMenuItem(value: 'exclusion', child: Text('استبعاد')),
+                          DropdownMenuItem(value: 'done_deal', child: Text('تعاقد')),
+                          DropdownMenuItem(value: 'fresh', child: Text('جديد')),
+                        ],
+                        onChanged: (v) => setDialogState(() => selectedBehavior = v),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+                ElevatedButton(
+                  onPressed: () {
+                    if (ctrl.text.trim().isEmpty) return;
+                    Navigator.pop(ctx, {
+                      'name': ctrl.text.trim(),
+                      if (t == 'lead_statuses') 'extra': {
+                        'stage_type_id': selectedStageTypeId,
+                        'delay_value': int.tryParse(delayValueStr ?? ''),
+                        'delay_unit': selectedDelayUnit,
+                        'is_default': isDefault,
+                      },
+                      if (t == 'stage_types') 'extra': {
+                        'behavior': selectedBehavior,
+                      }
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.brandPrimary),
+                  child: const Text('حفظ', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          }
+        );
+      },
+    );
+
+    if (res == null) return;
+    final newName = res['name'] as String;
+    final extraData = res['extra'] as Map<String, dynamic>?;
+
     setState(() => _isLoading = true);
     try {
-      if (_cur.isLocation) {
-        if (_selectedGovId == null) {
-          await _repository.addOption('governorates', text, isLocation: true);
-        } else {
-          await _repository.addOption('cities', text, isLocation: true, governorateId: _selectedGovId);
-        }
+      if (isEdit) {
+        await _repository.updateOption(t, item!.id, newName, isLocation: isLoc, extraData: extraData);
       } else {
-        await _repository.addOption(_cur.tableName, text);
+        await _repository.addOption(t, newName, isLocation: isLoc, extraData: extraData);
       }
-      _addCtrl.clear();
+      
+      if (!isEdit && !isLoc) _addCtrl.clear();
+      
       await _dataManager.refresh();
       await _reloadCurrent();
-      _showOk('تمت الإضافة ✅');
+      _showOk(isEdit ? 'تم التعديل ✅' : 'تمت الإضافة ✅');
     } catch (e) {
       _showErr('خطأ: $e');
     }
     setState(() => _isLoading = false);
   }
 
-  Future<void> _edit(String table, LookupOptionModel item, {bool isLoc = false}) async {
-    final ctrl = TextEditingController(text: item.nameAr);
-    final res = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('تعديل القيمة', style: AppTextStyles.h3),
-        content: TextField(controller: ctrl, autofocus: true, decoration: const InputDecoration(labelText: 'الاسم الجديد')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, ctrl.text.trim()), style: ElevatedButton.styleFrom(backgroundColor: AppColors.brandPrimary), child: const Text('حفظ', style: TextStyle(color: Colors.white))),
-        ],
-      ),
-    );
-    if (res == null || res.isEmpty || res == item.nameAr) return;
-    setState(() => _isLoading = true);
-    try {
-      await _repository.updateOption(table, item.id, res, isLocation: isLoc);
-      await _dataManager.refresh();
-      await _reloadCurrent();
-      _showOk('تم التعديل — بيتعدل في كل بيانات النظام تلقائياً ✅');
-    } catch (e) {
-      _showErr('خطأ: $e');
-    }
-    setState(() => _isLoading = false);
-  }
+  Future<void> _addItem() => _showItemForm(isLoc: _cur.isLocation);
+  Future<void> _edit(String table, LookupOptionModel item, {bool isLoc = false}) => _showItemForm(table: table, item: item, isLoc: isLoc);
 
   Future<void> _toggle(String table, LookupOptionModel item) async {
     final deactivate = item.isActive;
@@ -238,7 +327,7 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
             children: _cats.entries.map((e) {
               final sel = _selectedKey == e.key;
               return GestureDetector(
-                onTap: () => setState(() { _selectedKey = e.key; _selectedGovId = null; }),
+                onTap: () => setState(() { _selectedKey = e.key; }),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 150),
                   margin: EdgeInsets.only(bottom: 4.h),
@@ -288,7 +377,7 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
       ),
       const Divider(height: 1),
       Expanded(
-        child: _cur.isLocation ? _buildLocationsView() : _buildStandardView(),
+        child: _buildStandardView(),
       ),
     ]);
   }
@@ -313,25 +402,7 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
     );
   }
 
-  // ─── Locations ───
-  Widget _buildLocationsView() {
-    return Padding(
-      padding: EdgeInsets.all(28.w),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _buildLocationAddField(),
-        SizedBox(height: 20.h),
-        Expanded(
-          child: _govData.isEmpty
-              ? _emptyState()
-              : ListView.separated(
-                  itemCount: _govData.length,
-                  separatorBuilder: (_, __) => SizedBox(height: 10.h),
-                  itemBuilder: (_, i) => _govCard(_govData[i]),
-                ),
-        ),
-      ]),
-    );
-  }
+
 
   Widget _buildAddField() {
     return Container(
@@ -366,127 +437,6 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
     );
   }
 
-  Widget _buildLocationAddField() {
-    return Container(
-      padding: EdgeInsets.all(20.w),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14.r), border: Border.all(color: const Color(0xFFEAEAF0))),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('نوع الإضافة', style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w600, color: Colors.grey[600])),
-        SizedBox(height: 12.h),
-        Wrap(spacing: 8.w, children: [
-          _typeChip('إضافة محافظة', null),
-          ..._govData.map((g) => _typeChip('مدينة في ${g['name']}', g['id'] is int ? g['id'] as int : int.tryParse(g['id'].toString()))),
-        ]),
-        SizedBox(height: 14.h),
-        Row(children: [
-          Expanded(
-            child: TextField(
-              controller: _addCtrl,
-              style: TextStyle(fontSize: 16.sp),
-              decoration: InputDecoration(
-                hintText: _selectedGovId == null ? 'اسم المحافظة...' : 'اسم المدينة الجديدة...',
-                filled: true, fillColor: const Color(0xFFF8F8FC),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10.r), borderSide: BorderSide.none),
-                contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
-              ),
-            ),
-          ),
-          SizedBox(width: 14.w),
-          ElevatedButton.icon(
-            onPressed: _addItem,
-            icon: const Icon(Icons.add, color: Colors.white),
-            label: Text('إضافة', style: TextStyle(fontSize: 16.sp, color: Colors.white, fontWeight: FontWeight.bold)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _cur.color,
-              padding: EdgeInsets.symmetric(horizontal: 28.w, vertical: 16.h),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
-            ),
-          ),
-        ]),
-      ]),
-    );
-  }
-
-  Widget _typeChip(String label, int? govId) {
-    final sel = _selectedGovId == govId;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedGovId = govId),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 7.h),
-        margin: EdgeInsets.only(bottom: 6.h),
-        decoration: BoxDecoration(
-          color: sel ? _cur.color : const Color(0xFFF0F0F8),
-          borderRadius: BorderRadius.circular(20.r),
-          border: Border.all(color: sel ? _cur.color : const Color(0xFFDDDDEE)),
-        ),
-        child: Text(label, style: TextStyle(fontSize: 13.sp, color: sel ? Colors.white : Colors.grey[700], fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
-      ),
-    );
-  }
-
-  Widget _govCard(Map<String, dynamic> gov) {
-    final isActive = _parseBool(gov['is_active']);
-    final govId = gov['id'].toString();
-    final govName = gov['name']?.toString() ?? '';
-    final govModel = LookupOptionModel(id: govId, nameAr: govName, isActive: isActive);
-    final rawCities = gov['cities'] as List? ?? [];
-    final cities = rawCities.map((c) {
-      final m = c as Map<String, dynamic>;
-      return LookupOptionModel(
-        id: m['id'].toString(),
-        nameAr: m['name']?.toString() ?? '',
-        isActive: _parseBool(m['is_active']),
-      );
-    }).toList();
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14.r),
-        border: Border.all(color: isActive ? const Color(0xFFDDDDEE) : Colors.grey.withValues(alpha: 0.2), width: 1.5),
-      ),
-      child: ExpansionTile(
-        // ─── key فريد يمنع تعارض PageStorage ───
-        key: PageStorageKey('gov_$govId'),
-        tilePadding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 6.h),
-        title: Row(children: [
-          Icon(Icons.location_city_outlined, size: 20.sp, color: isActive ? _cur.color : Colors.grey),
-          SizedBox(width: 10.w),
-          Text(govName, style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w700, color: isActive ? const Color(0xFF1A1A2E) : Colors.grey)),
-          SizedBox(width: 10.w),
-          if (!isActive)
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
-              decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6.r)),
-              child: Text('معطّل', style: TextStyle(fontSize: 12.sp, color: Colors.red)),
-            ),
-          const Spacer(),
-          Text('${cities.length} مدينة', style: TextStyle(fontSize: 13.sp, color: Colors.grey[500])),
-          SizedBox(width: 6.w),
-        ]),
-        trailing: _actions('governorates', govModel, isLoc: true),
-        children: [
-          if (cities.isEmpty)
-            Padding(
-              padding: EdgeInsets.all(16.w),
-              child: Text('لا توجد مدن مسجلة', style: TextStyle(color: Colors.grey, fontSize: 14.sp)),
-            )
-          else
-            Padding(
-              padding: EdgeInsets.only(right: 24.w, left: 12.w, bottom: 10.h),
-              child: Column(
-                children: cities.map((city) => Padding(
-                  padding: EdgeInsets.only(bottom: 6.h),
-                  child: _itemTile('cities', city, isLoc: true),
-                )).toList(),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
   Widget _itemTile(String table, LookupOptionModel item, {bool isLoc = false}) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 150),
@@ -510,10 +460,59 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
             decoration: item.isActive ? null : TextDecoration.lineThrough,
           ),
         ),
-        subtitle: !item.isActive
-            ? Text('معطّل — لن يظهر في القوائم الجديدة', style: TextStyle(fontSize: 12.sp, color: Colors.red[300]))
-            : null,
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (table == 'lead_statuses' && item.extra != null) ...[
+              SizedBox(height: 6.h),
+              Wrap(
+                spacing: 12.w,
+                runSpacing: 4.h,
+                children: [
+                  _buildChip(
+                    Icons.linear_scale,
+                    _dataManager.getOptionModels('stage_types').firstWhere(
+                          (e) => e.id == item.extra!['stage_type_id'],
+                          orElse: () => const LookupOptionModel(id: '', nameAr: 'غير محدد'),
+                        ).nameAr,
+                    Colors.indigo,
+                  ),
+                  if (item.extra!['delay_value'] != null)
+                    _buildChip(
+                      Icons.timer_outlined,
+                      '${item.extra!['delay_value']} ${item.extra!['delay_unit'] == 'minutes' ? 'دقائق' : item.extra!['delay_unit'] == 'hours' ? 'ساعات' : 'أيام'}',
+                      Colors.orange,
+                    ),
+                  if (item.extra!['is_default'] == true)
+                    _buildChip(Icons.star_rounded, 'الافتراضية', Colors.amber),
+                ],
+              ),
+              SizedBox(height: 6.h),
+            ],
+            if (!item.isActive)
+              Text('معطّل — لن يظهر في القوائم الجديدة', style: TextStyle(fontSize: 12.sp, color: Colors.red[300])),
+          ],
+        ),
         trailing: _actions(table, item, isLoc: isLoc),
+      ),
+    );
+  }
+
+  Widget _buildChip(IconData icon, String label, Color color) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6.r),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14.sp, color: color),
+          SizedBox(width: 4.w),
+          Text(label, style: TextStyle(fontSize: 12.sp, color: color, fontWeight: FontWeight.bold)),
+        ],
       ),
     );
   }
@@ -534,7 +533,89 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
         tooltip: item.isActive ? 'تعطيل' : 'تفعيل',
         onPressed: () => _toggle(table, item),
       ),
+      if (table == 'lead_statuses')
+        IconButton(
+          icon: Icon(Icons.delete_forever_outlined, size: 22.sp, color: Colors.red),
+          tooltip: 'حذف نهائي',
+          onPressed: () => _hardDelete(table, item),
+        ),
     ]);
+  }
+
+  Future<void> _hardDelete(String table, LookupOptionModel item) async {
+    if (table != 'lead_statuses') return;
+
+    setState(() => _isLoading = true);
+    int leadsCount = 0;
+    try {
+      leadsCount = await _repository.countLeadsWithStatus(item.id);
+    } catch (e) {
+      _showErr('فشل في التحقق من عدد العملاء المرتبطين بالحالة: $e');
+      setState(() => _isLoading = false);
+      return;
+    }
+    setState(() => _isLoading = false);
+
+    String? replaceWithId;
+    bool canDelete = leadsCount == 0;
+    
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateSB) => AlertDialog(
+          title: Text('تحذير: حذف نهائي لـ "${item.nameAr}"', style: const TextStyle(color: Colors.red)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (leadsCount > 0) ...[
+                Text('هذه الحالة مرتبطة بـ $leadsCount عميل! بمسح هذه الحالة، يجب نقل جميع العملاء المرتبطين بها إلى حالة أخرى.'),
+                SizedBox(height: 16.h),
+                DropdownButtonFormField<String>(
+                  decoration: const InputDecoration(border: OutlineInputBorder()),
+                  hint: const Text('اختر الحالة البديلة'),
+                  value: replaceWithId,
+                  items: _cache['lead_statuses']
+                      ?.where((s) => s.id != item.id && s.isActive)
+                      .map((s) => DropdownMenuItem(value: s.id, child: Text(s.nameAr)))
+                      .toList() ?? [],
+                  onChanged: (v) {
+                    setStateSB(() {
+                      replaceWithId = v;
+                      canDelete = v != null;
+                    });
+                  },
+                ),
+              ] else ...[
+                const Text('لا يوجد عملاء مرتبطين بهذه الحالة. هل أنت متأكد من مسحها نهائياً؟'),
+              ]
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+            ElevatedButton(
+              onPressed: canDelete ? () => Navigator.pop(ctx, true) : null,
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: Text(leadsCount > 0 ? 'نقل العملاء وحذف' : 'حذف', style: const TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (ok != true) return;
+    if (leadsCount > 0 && replaceWithId == null) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await _repository.deleteLeadStatus(item.id, replaceWithId);
+      await _dataManager.refresh();
+      await _reloadCurrent();
+      _showOk(leadsCount > 0 ? 'تم المسح ونقل العملاء بنجاح ✅' : 'تم المسح بنجاح ✅');
+    } catch (e) {
+      _showErr('خطأ: $e');
+    }
+    setState(() => _isLoading = false);
   }
 
   Widget _emptyState() {

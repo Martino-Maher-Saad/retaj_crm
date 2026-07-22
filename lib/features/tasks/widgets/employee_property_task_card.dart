@@ -237,7 +237,7 @@ class _EmployeePropertyTaskCardState extends State<EmployeePropertyTaskCard> {
                       _infoCol(
                         Icons.location_on_outlined,
                         'الموقع',
-                        "${widget.property.governorateAr}",
+                        " ${widget.property.cityAr}",
                       ),
                       if (widget.property.createdByName != null)
                         _infoCol(

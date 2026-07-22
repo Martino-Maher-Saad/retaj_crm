@@ -133,54 +133,42 @@ class _ManagerDashboardViewState extends State<ManagerDashboardView> {
             SizedBox(height: 20.h),
           ],
 
-          // ─── 4 Summary Cards + Average Closing Card ───
-          Row(children: [
-            Expanded(
-                child: DashboardStatCard(
-              title: 'إجمالي العملاء',
-              value: '${data.leadsCount}',
-              icon: Icons.people_outline_rounded,
-              color: AppColors.brandPrimary,
-            )),
-            SizedBox(width: 14.w),
-            Expanded(
-                child: DashboardStatCard(
-              title: 'إجمالي التعاقدات',
-              value: '${data.contractedCount}',
-              icon: Icons.handshake_outlined,
-              color: AppColors.success,
-            )),
-          ]),
-          SizedBox(height: 14.h),
-          Row(children: [
-            Expanded(
-                child: DashboardStatCard(
-              title: 'نسبة التحويل الكلية',
-              value: '${data.conversionRate.toStringAsFixed(1)}%',
-              icon: Icons.percent_rounded,
-              color: const Color(0xFF8B5CF6),
-            )),
-            SizedBox(width: 14.w),
-            Expanded(
-                child: DashboardStatCard(
-              title: 'عقارات مضافة بالشركة',
-              value: '${data.propertiesCount}',
-              icon: Icons.home_work_outlined,
-              color: AppColors.warning,
-            )),
-          ]),
-          SizedBox(height: 14.h),
-          DashboardStatCard(
-            title: 'متوسط وقت الإغلاق (أيام)',
-            value: data.avgClosingDays == 0
-                ? 'لا توجد تعاقدات بعد'
-                : data.avgClosingDays < 1
-                    ? 'أقل من يوم'
-                    : '${data.avgClosingDays.toStringAsFixed(1)} يوم',
-            icon: Icons.timer_rounded,
-            color: const Color(0xFF0EA5E9),
-            subtitle: 'متوسط الوقت المستغرق لإتمام التعاقدات في الشركة ككل',
-          ),
+          // ─── 4 Summary Cards (EngazCRM Style) ───
+          LayoutBuilder(builder: (context, constraints) {
+            final isWide = constraints.maxWidth > 800;
+            return Wrap(
+              spacing: 16.w,
+              runSpacing: 16.h,
+              children: [
+                _buildEngazCard(
+                  title: 'إجمالي العملاء',
+                  value: '${data.leadsCount}',
+                  trend: null,
+                  isWide: isWide,
+                ),
+                _buildEngazCard(
+                  title: 'إجمالي العقارات',
+                  value: '${data.propertiesCount}',
+                  trend: null,
+                  isWide: isWide,
+                ),
+                _buildEngazCard(
+                  title: 'تم التعاقد',
+                  value: '${data.contractedCount}',
+                  trend: null,
+                  isWide: isWide,
+                ),
+                _buildEngazCard(
+                  title: 'عملاء متأخرون (Stale)',
+                  value: '${data.staleLeadsCount}',
+                  trend: null,
+                  isWide: isWide,
+                  isAlert: data.staleLeadsCount > 0,
+                ),
+              ],
+            );
+          }),
+          SizedBox(height: 32.h),
           SizedBox(height: 32.h),
 
           // ─── [ GROUP 1: LEAD REPORTS & CHARTS ] ───
@@ -243,12 +231,164 @@ class _ManagerDashboardViewState extends State<ManagerDashboardView> {
             SizedBox(height: 20.h),
           ],
 
-          // ─── Leaderboard كل الموظفين ───
-          _buildSection(
-            title: 'أداء فريق المبيعات والعملاء بالشركة',
-            icon: Icons.leaderboard_rounded,
-            child: _buildLeaderboard(context, data.employeesPerformance, state),
-          ),
+          // ─── [ GROUP 1: DELAY LIST AND LEADERBOARD (EngazCRM Layout) ] ───
+          LayoutBuilder(builder: (context, constraints) {
+            final isWide = constraints.maxWidth > 800;
+            if (isWide) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 6,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16.r),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
+                      ),
+                      padding: EdgeInsets.all(16.w),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Delay List', style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+                          SizedBox(height: 16.h),
+                          // Placeholder for tabs
+                          SizedBox(
+                            height: 40.h,
+                            child: ListView(
+                              scrollDirection: Axis.horizontal,
+                              children: [
+                                _buildTab('Following after meeting', true),
+                                _buildTab('Follow whatsup', false),
+                                _buildTab('No Answer', false),
+                                _buildTab('Interested in more options', false),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: 16.h),
+                          DashboardLeadsTable(
+                            role: 'manager',
+                            userId: state.selectedEmployeeId ?? widget.user.id,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 16.w),
+                  Expanded(
+                    flex: 4,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16.r),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
+                      ),
+                      padding: EdgeInsets.all(16.w),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('The Best', style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+                              Container(
+                                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8.r),
+                                  border: Border.all(color: Colors.grey.shade300),
+                                ),
+                                child: Text('All ▾', style: TextStyle(fontSize: 14.sp)),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 16.h),
+                          _buildLeaderboard(context, data.employeesPerformance, state),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            } else {
+              return Column(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16.r),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                    ),
+                    padding: EdgeInsets.all(16.w),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Delay List', style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+                        SizedBox(height: 16.h),
+                        SizedBox(
+                          height: 40.h,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            children: [
+                              _buildTab('Following after meeting', true),
+                              _buildTab('Follow whatsup', false),
+                              _buildTab('No Answer', false),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 16.h),
+                        DashboardLeadsTable(
+                          role: 'manager',
+                          userId: state.selectedEmployeeId ?? widget.user.id,
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 16.h),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16.r),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                    ),
+                    padding: EdgeInsets.all(16.w),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('The Best', style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo')),
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8.r),
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
+                              child: Text('All ▾', style: TextStyle(fontSize: 14.sp)),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 16.h),
+                        _buildLeaderboard(context, data.employeesPerformance, state),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            }
+          }),
           SizedBox(height: 32.h),
 
           // ─── [ GROUP 2: PROPERTY REPORTS & CHARTS ] ───
@@ -292,47 +432,7 @@ class _ManagerDashboardViewState extends State<ManagerDashboardView> {
           ] else
             _buildNoDataWidget('لا توجد عقارات مضافة في هذه الفترة لعرض الإحصائيات المتجهة'),
 
-          // ─── [ GROUP 3: VISUAL SEPARATOR ] ───
-          SizedBox(height: 40.h),
-          Row(
-            children: [
-              Expanded(child: Divider(color: AppColors.brandPrimary.withValues(alpha: 0.2), thickness: 2.w)),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.w),
-                child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 8.h),
-                  decoration: BoxDecoration(
-                    color: AppColors.brandPrimary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(20.r),
-                    border: Border.all(color: AppColors.brandPrimary.withValues(alpha: 0.15)),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        'جدول تفاصيل ومتابعة العملاء والتقارير',
-                        style: TextStyle(
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'Cairo',
-                          color: AppColors.brandPrimary,
-                        ),
-                      ),
-                      SizedBox(width: 8.w),
-                      Icon(Icons.table_chart_rounded, color: AppColors.brandPrimary, size: 20.sp),
-                    ],
-                  ),
-                ),
-              ),
-              Expanded(child: Divider(color: AppColors.brandPrimary.withValues(alpha: 0.2), thickness: 2.w)),
-            ],
-          ),
-          SizedBox(height: 24.h),
-
-          // ─── Interactive Leads Table ───
-          DashboardLeadsTable(
-            role: 'manager',
-            userId: state.selectedEmployeeId ?? widget.user.id,
-          ),
+          // Interactive Leads Table moved to Delay List section
         ],
       ),
     );
@@ -848,7 +948,7 @@ class _ManagerDashboardViewState extends State<ManagerDashboardView> {
                 Divider(color: AppColors.borderSubtle.withValues(alpha: 0.5), height: 1),
             ],
           );
-        }),
+        }).toList(),
         if (mergedEmployees.length > 5) ...[
           SizedBox(height: 12.h),
           TextButton.icon(
@@ -1100,4 +1200,95 @@ class _ManagerDashboardViewState extends State<ManagerDashboardView> {
       ),
     );
   }
+  Widget _buildEngazCard({
+    required String title,
+    required String value,
+    String? trend,
+    required bool isWide,
+    bool isAlert = false,
+  }) {
+    return Container(
+      width: isWide ? 220.w : 150.w,
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: isAlert ? Colors.red.shade50 : Colors.white,
+        borderRadius: BorderRadius.circular(16.r),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: isAlert ? Border.all(color: Colors.red.shade200, width: 1.5) : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 16.sp,
+              color: isAlert ? Colors.red.shade700 : Colors.grey[600],
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Cairo',
+            ),
+          ),
+          SizedBox(height: 12.h),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 28.sp,
+              fontWeight: FontWeight.bold,
+              color: isAlert ? Colors.red.shade700 : AppColors.textPrimary,
+            ),
+          ),
+          if (trend != null) ...[
+            SizedBox(height: 8.h),
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                  child: Text(
+                    trend,
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      color: Colors.green[700],
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTab(String title, bool isSelected) {
+    return Container(
+      margin: EdgeInsets.only(right: 8.w),
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+      decoration: BoxDecoration(
+        color: isSelected ? Colors.blue.withValues(alpha: 0.1) : Colors.transparent,
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: isSelected ? Colors.blue : Colors.grey.shade300),
+      ),
+      child: Center(
+        child: Text(
+          title,
+          style: TextStyle(
+            color: isSelected ? Colors.blue : Colors.grey.shade600,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
 }
+
