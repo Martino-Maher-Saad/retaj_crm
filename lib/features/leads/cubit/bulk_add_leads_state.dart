@@ -177,15 +177,32 @@ class BulkAddLeadsLoading extends BulkAddLeadsState {
 class BulkAddLeadsLoaded extends BulkAddLeadsState {
   final List<EditableLeadRow> rows;
   final List<String> columnOrder;
+  final Map<String, dynamic> pinnedValues;
 
-  const BulkAddLeadsLoaded(this.rows, {this.columnOrder = const [
-    'name', 'phone', 'cityId', 'propertyTypeId', 'listingTypeId', 'platformId',
-    'channelId', 'statusId', 'assignedTo', 'propertyCode', 'createdAt',
-    'descLeadNeed', 'budgetFrom', 'budgetTo', 'notes'
-  ]});
+  const BulkAddLeadsLoaded(
+    this.rows, {
+    this.columnOrder = const [
+      'name', 'phone', 'cityId', 'propertyTypeId', 'listingTypeId', 'platformId',
+      'channelId', 'statusId', 'assignedTo', 'propertyCode', 'createdAt',
+      'descLeadNeed', 'budgetFrom', 'budgetTo', 'notes'
+    ],
+    this.pinnedValues = const {},
+  });
+
+  BulkAddLeadsLoaded copyWith({
+    List<EditableLeadRow>? rows,
+    List<String>? columnOrder,
+    Map<String, dynamic>? pinnedValues,
+  }) {
+    return BulkAddLeadsLoaded(
+      rows ?? this.rows,
+      columnOrder: columnOrder ?? this.columnOrder,
+      pinnedValues: pinnedValues ?? this.pinnedValues,
+    );
+  }
 
   @override
-  List<Object?> get props => [rows, columnOrder];
+  List<Object?> get props => [rows, columnOrder, pinnedValues];
 }
 
 class BulkAddLeadsProgress extends BulkAddLeadsState {

@@ -185,50 +185,154 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
     );
   }
 
-  Widget _buildGrid(BuildContext context, List<EditableLeadRow> rows, List<String> columnOrder) {
-    return Scrollbar(
-      controller: _verticalScrollController,
-      thumbVisibility: true,
-      thickness: 10,
-      radius: const Radius.circular(8),
-      child: SingleChildScrollView(
-        controller: _verticalScrollController,
-        scrollDirection: Axis.vertical,
-        child: Scrollbar(
-          controller: _horizontalScrollController,
-          thumbVisibility: true,
-          thickness: 10,
-          radius: const Radius.circular(8),
-          child: SingleChildScrollView(
-            controller: _horizontalScrollController,
-            scrollDirection: Axis.horizontal,
-            child: Container(
-              color: Colors.white,
-              child: DataTable(
-                dataRowMinHeight: 50,
-                dataRowMaxHeight: 50,
-                headingRowHeight: 55,
-                columnSpacing: 0,
-                horizontalMargin: 0,
-                dividerThickness: 0,
-                border: TableBorder.all(color: Colors.grey.shade400, width: 1),
-                headingRowColor: WidgetStateProperty.all(Colors.grey[300]),
-                columns: columnOrder.map((key) => _excelColumn(_columnLabels[key] ?? '')).toList(),
-                rows: rows.map((row) => _buildDataRow(context, row, columnOrder)).toList(),
+  double _getColumnWidth(String key) {
+    if (key == 'descLeadNeed' || key == 'notes') return 220;
+    if (key == 'propertyTypeId' || key == 'listingTypeId' || key == 'platformId' || key == 'channelId' || key == 'statusId' || key == 'assignedTo' || key == 'cityId') return 180;
+    return 140; 
+  }
+
+  Widget _buildHeaderCell(BuildContext context, String key) {
+    final bool isDropdown = ['cityId', 'propertyTypeId', 'listingTypeId', 'platformId', 'channelId', 'statusId', 'assignedTo'].contains(key);
+    final pinnedValues = (context.read<BulkAddLeadsCubit>().state as BulkAddLeadsLoaded).pinnedValues;
+    final isPinned = pinnedValues.containsKey(key);
+
+    return Container(
+      width: _getColumnWidth(key),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      decoration: BoxDecoration(
+        border: Border(left: BorderSide(color: Colors.grey.shade400)),
+      ),
+      alignment: Alignment.center,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Expanded(child: Text(_columnLabels[key] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 14), textAlign: TextAlign.center)),
+          if (isDropdown)
+            InkWell(
+              onTap: () => _showPinDialog(context, key),
+              child: Padding(
+                padding: const EdgeInsets.all(4.0),
+                child: Icon(Icons.push_pin, size: 16, color: isPinned ? Colors.blue : Colors.grey),
               ),
             ),
-          ),
-        ),
+        ],
       ),
     );
   }
 
-  DataColumn _excelColumn(String label) {
-    return DataColumn(
-      label: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        alignment: Alignment.center,
-        child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 14)),
+  void _showPinDialog(BuildContext context, String key) {
+    final cubit = context.read<BulkAddLeadsCubit>();
+    final dataManager = sl<StaticDataManager>();
+    
+    String title = _columnLabels[key] ?? '';
+    dynamic selectedValue = (cubit.state as BulkAddLeadsLoaded).pinnedValues[key];
+    
+    List<DropdownMenuEntry<dynamic>> entries = [];
+    if (key == 'cityId') {
+      entries = dataManager.allCities.map((c) => DropdownMenuEntry<dynamic>(value: c.id, label: c.name)).toList();
+    } else if (key == 'assignedTo') {
+      entries = dataManager.employees.map((e) => DropdownMenuEntry<dynamic>(value: e.id, label: '${e.firstName} ${e.lastName}'.trim())).toList();
+    } else {
+      String tableName = '';
+      if (key == 'propertyTypeId') tableName = 'property_type';
+      else if (key == 'listingTypeId') tableName = 'listing_type';
+      else if (key == 'platformId') tableName = 'platform';
+      else if (key == 'channelId') tableName = 'communication_channel';
+      else if (key == 'statusId') tableName = 'lead_status';
+      entries = dataManager.getOptionModels(tableName).map((o) => DropdownMenuEntry<dynamic>(value: o.id, label: o.nameAr)).toList();
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        dynamic tempValue = selectedValue;
+        return AlertDialog(
+          title: Text('تثبيت قيمة لـ ($title)'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('القيمة المحددة سيتم تطبيقها على جميع الصفوف فوراً وللصفوف الجديدة.'),
+              const SizedBox(height: 16),
+              DropdownMenu<dynamic>(
+                initialSelection: tempValue,
+                enableFilter: true,
+                requestFocusOnTap: true,
+                width: 250,
+                menuHeight: 200,
+                dropdownMenuEntries: entries,
+                onSelected: (v) => tempValue = v,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                cubit.pinColumnValue(key, null);
+                Navigator.pop(ctx);
+              },
+              child: const Text('إلغاء التثبيت', style: TextStyle(color: Colors.red)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إغلاق'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                cubit.pinColumnValue(key, tempValue);
+                Navigator.pop(ctx);
+              },
+              child: const Text('تطبيق وتثبيت'),
+            ),
+          ],
+        );
+      }
+    );
+  }
+
+  Widget _buildGrid(BuildContext context, List<EditableLeadRow> rows, List<String> columnOrder) {
+    final double totalWidth = columnOrder.fold(0.0, (sum, key) => sum + _getColumnWidth(key));
+
+    return Scrollbar(
+      controller: _horizontalScrollController,
+      thumbVisibility: true,
+      thickness: 10,
+      radius: const Radius.circular(8),
+      child: SingleChildScrollView(
+        controller: _horizontalScrollController,
+        scrollDirection: Axis.horizontal,
+        child: SizedBox(
+          width: totalWidth + 2,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: Colors.grey.shade400, width: 1),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  color: Colors.grey[300],
+                  child: Row(
+                    children: columnOrder.map((key) => _buildHeaderCell(context, key)).toList(),
+                  ),
+                ),
+                Expanded(
+                  child: Scrollbar(
+                    controller: _verticalScrollController,
+                    thumbVisibility: true,
+                    thickness: 10,
+                    radius: const Radius.circular(8),
+                    child: ListView.builder(
+                      controller: _verticalScrollController,
+                      itemCount: rows.length,
+                      itemBuilder: (ctx, i) => _buildCustomDataRow(ctx, rows[i], columnOrder),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -255,13 +359,14 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
     return null;
   }
 
-  DataRow _buildDataRow(BuildContext context, EditableLeadRow row, List<String> columnOrder) {
+  Widget _buildCustomDataRow(BuildContext context, EditableLeadRow row, List<String> columnOrder) {
     final dataManager = sl<StaticDataManager>();
     final cubit = context.read<BulkAddLeadsCubit>();
     final bool hasError = !row.isValid && !row.isEmpty;
 
-    Widget buildTextField(String? initial, Function(String) onChanged, {double width = 140, TextInputType type = TextInputType.text}) {
+    Widget buildTextField(String? initial, Function(String) onChanged, {required String cellKey, double width = 140, TextInputType type = TextInputType.text}) {
       return _ExcelTextField(
+        key: ValueKey('${row.id}_$cellKey'),
         initialValue: initial ?? '',
         type: type,
         onChanged: onChanged,
@@ -269,8 +374,9 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
       );
     }
 
-    Widget buildDateField(DateTime? initial, Function(DateTime?) onChanged) {
+    Widget buildDateField(DateTime? initial, Function(DateTime?) onChanged, {required String cellKey}) {
       return _ExcelTextField(
+        key: ValueKey('${row.id}_$cellKey'),
         initialValue: initial != null ? initial.toIso8601String().split('T')[0] : '',
         type: TextInputType.datetime,
         width: 140,
@@ -290,12 +396,14 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
       final isError = value == null && unmappedValue != null;
       return Container(
         width: 180,
+        height: 64,
         color: isError ? Colors.red.withValues(alpha: 0.1) : null,
         child: DropdownMenu<String>(
           initialSelection: value,
           enableFilter: true,
           requestFocusOnTap: true,
           width: 180,
+          menuHeight: 200,
           hintText: isError ? 'غير معروف' : '',
           textStyle: const TextStyle(fontSize: 14, color: Colors.black87),
           inputDecorationTheme: const InputDecorationTheme(
@@ -316,12 +424,14 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
       final isError = value == null && unmappedValue != null;
       return Container(
         width: 180,
+        height: 64,
         color: isError ? Colors.red.withValues(alpha: 0.1) : null,
         child: DropdownMenu<int>(
           initialSelection: value,
           enableFilter: true,
           requestFocusOnTap: true,
           width: 180,
+          menuHeight: 200,
           hintText: isError ? 'غير معروف' : '',
           textStyle: const TextStyle(fontSize: 14, color: Colors.black87),
           inputDecorationTheme: const InputDecorationTheme(
@@ -342,12 +452,14 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
       final isError = value == null && unmappedValue != null;
       return Container(
         width: 180,
+        height: 64,
         color: isError ? Colors.red.withValues(alpha: 0.1) : null,
         child: DropdownMenu<String>(
           initialSelection: value,
           enableFilter: true,
           requestFocusOnTap: true,
           width: 180,
+          menuHeight: 200,
           hintText: isError ? 'غير معروف' : '',
           textStyle: const TextStyle(fontSize: 14, color: Colors.black87),
           inputDecorationTheme: const InputDecorationTheme(
@@ -364,26 +476,42 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
     }
 
     final cellsMap = {
-      'name': DataCell(buildTextField(row.name, (v) => cubit.updateRow(row.copyWith(name: v)))),
-      'phone': DataCell(buildTextField(row.phone, (v) => cubit.updateRow(row.copyWith(phone: v)), type: TextInputType.phone)),
-      'cityId': DataCell(buildCityDropdown(row.cityId, row.unmappedCity, (v) => cubit.updateRow(row.copyWith(cityId: v, unmappedCity: null)))),
-      'propertyTypeId': DataCell(buildOptionDropdown(row.propertyTypeId, 'property_type', row.unmappedPropertyType, (v) => cubit.updateRow(row.copyWith(propertyTypeId: v, unmappedPropertyType: null)))),
-      'listingTypeId': DataCell(buildOptionDropdown(row.listingTypeId, 'listing_type', row.unmappedListingType, (v) => cubit.updateRow(row.copyWith(listingTypeId: v, unmappedListingType: null)))),
-      'platformId': DataCell(buildOptionDropdown(row.platformId, 'platform', row.unmappedPlatform, (v) => cubit.updateRow(row.copyWith(platformId: v, unmappedPlatform: null)))),
-      'channelId': DataCell(buildOptionDropdown(row.channelId, 'communication_channel', row.unmappedChannel, (v) => cubit.updateRow(row.copyWith(channelId: v, unmappedChannel: null)))),
-      'statusId': DataCell(buildOptionDropdown(row.statusId, 'lead_status', row.unmappedStatus, (v) => cubit.updateRow(row.copyWith(statusId: v, unmappedStatus: null)))),
-      'assignedTo': DataCell(buildProfileDropdown(row.assignedTo, row.unmappedAssignedTo, (v) => cubit.updateRow(row.copyWith(assignedTo: v, unmappedAssignedTo: null)))),
-      'propertyCode': DataCell(buildTextField(row.propertyCode, (v) => cubit.updateRow(row.copyWith(propertyCode: v)))),
-      'createdAt': DataCell(buildDateField(row.createdAt, (v) => cubit.updateRow(row.copyWith(createdAt: v)))),
-      'descLeadNeed': DataCell(buildTextField(row.descLeadNeed, (v) => cubit.updateRow(row.copyWith(descLeadNeed: v)), width: 220, type: TextInputType.multiline)),
-      'budgetFrom': DataCell(buildTextField(row.budgetFrom, (v) => cubit.updateRow(row.copyWith(budgetFrom: v)), type: TextInputType.number)),
-      'budgetTo': DataCell(buildTextField(row.budgetTo, (v) => cubit.updateRow(row.copyWith(budgetTo: v)), type: TextInputType.number)),
-      'notes': DataCell(buildTextField(row.notes, (v) => cubit.updateRow(row.copyWith(notes: v)), width: 220, type: TextInputType.multiline)),
+      'name': buildTextField(row.name, (v) => cubit.updateRow(row.copyWith(name: v)), cellKey: 'name'),
+      'phone': buildTextField(row.phone, (v) => cubit.updateRow(row.copyWith(phone: v)), type: TextInputType.phone, cellKey: 'phone'),
+      'cityId': buildCityDropdown(row.cityId, row.unmappedCity, (v) => cubit.updateRow(row.copyWith(cityId: v, unmappedCity: null))),
+      'propertyTypeId': buildOptionDropdown(row.propertyTypeId, 'property_type', row.unmappedPropertyType, (v) => cubit.updateRow(row.copyWith(propertyTypeId: v, unmappedPropertyType: null))),
+      'listingTypeId': buildOptionDropdown(row.listingTypeId, 'listing_type', row.unmappedListingType, (v) => cubit.updateRow(row.copyWith(listingTypeId: v, unmappedListingType: null))),
+      'platformId': buildOptionDropdown(row.platformId, 'platform', row.unmappedPlatform, (v) => cubit.updateRow(row.copyWith(platformId: v, unmappedPlatform: null))),
+      'channelId': buildOptionDropdown(row.channelId, 'communication_channel', row.unmappedChannel, (v) => cubit.updateRow(row.copyWith(channelId: v, unmappedChannel: null))),
+      'statusId': buildOptionDropdown(row.statusId, 'lead_status', row.unmappedStatus, (v) => cubit.updateRow(row.copyWith(statusId: v, unmappedStatus: null))),
+      'assignedTo': buildProfileDropdown(row.assignedTo, row.unmappedAssignedTo, (v) => cubit.updateRow(row.copyWith(assignedTo: v, unmappedAssignedTo: null))),
+      'propertyCode': buildTextField(row.propertyCode, (v) => cubit.updateRow(row.copyWith(propertyCode: v)), cellKey: 'propertyCode'),
+      'createdAt': buildDateField(row.createdAt, (v) => cubit.updateRow(row.copyWith(createdAt: v)), cellKey: 'createdAt'),
+      'descLeadNeed': buildTextField(row.descLeadNeed, (v) => cubit.updateRow(row.copyWith(descLeadNeed: v)), width: 220, type: TextInputType.multiline, cellKey: 'descLeadNeed'),
+      'budgetFrom': buildTextField(row.budgetFrom, (v) => cubit.updateRow(row.copyWith(budgetFrom: v)), type: TextInputType.number, cellKey: 'budgetFrom'),
+      'budgetTo': buildTextField(row.budgetTo, (v) => cubit.updateRow(row.copyWith(budgetTo: v)), type: TextInputType.number, cellKey: 'budgetTo'),
+      'notes': buildTextField(row.notes, (v) => cubit.updateRow(row.copyWith(notes: v)), width: 220, type: TextInputType.multiline, cellKey: 'notes'),
     };
 
-    return DataRow(
-      color: WidgetStateProperty.all(hasError ? Colors.red.withValues(alpha: 0.05) : null),
-      cells: columnOrder.map((key) => cellsMap[key]!).toList(),
+    return Container(
+      height: 64,
+      decoration: BoxDecoration(
+        color: hasError ? Colors.red.withValues(alpha: 0.05) : null,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade400)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: columnOrder.map((key) {
+          return Container(
+            width: _getColumnWidth(key),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              border: Border(left: BorderSide(color: Colors.grey.shade400)),
+            ),
+            child: cellsMap[key]!,
+          );
+        }).toList(),
+      ),
     );
   }
 }
@@ -396,6 +524,7 @@ class _ExcelTextField extends StatefulWidget {
   final String? hintText;
 
   const _ExcelTextField({
+    super.key,
     required this.initialValue,
     required this.type,
     required this.onChanged,
@@ -455,7 +584,8 @@ class _ExcelTextFieldState extends State<_ExcelTextField> {
         scrollController: _scrollController,
         style: const TextStyle(fontSize: 14),
         maxLines: widget.type == TextInputType.multiline ? null : 1,
-        textAlignVertical: TextAlignVertical.center,
+        expands: widget.type == TextInputType.multiline,
+        textAlignVertical: TextAlignVertical.top,
         decoration: InputDecoration(
           border: InputBorder.none,
           enabledBorder: InputBorder.none,

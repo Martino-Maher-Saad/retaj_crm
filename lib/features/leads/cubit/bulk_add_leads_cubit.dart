@@ -17,17 +17,28 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
     emit(BulkAddLeadsLoaded(List.generate(30, (_) => _createEmptyRow())));
   }
 
-  String _generateId() => DateTime.now().microsecondsSinceEpoch.toString();
+  int _idCounter = 0;
+  String _generateId() => 'row_${_idCounter++}';
 
-  EditableLeadRow _createEmptyRow() {
-    return EditableLeadRow(id: _generateId());
+  EditableLeadRow _createEmptyRow([Map<String, dynamic>? pinned]) {
+    return EditableLeadRow(
+      id: _generateId(),
+      cityId: pinned?['cityId'] as int?,
+      propertyTypeId: pinned?['propertyTypeId'] as String?,
+      listingTypeId: pinned?['listingTypeId'] as String?,
+      platformId: pinned?['platformId'] as String?,
+      channelId: pinned?['channelId'] as String?,
+      statusId: pinned?['statusId'] as String?,
+      assignedTo: pinned?['assignedTo'] as String?,
+    );
   }
 
-  void _emitLoaded(List<EditableLeadRow> rows) {
+  void _emitLoaded(List<EditableLeadRow> rows, [Map<String, dynamic>? pinned]) {
     if (state is BulkAddLeadsLoaded) {
-      emit(BulkAddLeadsLoaded(rows, columnOrder: (state as BulkAddLeadsLoaded).columnOrder));
+      final st = state as BulkAddLeadsLoaded;
+      emit(st.copyWith(rows: rows, pinnedValues: pinned ?? st.pinnedValues));
     } else {
-      emit(BulkAddLeadsLoaded(rows));
+      emit(BulkAddLeadsLoaded(rows, pinnedValues: pinned ?? const {}));
     }
   }
 
@@ -44,9 +55,37 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
 
   void addEmptyRows() {
     if (state is BulkAddLeadsLoaded) {
-      final currentRows = (state as BulkAddLeadsLoaded).rows;
-      final newRows = List.generate(30, (_) => _createEmptyRow());
-      _emitLoaded([...currentRows, ...newRows]);
+      final currentState = state as BulkAddLeadsLoaded;
+      final newRows = List.generate(30, (_) => _createEmptyRow(currentState.pinnedValues));
+      _emitLoaded([...currentState.rows, ...newRows], currentState.pinnedValues);
+    }
+  }
+
+  void pinColumnValue(String columnKey, dynamic value) {
+    if (state is BulkAddLeadsLoaded) {
+      final currentState = state as BulkAddLeadsLoaded;
+      final newPinned = Map<String, dynamic>.from(currentState.pinnedValues);
+      
+      if (value == null || (value is String && value.isEmpty)) {
+        newPinned.remove(columnKey);
+      } else {
+        newPinned[columnKey] = value;
+      }
+
+      final updatedRows = currentState.rows.map((row) {
+        switch (columnKey) {
+          case 'cityId': return row.copyWith(cityId: value as int?);
+          case 'propertyTypeId': return row.copyWith(propertyTypeId: value as String?);
+          case 'listingTypeId': return row.copyWith(listingTypeId: value as String?);
+          case 'platformId': return row.copyWith(platformId: value as String?);
+          case 'channelId': return row.copyWith(channelId: value as String?);
+          case 'statusId': return row.copyWith(statusId: value as String?);
+          case 'assignedTo': return row.copyWith(assignedTo: value as String?);
+        }
+        return row;
+      }).toList();
+
+      emit(currentState.copyWith(rows: updatedRows, pinnedValues: newPinned));
     }
   }
 
