@@ -58,16 +58,8 @@ class EditableLeadRow extends Equatable {
   bool get isEmpty {
     return (name == null || name!.trim().isEmpty) &&
            (phone == null || phone!.trim().isEmpty) &&
-           cityId == null &&
-           propertyTypeId == null &&
-           listingTypeId == null &&
-           platformId == null &&
-           channelId == null &&
-           statusId == null &&
-           assignedTo == null &&
-           createdAt == null &&
-           (notes == null || notes!.trim().isEmpty) &&
            (propertyCode == null || propertyCode!.trim().isEmpty) &&
+           (notes == null || notes!.trim().isEmpty) &&
            (descLeadNeed == null || descLeadNeed!.trim().isEmpty) &&
            (budgetFrom == null || budgetFrom!.trim().isEmpty) &&
            (budgetTo == null || budgetTo!.trim().isEmpty);

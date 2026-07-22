@@ -113,28 +113,48 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
   Future<void> saveAll(String creatorId) async {
     if (state is! BulkAddLeadsLoaded) return;
     
-    // Filter out completely empty rows
     final allRows = (state as BulkAddLeadsLoaded).rows;
-    final rows = allRows.where((r) => !r.isEmpty).toList();
+    final nonEmptyRows = allRows.where((r) => !r.isEmpty).toList();
 
-    if (rows.isEmpty) {
+    if (nonEmptyRows.isEmpty) {
       emit(BulkAddLeadsError('جميع الصفوف فارغة، لا يوجد شيء للحفظ'));
       _emitLoaded(allRows); 
       return;
     }
 
-    if (rows.any((r) => !r.isValid)) {
-      emit(BulkAddLeadsError('يرجى تصحيح الأخطاء في الصفوف قبل الحفظ'));
+    final validRows = nonEmptyRows.where((r) => r.isValid).toList();
+    final invalidRows = nonEmptyRows.where((r) => !r.isValid).toList();
+
+    if (validRows.isEmpty) {
+      List<String> errorMessages = [];
+      for (var r in invalidRows) {
+        int index = allRows.indexOf(r) + 1;
+        List<String> missing = [];
+        if (r.name == null || r.name!.trim().isEmpty) missing.add('الاسم');
+        if (r.phone == null || r.phone!.trim().isEmpty) {
+          missing.add('رقم الهاتف');
+        } else if (r.phone!.contains(',') || r.phone!.contains(' ')) {
+          missing.add('رقم الهاتف (يجب ألا يحتوي على مسافات)');
+        }
+        if (r.cityId == null) missing.add('المدينة');
+        if (r.propertyTypeId == null) missing.add('نوع العقار');
+        if (r.listingTypeId == null) missing.add('نوع الإعلان');
+        if (r.platformId == null) missing.add('المنصة');
+        if (r.assignedTo == null) missing.add('الموظف');
+        
+        errorMessages.add('الصف $index: ينقصه (${missing.join('، ')})');
+      }
+      
+      emit(BulkAddLeadsError('يرجى تصحيح الأخطاء التالية:\n${errorMessages.join('\n')}'));
       _emitLoaded(allRows); 
       return;
     }
 
     List<LeadModel> leadsToInsert = [];
-    for (var row in rows) {
+    for (var row in validRows) {
       String? statusId = row.statusId;
       if (statusId == null) {
-        statusId = _dataManager.getIdByName('lead_status', 'جديد') ??
-                   _dataManager.getIdByName('lead_status', 'New');
+        statusId = '460be748-7685-49ef-abcf-c4dd49511ab7'; // تم التواصل اول مرة
       }
 
       num? bFrom;
@@ -176,7 +196,18 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
         emit(BulkAddLeadsProgress(processed, total));
       });
 
-      emit(BulkAddLeadsSuccess());
+      final remainingRows = allRows.where((r) => !validRows.contains(r)).toList();
+      if (remainingRows.isEmpty) {
+        remainingRows.add(_createEmptyRow());
+      }
+
+      if (invalidRows.isNotEmpty) {
+        emit(BulkAddLeadsError('تم حفظ ${validRows.length} عميل. يرجى إكمال باقي الصفوف الناقصة.'));
+      } else {
+        emit(BulkAddLeadsSuccess());
+      }
+      
+      _emitLoaded(remainingRows);
     } catch (e) {
       emit(BulkAddLeadsError('حدث خطأ أثناء الحفظ: $e'));
       _emitLoaded(allRows);

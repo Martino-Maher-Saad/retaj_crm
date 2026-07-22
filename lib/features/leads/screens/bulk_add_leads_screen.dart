@@ -31,6 +31,25 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
   final ScrollController _horizontalScrollController = ScrollController();
   final ScrollController _verticalScrollController = ScrollController();
 
+  late List<DropdownMenuEntry<int>> _cityEntries;
+  late List<DropdownMenuEntry<String>> _employeeEntries;
+  late Map<String, List<DropdownMenuEntry<String>>> _optionEntries;
+
+  @override
+  void initState() {
+    super.initState();
+    final dataManager = sl<StaticDataManager>();
+    _cityEntries = dataManager.allCities.map((c) => DropdownMenuEntry<int>(value: c.id, label: c.name)).toList();
+    _employeeEntries = dataManager.employees.map((e) => DropdownMenuEntry<String>(value: e.id, label: '${e.firstName} ${e.lastName}'.trim())).toList();
+    _optionEntries = {
+      'property_type': dataManager.getOptionModels('property_type').map((o) => DropdownMenuEntry<String>(value: o.id, label: o.nameAr)).toList(),
+      'listing_type': dataManager.getOptionModels('listing_type').map((o) => DropdownMenuEntry<String>(value: o.id, label: o.nameAr)).toList(),
+      'platform': dataManager.getOptionModels('platform').map((o) => DropdownMenuEntry<String>(value: o.id, label: o.nameAr)).toList(),
+      'communication_channel': dataManager.getOptionModels('communication_channel').map((o) => DropdownMenuEntry<String>(value: o.id, label: o.nameAr)).toList(),
+      'lead_status': dataManager.getOptionModels('lead_status').map((o) => DropdownMenuEntry<String>(value: o.id, label: o.nameAr)).toList(),
+    };
+  }
+
   static const Map<String, String> _columnLabels = {
     'name': 'اسم العميل',
     'phone': 'رقم الهاتف (إجباري)',
@@ -148,7 +167,6 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.error), backgroundColor: Colors.red));
           } else if (state is BulkAddLeadsSuccess) {
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم الحفظ بنجاح!'), backgroundColor: Colors.green));
-            Navigator.pop(context); 
           }
         },
         builder: (context, state) {
@@ -222,16 +240,15 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
 
   void _showPinDialog(BuildContext context, String key) {
     final cubit = context.read<BulkAddLeadsCubit>();
-    final dataManager = sl<StaticDataManager>();
     
     String title = _columnLabels[key] ?? '';
     dynamic selectedValue = (cubit.state as BulkAddLeadsLoaded).pinnedValues[key];
     
     List<DropdownMenuEntry<dynamic>> entries = [];
     if (key == 'cityId') {
-      entries = dataManager.allCities.map((c) => DropdownMenuEntry<dynamic>(value: c.id, label: c.name)).toList();
+      entries = _cityEntries;
     } else if (key == 'assignedTo') {
-      entries = dataManager.employees.map((e) => DropdownMenuEntry<dynamic>(value: e.id, label: '${e.firstName} ${e.lastName}'.trim())).toList();
+      entries = _employeeEntries;
     } else {
       String tableName = '';
       if (key == 'propertyTypeId') tableName = 'property_type';
@@ -239,7 +256,7 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
       else if (key == 'platformId') tableName = 'platform';
       else if (key == 'channelId') tableName = 'communication_channel';
       else if (key == 'statusId') tableName = 'lead_status';
-      entries = dataManager.getOptionModels(tableName).map((o) => DropdownMenuEntry<dynamic>(value: o.id, label: o.nameAr)).toList();
+      entries = _optionEntries[tableName] ?? [];
     }
 
     showDialog(
@@ -289,47 +306,58 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
     );
   }
 
+
+
   Widget _buildGrid(BuildContext context, List<EditableLeadRow> rows, List<String> columnOrder) {
-    final double totalWidth = columnOrder.fold(0.0, (sum, key) => sum + _getColumnWidth(key));
+    final double totalWidth = columnOrder.fold(0.0, (sum, key) => sum + _getColumnWidth(key)) + 50.0; // +50 for index column
 
     return Scrollbar(
-      controller: _horizontalScrollController,
+      controller: _verticalScrollController, // Put vertical scrollbar OUTSIDE!
       thumbVisibility: true,
       thickness: 10,
       radius: const Radius.circular(8),
-      child: SingleChildScrollView(
+      child: Scrollbar(
         controller: _horizontalScrollController,
-        scrollDirection: Axis.horizontal,
-        child: SizedBox(
-          width: totalWidth + 2,
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: Colors.grey.shade400, width: 1),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  color: Colors.grey[300],
-                  child: Row(
-                    children: columnOrder.map((key) => _buildHeaderCell(context, key)).toList(),
+        thumbVisibility: true,
+        thickness: 10,
+        radius: const Radius.circular(8),
+        child: SingleChildScrollView(
+          controller: _horizontalScrollController,
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: totalWidth + 2,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: Colors.grey.shade400, width: 1),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    color: Colors.grey[300],
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 50,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(border: Border(left: BorderSide(color: Colors.grey.shade400))),
+                          child: const Text('#', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        ),
+                        ...columnOrder.map((key) => _buildHeaderCell(context, key)).toList(),
+                      ],
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: Scrollbar(
-                    controller: _verticalScrollController,
-                    thumbVisibility: true,
-                    thickness: 10,
-                    radius: const Radius.circular(8),
+                  Expanded(
                     child: ListView.builder(
                       controller: _verticalScrollController,
                       itemCount: rows.length,
-                      itemBuilder: (ctx, i) => _buildCustomDataRow(ctx, rows[i], columnOrder),
+                      itemExtent: 64.0,
+                      itemBuilder: (ctx, i) => _buildCustomDataRow(ctx, rows[i], i, columnOrder),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -359,8 +387,7 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
     return null;
   }
 
-  Widget _buildCustomDataRow(BuildContext context, EditableLeadRow row, List<String> columnOrder) {
-    final dataManager = sl<StaticDataManager>();
+  Widget _buildCustomDataRow(BuildContext context, EditableLeadRow row, int index, List<String> columnOrder) {
     final cubit = context.read<BulkAddLeadsCubit>();
     final bool hasError = !row.isValid && !row.isEmpty;
 
@@ -391,100 +418,16 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
       );
     }
 
-    Widget buildOptionDropdown(String? value, String tableName, String? unmappedValue, Function(String?) onChanged) {
-      final options = dataManager.getOptionModels(tableName);
-      final isError = value == null && unmappedValue != null;
-      return Container(
-        width: 180,
-        height: 64,
-        color: isError ? Colors.red.withValues(alpha: 0.1) : null,
-        child: DropdownMenu<String>(
-          initialSelection: value,
-          enableFilter: true,
-          requestFocusOnTap: true,
-          width: 180,
-          menuHeight: 200,
-          hintText: isError ? 'غير معروف' : '',
-          textStyle: const TextStyle(fontSize: 14, color: Colors.black87),
-          inputDecorationTheme: const InputDecorationTheme(
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 15),
-          ),
-          dropdownMenuEntries: options.map((opt) => DropdownMenuEntry<String>(value: opt.id, label: opt.nameAr)).toList(),
-          onSelected: onChanged,
-        ),
-      );
-    }
-
-    Widget buildCityDropdown(int? value, String? unmappedValue, Function(int?) onChanged) {
-      final options = dataManager.allCities;
-      final isError = value == null && unmappedValue != null;
-      return Container(
-        width: 180,
-        height: 64,
-        color: isError ? Colors.red.withValues(alpha: 0.1) : null,
-        child: DropdownMenu<int>(
-          initialSelection: value,
-          enableFilter: true,
-          requestFocusOnTap: true,
-          width: 180,
-          menuHeight: 200,
-          hintText: isError ? 'غير معروف' : '',
-          textStyle: const TextStyle(fontSize: 14, color: Colors.black87),
-          inputDecorationTheme: const InputDecorationTheme(
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 15),
-          ),
-          dropdownMenuEntries: options.map((opt) => DropdownMenuEntry<int>(value: opt.id, label: opt.name)).toList(),
-          onSelected: onChanged,
-        ),
-      );
-    }
-
-    Widget buildProfileDropdown(String? value, String? unmappedValue, Function(String?) onChanged) {
-      final options = dataManager.employees;
-      final isError = value == null && unmappedValue != null;
-      return Container(
-        width: 180,
-        height: 64,
-        color: isError ? Colors.red.withValues(alpha: 0.1) : null,
-        child: DropdownMenu<String>(
-          initialSelection: value,
-          enableFilter: true,
-          requestFocusOnTap: true,
-          width: 180,
-          menuHeight: 200,
-          hintText: isError ? 'غير معروف' : '',
-          textStyle: const TextStyle(fontSize: 14, color: Colors.black87),
-          inputDecorationTheme: const InputDecorationTheme(
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 15),
-          ),
-          dropdownMenuEntries: options.map((opt) => DropdownMenuEntry<String>(value: opt.id, label: '${opt.firstName} ${opt.lastName}'.trim())).toList(),
-          onSelected: onChanged,
-        ),
-      );
-    }
-
     final cellsMap = {
       'name': buildTextField(row.name, (v) => cubit.updateRow(row.copyWith(name: v)), cellKey: 'name'),
       'phone': buildTextField(row.phone, (v) => cubit.updateRow(row.copyWith(phone: v)), type: TextInputType.phone, cellKey: 'phone'),
-      'cityId': buildCityDropdown(row.cityId, row.unmappedCity, (v) => cubit.updateRow(row.copyWith(cityId: v, unmappedCity: null))),
-      'propertyTypeId': buildOptionDropdown(row.propertyTypeId, 'property_type', row.unmappedPropertyType, (v) => cubit.updateRow(row.copyWith(propertyTypeId: v, unmappedPropertyType: null))),
-      'listingTypeId': buildOptionDropdown(row.listingTypeId, 'listing_type', row.unmappedListingType, (v) => cubit.updateRow(row.copyWith(listingTypeId: v, unmappedListingType: null))),
-      'platformId': buildOptionDropdown(row.platformId, 'platform', row.unmappedPlatform, (v) => cubit.updateRow(row.copyWith(platformId: v, unmappedPlatform: null))),
-      'channelId': buildOptionDropdown(row.channelId, 'communication_channel', row.unmappedChannel, (v) => cubit.updateRow(row.copyWith(channelId: v, unmappedChannel: null))),
-      'statusId': buildOptionDropdown(row.statusId, 'lead_status', row.unmappedStatus, (v) => cubit.updateRow(row.copyWith(statusId: v, unmappedStatus: null))),
-      'assignedTo': buildProfileDropdown(row.assignedTo, row.unmappedAssignedTo, (v) => cubit.updateRow(row.copyWith(assignedTo: v, unmappedAssignedTo: null))),
+      'cityId': _DropdownCell<int>(label: _columnLabels['cityId']!, value: row.cityId, unmappedValue: row.unmappedCity, entries: _cityEntries, onChanged: (v) => cubit.updateRow(row.copyWith(cityId: v, unmappedCity: null))),
+      'propertyTypeId': _DropdownCell<String>(label: _columnLabels['propertyTypeId']!, value: row.propertyTypeId, unmappedValue: row.unmappedPropertyType, entries: _optionEntries['property_type'] ?? [], onChanged: (v) => cubit.updateRow(row.copyWith(propertyTypeId: v, unmappedPropertyType: null))),
+      'listingTypeId': _DropdownCell<String>(label: _columnLabels['listingTypeId']!, value: row.listingTypeId, unmappedValue: row.unmappedListingType, entries: _optionEntries['listing_type'] ?? [], onChanged: (v) => cubit.updateRow(row.copyWith(listingTypeId: v, unmappedListingType: null))),
+      'platformId': _DropdownCell<String>(label: _columnLabels['platformId']!, value: row.platformId, unmappedValue: row.unmappedPlatform, entries: _optionEntries['platform'] ?? [], onChanged: (v) => cubit.updateRow(row.copyWith(platformId: v, unmappedPlatform: null))),
+      'channelId': _DropdownCell<String>(label: _columnLabels['channelId']!, value: row.channelId, unmappedValue: row.unmappedChannel, entries: _optionEntries['communication_channel'] ?? [], onChanged: (v) => cubit.updateRow(row.copyWith(channelId: v, unmappedChannel: null))),
+      'statusId': _DropdownCell<String>(label: _columnLabels['statusId']!, value: row.statusId, unmappedValue: row.unmappedStatus, entries: _optionEntries['lead_status'] ?? [], onChanged: (v) => cubit.updateRow(row.copyWith(statusId: v, unmappedStatus: null))),
+      'assignedTo': _DropdownCell<String>(label: _columnLabels['assignedTo']!, value: row.assignedTo, unmappedValue: row.unmappedAssignedTo, entries: _employeeEntries, onChanged: (v) => cubit.updateRow(row.copyWith(assignedTo: v, unmappedAssignedTo: null))),
       'propertyCode': buildTextField(row.propertyCode, (v) => cubit.updateRow(row.copyWith(propertyCode: v)), cellKey: 'propertyCode'),
       'createdAt': buildDateField(row.createdAt, (v) => cubit.updateRow(row.copyWith(createdAt: v)), cellKey: 'createdAt'),
       'descLeadNeed': buildTextField(row.descLeadNeed, (v) => cubit.updateRow(row.copyWith(descLeadNeed: v)), width: 220, type: TextInputType.multiline, cellKey: 'descLeadNeed'),
@@ -501,16 +444,27 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: columnOrder.map((key) {
-          return Container(
-            width: _getColumnWidth(key),
+        children: [
+          Container(
+            width: 50,
             alignment: Alignment.center,
             decoration: BoxDecoration(
+              color: Colors.grey[100],
               border: Border(left: BorderSide(color: Colors.grey.shade400)),
             ),
-            child: cellsMap[key]!,
-          );
-        }).toList(),
+            child: Text('${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          ),
+          ...columnOrder.map((key) {
+            return Container(
+              width: _getColumnWidth(key),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                border: Border(left: BorderSide(color: Colors.grey.shade400)),
+              ),
+              child: cellsMap[key]!,
+            );
+          }).toList(),
+        ],
       ),
     );
   }
@@ -580,8 +534,8 @@ class _ExcelTextFieldState extends State<_ExcelTextField> {
       child: TextFormField(
         controller: _textController,
         keyboardType: widget.type,
-        focusNode: _focusNode,
         scrollController: _scrollController,
+        onChanged: (v) => widget.onChanged(v),
         style: const TextStyle(fontSize: 14),
         maxLines: widget.type == TextInputType.multiline ? null : 1,
         expands: widget.type == TextInputType.multiline,
@@ -595,6 +549,103 @@ class _ExcelTextFieldState extends State<_ExcelTextField> {
           hintText: widget.hintText,
           hintStyle: widget.hintText != null ? const TextStyle(fontSize: 12) : null,
         ),
+      ),
+    );
+  }
+}
+
+class _DropdownCell<T> extends StatefulWidget {
+  final String label;
+  final T? value;
+  final String? unmappedValue;
+  final List<DropdownMenuEntry<T>> entries;
+  final Function(T?) onChanged;
+
+  const _DropdownCell({
+    required this.label,
+    required this.value,
+    this.unmappedValue,
+    required this.entries,
+    required this.onChanged,
+  });
+
+  @override
+  State<_DropdownCell<T>> createState() => _DropdownCellState<T>();
+}
+
+class _DropdownCellState<T> extends State<_DropdownCell<T>> {
+  bool _isEditing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isError = widget.value == null && widget.unmappedValue != null;
+    
+    if (!_isEditing) {
+      String displayLabel = '';
+      if (widget.value != null) {
+        final entry = widget.entries.where((e) => e.value == widget.value).firstOrNull;
+        displayLabel = entry?.label ?? '';
+      } else if (isError) {
+        displayLabel = 'غير معروف (${widget.unmappedValue})';
+      }
+
+      return InkWell(
+        onTap: () {
+          setState(() {
+            _isEditing = true;
+          });
+        },
+        child: Container(
+          width: 180,
+          height: 64,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          color: isError ? Colors.red.withValues(alpha: 0.1) : null,
+          alignment: Alignment.centerRight,
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  displayLabel,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: (widget.value == null && !isError) ? Colors.grey : Colors.black87,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const Icon(Icons.arrow_drop_down, color: Colors.grey),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      width: 180,
+      height: 64,
+      color: isError ? Colors.red.withValues(alpha: 0.1) : Colors.white,
+      child: DropdownMenu<T>(
+        initialSelection: widget.value,
+        enableFilter: true,
+        requestFocusOnTap: true,
+        width: 180,
+        menuHeight: 200,
+        textStyle: const TextStyle(fontSize: 14, color: Colors.black87),
+        inputDecorationTheme: const InputDecorationTheme(
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          isDense: true,
+          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 15),
+        ),
+        dropdownMenuEntries: widget.entries,
+        onSelected: (val) {
+          widget.onChanged(val);
+          setState(() {
+            _isEditing = false;
+          });
+        },
       ),
     );
   }
