@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/lead_model.dart';
 import '../../auth/cubit/auth_cubit.dart';
+import '../../auth/cubit/auth_states.dart';
 import '../cubit/leads_cubit.dart';
 import '../cubit/leads_state.dart';
 import '../screens/smart_match_screen.dart';
@@ -123,9 +124,13 @@ class _LeadCardState extends State<LeadCard> {
     final dataManager = di.sl<StaticDataManager>();
 
     final statusOptions = dataManager.getOptions('lead_status').toSet().toList();
-    _inlineSelectedStatus = widget.lead.leadStatus;
-    if (_inlineSelectedStatus == null || !statusOptions.contains(_inlineSelectedStatus)) {
-      _inlineSelectedStatus = statusOptions.isNotEmpty ? statusOptions.first : null;
+    if (widget.isAddingMode) {
+      _inlineSelectedStatus = null;
+    } else {
+      _inlineSelectedStatus = widget.lead.leadStatus;
+      if (_inlineSelectedStatus == null || !statusOptions.contains(_inlineSelectedStatus)) {
+        _inlineSelectedStatus = statusOptions.isNotEmpty ? statusOptions.first : null;
+      }
     }
 
     final propertyTypeOptions = dataManager.getOptions('property_type').toSet().toList();
@@ -160,11 +165,12 @@ class _LeadCardState extends State<LeadCard> {
   }
 
   void _checkDuplicates() async {
-    final bool isManagerOrAdmin =
+    final bool isAllowed =
         widget.role == 'manager' ||
         widget.role == 'admin' ||
-        widget.role == 'ceo';
-    if (!isManagerOrAdmin || widget.lead.phones.isEmpty) return;
+        widget.role == 'ceo' ||
+        widget.role == 'sales';
+    if (!isAllowed || widget.lead.phones.isEmpty) return;
 
     if (mounted) setState(() => _isLoadingDuplicates = true);
 
@@ -543,6 +549,7 @@ class _LeadCardState extends State<LeadCard> {
             child: TextFormField(
               controller: _inlinePhoneController,
               keyboardType: TextInputType.phone,
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9]'))],
               style: TextStyle(fontSize: 22.sp, fontWeight: FontWeight.bold, color: AppColors.brandPrimary),
               decoration: InputDecoration(
                 hintText: 'رقم الهاتف *',
@@ -1703,6 +1710,11 @@ class _LeadCardState extends State<LeadCard> {
       return;
     }
     
+    if (_inlineSelectedStatus == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('حالة العميل مطلوبة')));
+      return;
+    }
+    
     if (_inlineSelectedListingType == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('نوع الإعلان مطلوب')));
       return;
@@ -1783,6 +1795,58 @@ class _LeadCardState extends State<LeadCard> {
     );
 
     try {
+      // ─── Duplicate Check ───
+      final duplicates = await context.read<LeadCubit>().checkDuplicates(phones.map((p) => p.phoneNumber).toList());
+      if (duplicates.isNotEmpty) {
+        // Exclude the current lead if we are editing
+        final otherDuplicates = duplicates.where((d) => d.id != widget.lead.id).toList();
+        if (otherDuplicates.isNotEmpty) {
+          final isManagerOrAdmin = widget.role == 'manager' || widget.role == 'admin' || widget.role == 'ceo';
+          final authState = context.read<AuthCubit>().state;
+          final currentUserId = (authState is AuthSuccess) ? authState.user.id : null;
+
+          bool shouldWarn = false;
+          String warningMsg = '';
+
+          if (isManagerOrAdmin) {
+            shouldWarn = true;
+            warningMsg = 'هذا الرقم مسجل بالفعل في النظام.';
+          } else {
+            // Sales
+            final hasOwnDuplicate = otherDuplicates.any((d) => d.assignedTo == currentUserId);
+            if (hasOwnDuplicate) {
+              shouldWarn = true;
+              warningMsg = 'هذا الرقم مسجل بالفعل لديك.';
+            }
+          }
+
+          if (shouldWarn) {
+            if (mounted) setState(() => _isSavingInline = false);
+            
+            final bool? proceed = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('رقم مكرر ⚠️'),
+                content: Text('$warningMsg\n\nالرقم المكرر:\n${phones.map((p) => p.phoneNumber).join('، ')}\n\nهل تريد المتابعة والحفظ على أي حال؟'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('إلغاء'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('حفظ رغم التكرار', style: TextStyle(color: Colors.red)),
+                  ),
+                ],
+              ),
+            );
+
+            if (proceed != true) return;
+            if (mounted) setState(() => _isSavingInline = true);
+          }
+        }
+      }
+
       if (widget.isAddingMode) {
         await context.read<LeadCubit>().addLead(newLead, phones);
         if (mounted && widget.onCancelAdd != null) widget.onCancelAdd!();
@@ -1831,7 +1895,7 @@ class _LeadCardState extends State<LeadCard> {
     );
   }
 
-  Widget _buildInlineTextField(TextEditingController controller, String hint) {
+  Widget _buildInlineTextField(TextEditingController controller, String hint, {List<TextInputFormatter>? formatters, TextInputType? keyboardType}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.grey[100],
@@ -1840,6 +1904,8 @@ class _LeadCardState extends State<LeadCard> {
       ),
       child: TextFormField(
         controller: controller,
+        keyboardType: keyboardType,
+        inputFormatters: formatters,
         style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.grey[800]),
         decoration: InputDecoration(
           hintText: hint,

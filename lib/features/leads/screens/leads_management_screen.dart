@@ -255,7 +255,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                   }
 
                   if (state is LeadLoaded) {
-                    if (state.filteredLeads.isEmpty) {
+                    if (state.filteredLeads.isEmpty && !_isAddingNewLead) {
                       return const LeadEmptyState();
                     }
 
@@ -319,11 +319,13 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                             role: widget.user.role,
                             onTap: () => _openDetails(context, lead),
                             onEdit: () => _openForm(context, lead: lead),
-                            onDelete: () => LeadDeleteDialog.show(
-                              context,
-                              lead,
-                              () => _cubit.deleteLead(lead.id!, widget.user.role),
-                            ),
+                            onDelete: (widget.user.role == 'manager' || widget.user.role == 'admin' || widget.user.role == 'ceo')
+                                ? () => LeadDeleteDialog.show(
+                                    context,
+                                    lead,
+                                    () => _cubit.deleteLead(lead.id!, widget.user.role),
+                                  )
+                                : null,
                             onArchive: widget.user.role != 'admin'
                               ? () => LeadArchiveDialog.show(
                                   context,

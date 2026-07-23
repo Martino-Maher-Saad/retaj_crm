@@ -472,9 +472,9 @@ class LeadService {
     return [];
   }
 
-  /// يتحقق من التكرارات بناءً على آخر 6 أرقام
+  /// يتم البحث باستخدام آخر 7 أرقام
   Future<List<LeadModel>> checkDuplicateLeadPhones(List<String> phones) async {
-    final suffixes = phones.map((p) => p.length >= 6 ? p.substring(p.length - 6) : p).where((s) => s.isNotEmpty).toList();
+    final suffixes = phones.map((p) => p.length >= 7 ? p.substring(p.length - 7) : p).where((s) => s.isNotEmpty).toList();
     if (suffixes.isEmpty) return [];
 
     final orConditions = suffixes.map((s) => 'phone_number.like.%$s').join(',');
