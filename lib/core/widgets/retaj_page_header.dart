@@ -15,6 +15,9 @@ class RetajPageHeader extends StatelessWidget {
   final Widget? searchBar;
   final Widget? extraAction;
 
+  /// شريط فلاتر سريع — يُعرض في المنتصف بين العنوان وأزرار الإجراءات
+  final Widget? filterBar;
+
   const RetajPageHeader({
     super.key,
     required this.title,
@@ -26,6 +29,7 @@ class RetajPageHeader extends StatelessWidget {
     this.filterLabel,
     this.searchBar,
     this.extraAction,
+    this.filterBar,
   });
 
   @override
@@ -36,58 +40,66 @@ class RetajPageHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ─── الصف الرئيسي: عنوان + أزرار ───
+          // ─── الصف الرئيسي: عنوان │ فلاتر سريعة │ أزرار ───
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // العنوان والـ subtitle
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          title,
-                          style: TextStyle(
-                            fontSize: 28.sp,
-                            fontWeight: FontWeight.w900,
-                            color: const Color(0xFF1A1A2E),
+              // العنوان والـ subtitle — بدون Expanded حتى يأخذ حجمه الطبيعي
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 28.sp,
+                          fontWeight: FontWeight.w900,
+                          color: const Color(0xFF1A1A2E),
+                        ),
+                      ),
+                      if (totalCount != null && totalCount! > 0) ...[
+                        SizedBox(width: 10.w),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 10.w, vertical: 3.h),
+                          decoration: BoxDecoration(
+                            color: AppColors.brandPrimary
+                                .withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20.r),
+                          ),
+                          child: Text(
+                            '$totalCount',
+                            style: TextStyle(
+                              color: AppColors.brandPrimary,
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
-                        if (totalCount != null && totalCount! > 0) ...[
-                          SizedBox(width: 10.w),
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 10.w, vertical: 3.h),
-                            decoration: BoxDecoration(
-                              color: AppColors.brandPrimary.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(20.r),
-                            ),
-                            child: Text(
-                              '$totalCount',
-                              style: TextStyle(
-                                color: AppColors.brandPrimary,
-                                fontSize: 14.sp,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
                       ],
+                    ],
+                  ),
+                  SizedBox(height: 5.h),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      color: const Color(0xFFAAAABB),
+                      fontWeight: FontWeight.w400,
                     ),
-                    SizedBox(height: 5.h),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        color: const Color(0xFFAAAABB),
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
+
+              // ─── فلاتر سريعة في المنتصف (اختياري) ───
+              if (filterBar != null) ...[
+                SizedBox(width: 20.w),
+                Expanded(child: filterBar!),
+                SizedBox(width: 20.w),
+              ] else
+                const Spacer(),
 
               // ─── أزرار الإجراءات ───
               if (onFilter != null) ...[
@@ -97,20 +109,21 @@ class RetajPageHeader extends StatelessWidget {
                       size: 20.sp, color: AppColors.brandPrimary),
                   label: Text(filterLabel ?? 'فلاتر',
                       style: TextStyle(
-                          fontSize: 14.sp, color: AppColors.brandPrimary,
+                          fontSize: 14.sp,
+                          color: AppColors.brandPrimary,
                           fontWeight: FontWeight.w600)),
                   style: OutlinedButton.styleFrom(
                     padding: EdgeInsets.symmetric(
                         horizontal: 18.w, vertical: 12.h),
-                    side: BorderSide(
-                        color: AppColors.brandPrimary, width: 1.5),
+                    side:
+                        BorderSide(color: AppColors.brandPrimary, width: 1.5),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12.r)),
                   ),
                 ),
                 SizedBox(width: 12.w),
               ],
-              
+
               if (extraAction != null) ...[
                 extraAction!,
                 SizedBox(width: 12.w),
@@ -123,7 +136,7 @@ class RetajPageHeader extends StatelessWidget {
                   gradient: LinearGradient(
                     colors: [
                       AppColors.brandPrimary,
-                      AppColors.brandPrimary.withValues(alpha: 0.8)
+                      AppColors.brandPrimary.withValues(alpha: 0.8),
                     ],
                   ),
                   boxShadow: [
