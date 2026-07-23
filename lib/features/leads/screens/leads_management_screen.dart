@@ -19,9 +19,10 @@ import '../widgets/list/lead_empty_state.dart';
 import '../widgets/list/lead_top_actions_bar.dart';
 import '../widgets/list/lead_filter_dialog.dart';
 import '../widgets/list/lead_search_bar.dart';
+import '../widgets/list/leads_status_filter_bar.dart';
 import 'lead_details_screen.dart';
 import 'lead_form_screen.dart';
-
+import 'bulk_add_leads_screen.dart';
 /// شاشة إدارة العملاء (Leads)
 class LeadsManagementScreen extends StatefulWidget {
   final ProfileModel user;
@@ -35,6 +36,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
     with AutomaticKeepAliveClientMixin {
   late LeadCubit _cubit;
   bool _isFiltering = false;
+  bool _isAddingNewLead = false;
 
   final _dataManager = di.sl<StaticDataManager>();
 
@@ -111,32 +113,59 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                       title: 'العملاء المحتملين',
                       subtitle: 'تتبع وإدارة وتحويل فرص الاستثمار العقاري',
                       addLabel: 'إضافة عميل',
-                      onAdd: () => _openForm(context),
+                      onAdd: () {
+                        setState(() {
+                          _isAddingNewLead = true;
+                          // سكرول لأعلى القائمة لرؤية الكارت الجديد
+                          if (_scrollController.hasClients) {
+                            _scrollController.animateTo(
+                              0,
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeOut,
+                            );
+                          }
+                        });
+                      },
                       totalCount: total,
                       onFilter: () => _openFilterDialog(context),
                       filterLabel: 'فلاتر متقدمة',
+                      filterBar: LeadsStatusFilterBar(
+                        filters: _filters,
+                        currentFilter: currentFilter,
+                        onFilterSelected: (filter) {
+                          setState(() => _isFiltering = false);
+                          final statusId = filter == 'الكل'
+                              ? null
+                              : _dataManager.getIdByName('lead_status', filter);
+                          _cubit.getAllLeads(
+                            role: widget.user.role,
+                            userId: widget.user.id,
+                            isRefresh: true,
+                            leadStatusId: statusId,
+                          );
+                        },
+                      ),
+                      extraAction: (widget.user.role.toLowerCase() == 'manager' || widget.user.role.toLowerCase() == 'admin' || widget.user.role.toLowerCase() == 'ceo')
+                          ? OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const BulkAddLeadsScreen(),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.grid_on, color: Colors.green),
+                              label: const Text('إضافة متعددة / إكسيل', style: TextStyle(color: Colors.green)),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.green),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            )
+                          : null,
                     ),
 
-                    // شريط فلاتر الحالة
-                    LeadTopActionsBar(
-                      filters: _filters,
-                      currentFilter: currentFilter,
-                      onAddPressed: () => _openForm(context),
-                      onFilterSelected: (filter) {
-                        setState(() => _isFiltering = false);
-                        final statusId = filter == 'الكل'
-                            ? null
-                            : _dataManager.getIdByName('lead_status', filter);
-                        _cubit.getAllLeads(
-                          role: widget.user.role,
-                          userId: widget.user.id,
-                          isRefresh: true,
-                          leadStatusId: statusId,
-                        );
-                      },
-                    ),
-
-                    // شريط البحث الذكي
+                    // شريط بحث ذكي
                     LeadSearchBar(
                       onSearch: (query, type) {
                         if (type == 'general') {
@@ -226,20 +255,13 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                   }
 
                   if (state is LeadLoaded) {
-                    if (state.filteredLeads.isEmpty) {
+                    if (state.filteredLeads.isEmpty && !_isAddingNewLead) {
                       return const LeadEmptyState();
                     }
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 0),
-                          child: Text(
-                            "عدد النتائج: ${state.isSearching ? state.filteredLeads.length : state.totalCount}",
-                            style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold, color: Colors.grey[700]),
-                          ),
-                        ),
                         Expanded(
                           child: RefreshIndicator(
                             onRefresh: () => _cubit.getAllLeads(
@@ -251,9 +273,37 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                         controller: _scrollController,
                         padding: EdgeInsets.only(bottom: 20.h, top: 10.h),
                         itemCount: state.filteredLeads.length +
-                            (state.isLoadingMore ? 1 : 0),
+                            (state.isLoadingMore ? 1 : 0) +
+                            (_isAddingNewLead ? 1 : 0),
                         itemBuilder: (context, index) {
-                          if (index >= state.filteredLeads.length) {
+                          if (_isAddingNewLead && index == 0) {
+                            return LeadCard(
+                              key: const ValueKey('new_lead_inline'),
+                              lead: LeadModel(
+                                id: '',
+                                clientName: '',
+                                phones: const [],
+                                propertyCode: '',
+                                leadStatus: 'جديد',
+                                createdBy: widget.user.id,
+                                assignedTo: widget.user.id,
+                                isActive: true,
+                              ),
+                              role: widget.user.role,
+                              initialEditMode: true,
+                              isAddingMode: true,
+                              onCancelAdd: () {
+                                setState(() => _isAddingNewLead = false);
+                              },
+                              onTap: () {},
+                              onEdit: () {},
+                              onDelete: () {},
+                            );
+                          }
+
+                          final actualIndex = _isAddingNewLead ? index - 1 : index;
+
+                          if (actualIndex >= state.filteredLeads.length) {
                             return const Center(
                               child: Padding(
                                 padding: EdgeInsets.all(8.0),
@@ -262,18 +312,20 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                             );
                           }
 
-                          final lead = state.filteredLeads[index];
+                          final lead = state.filteredLeads[actualIndex];
                           return LeadCard(
                             key: ValueKey(lead.id),
                             lead: lead,
                             role: widget.user.role,
                             onTap: () => _openDetails(context, lead),
                             onEdit: () => _openForm(context, lead: lead),
-                            onDelete: () => LeadDeleteDialog.show(
-                              context,
-                              lead,
-                              () => _cubit.deleteLead(lead.id!, widget.user.role),
-                            ),
+                            onDelete: (widget.user.role == 'manager' || widget.user.role == 'admin' || widget.user.role == 'ceo')
+                                ? () => LeadDeleteDialog.show(
+                                    context,
+                                    lead,
+                                    () => _cubit.deleteLead(lead.id!, widget.user.role),
+                                  )
+                                : null,
                             onArchive: widget.user.role != 'admin'
                               ? () => LeadArchiveDialog.show(
                                   context,

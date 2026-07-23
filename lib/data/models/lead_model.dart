@@ -128,6 +128,8 @@ class LeadModel {
 
   // حقول أخرى
   final String? descLeadNeed;
+  final String? lastComment;
+  final DateTime? lastCommentDate;
   final String? propertyCode;
   final List<LeadNoteModel> notes;
   final List<LeadLogEntryModel> logs;
@@ -169,6 +171,8 @@ class LeadModel {
     this.communicationChannel,
     this.exclusionReasonName,
     this.descLeadNeed,
+    this.lastComment,
+    this.lastCommentDate,
     this.propertyCode,
     this.notes = const [],
     this.logs = const [],
@@ -208,6 +212,8 @@ class LeadModel {
     String? communicationChannel,
     String? exclusionReasonName,
     String? descLeadNeed,
+    String? lastComment,
+    DateTime? lastCommentDate,
     String? propertyCode,
     List<LeadNoteModel>? notes,
     List<LeadLogEntryModel>? logs,
@@ -246,6 +252,8 @@ class LeadModel {
       communicationChannel: communicationChannel ?? this.communicationChannel,
       exclusionReasonName: exclusionReasonName ?? this.exclusionReasonName,
       descLeadNeed: descLeadNeed ?? this.descLeadNeed,
+      lastComment: lastComment ?? this.lastComment,
+      lastCommentDate: lastCommentDate ?? this.lastCommentDate,
       propertyCode: propertyCode ?? this.propertyCode,
       notes: notes ?? this.notes,
       logs: logs ?? this.logs,
@@ -354,6 +362,10 @@ class LeadModel {
       exclusionReasonId: json['exclusion_reason_id']?.toString(),
       
       descLeadNeed: json['desc_lead_need'],
+      lastComment: json['last_comment'],
+      lastCommentDate: json['last_comment_date'] != null
+          ? DateTime.parse(json['last_comment_date']).toLocal()
+          : null,
       propertyCode: json['property_code'],
       budgetFrom: json['budget_from'] != null
           ? num.tryParse(json['budget_from'].toString()) : null,

@@ -450,7 +450,7 @@ class LeadCubit extends Cubit<LeadState> {
   }
 
   Future<void> deleteLead(String id, String role) async {
-    if (role != 'manager' && role != 'admin') return;
+    if (role != 'manager' && role != 'admin' && role != 'ceo' && role != 'sales') return;
     if (state is LeadLoaded) {
       final currentState = state as LeadLoaded;
       try {

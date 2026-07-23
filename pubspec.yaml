@@ -60,10 +60,11 @@ dependencies:
   fl_chart: ^0.70.2
   excel: ^4.0.6
   pdf: ^3.11.1
-  share_plus: ^10.1.4
-  path_provider: ^2.1.5
+  share_plus: ^13.2.0
+  path_provider: ^2.1.6
   url_launcher: ^6.3.1
   universal_html: ^2.3.0
+  intl_phone_field: ^3.2.0
 
 dev_dependencies:
   flutter_test:

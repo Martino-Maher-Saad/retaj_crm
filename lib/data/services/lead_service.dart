@@ -264,6 +264,36 @@ class LeadService {
     return await getLeadById(leadId.toString());
   }
 
+  /// إضافة مجموعة عملاء دفعة واحدة (مقسمة لباتشات لحماية السيرفر)
+  Future<void> bulkInsertLeads(
+    List<LeadModel> leads,
+    Function(int processed, int total) onProgress,
+  ) async {
+    const int batchSize = 5;
+    int processed = 0;
+
+    for (var i = 0; i < leads.length; i += batchSize) {
+      final end = (i + batchSize < leads.length) ? i + batchSize : leads.length;
+      final batch = leads.sublist(i, end);
+
+      await Future.wait(batch.map((lead) {
+        return addLead(
+          lead,
+          lead.phones,
+          notes: lead.notes,
+        );
+      }));
+
+      processed += batch.length;
+      onProgress(processed, leads.length);
+
+      // تأخير بسيط لتجنب الـ Rate Limiting في النسخة المجانية
+      if (end < leads.length) {
+        await Future.delayed(const Duration(milliseconds: 300));
+      }
+    }
+  }
+
   /// تحديث عميل — يستخدم RPC للـ Smart Sync
   Future<LeadModel> updateLead(
     String id,
@@ -355,11 +385,19 @@ class LeadService {
 
   /// إضافة ملاحظة من شاشة التفاصيل — عملية واحدة لا تحتاج RPC
   Future<LeadModel> addNote(String leadId, String noteText) async {
+    final text = noteText.trim();
     await _supabase.from('lead_notes').insert({
       'lead_id': leadId,
       'user_id': _supabase.auth.currentUser?.id,
-      'note_text': noteText.trim(),
+      'note_text': text,
     });
+    
+    // التحديث في جدول العملاء مباشرة لتسريع جلب البيانات وتقليل الضغط
+    await _supabase.from('leads').update({
+      'last_comment': text,
+      'last_comment_date': DateTime.now().toUtc().toIso8601String(),
+    }).eq('id', leadId);
+    
     return await getLeadById(leadId);
   }
 
@@ -434,9 +472,9 @@ class LeadService {
     return [];
   }
 
-  /// يتحقق من التكرارات بناءً على آخر 6 أرقام
+  /// يتم البحث باستخدام آخر 7 أرقام
   Future<List<LeadModel>> checkDuplicateLeadPhones(List<String> phones) async {
-    final suffixes = phones.map((p) => p.length >= 6 ? p.substring(p.length - 6) : p).where((s) => s.isNotEmpty).toList();
+    final suffixes = phones.map((p) => p.length >= 7 ? p.substring(p.length - 7) : p).where((s) => s.isNotEmpty).toList();
     if (suffixes.isEmpty) return [];
 
     final orConditions = suffixes.map((s) => 'phone_number.like.%$s').join(',');
