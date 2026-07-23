@@ -395,6 +395,7 @@ class LeadService {
     // التحديث في جدول العملاء مباشرة لتسريع جلب البيانات وتقليل الضغط
     await _supabase.from('leads').update({
       'last_comment': text,
+      'last_comment_date': DateTime.now().toUtc().toIso8601String(),
     }).eq('id', leadId);
     
     return await getLeadById(leadId);
