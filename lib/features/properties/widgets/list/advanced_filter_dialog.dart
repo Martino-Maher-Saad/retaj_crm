@@ -29,6 +29,7 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
   String? _selectedCityName;
   String? _selectedPropertyType;
   String? _selectedListingType;
+  String? _selectedApprovalStatus;
   String? _selectedEmployee; // For manager
 
   double _minPrice = 0;
@@ -58,6 +59,12 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
     if (cubit.filterListingTypeId != null) {
       try {
         _selectedListingType = dataManager.getOptionModels('listing_type').firstWhere((o) => o.id == cubit.filterListingTypeId!).nameAr;
+      } catch (_) {}
+    }
+
+    if (cubit.filterApprovalStatusId != null) {
+      try {
+        _selectedApprovalStatus = dataManager.getOptionModels('property_approval_statuses').firstWhere((o) => o.id == cubit.filterApprovalStatusId!).nameAr;
       } catch (_) {}
     }
     
@@ -164,6 +171,13 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
                 dataManager.getOptions('listing_type'),
                 _selectedListingType,
                 (v) => setState(() => _selectedListingType = v),
+              ),
+              SizedBox(height: 14.h),
+              _buildDropdown(
+                "حالة الموافقة",
+                dataManager.getOptions('property_approval_statuses'),
+                _selectedApprovalStatus,
+                (v) => setState(() => _selectedApprovalStatus = v),
               ),
               SizedBox(height: 14.h),
               _buildDropdown(
@@ -320,6 +334,9 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
                         final listingTypeId = _selectedListingType != null
                             ? dataManager.getIdByName('listing_type', _selectedListingType!)
                             : null;
+                        final approvalStatusId = _selectedApprovalStatus != null
+                            ? dataManager.getIdByName('property_approval_statuses', _selectedApprovalStatus!)
+                            : null;
                         int? cityId;
                         if (_selectedCityName != null) {
                           try {
@@ -345,6 +362,7 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
                           fromDate: _fromDate,
                           toDate: _toDate,
                           searchAll: _searchAll,
+                          approvalStatusId: approvalStatusId,
                         );
                         Navigator.pop(context);
                       },

@@ -189,7 +189,7 @@ class EmployeeDashboardView extends StatelessWidget {
                   SizedBox(width: 14.w),
                   Expanded(
                     child: DashboardStatCard(
-                      title: 'عدد العقارات الكلية بالشركة',
+                      title: managedView ? 'عقارات الموظف المضافة' : 'عدد عقاراتي المضافة',
                       value: '${data.propertiesCount}',
                       icon: Icons.home_work_outlined,
                       color: AppColors.warning,
@@ -336,66 +336,68 @@ class EmployeeDashboardView extends StatelessWidget {
                   'لا توجد عقارات مضافة في هذه الفترة لعرض الإحصائيات المتجهة',
                 ),
 
-              // ─── [ GROUP 3: VISUAL SEPARATOR ] ───
-              SizedBox(height: 40.h),
-              Row(
-                children: [
-                  Expanded(
-                    child: Divider(
-                      color: AppColors.brandPrimary.withValues(alpha: 0.2),
-                      thickness: 2.w,
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16.w),
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 20.w,
-                        vertical: 8.h,
+              if (managedView) ...[
+                // ─── [ GROUP 3: VISUAL SEPARATOR ] ───
+                SizedBox(height: 40.h),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Divider(
+                        color: AppColors.brandPrimary.withValues(alpha: 0.2),
+                        thickness: 2.w,
                       ),
-                      decoration: BoxDecoration(
-                        color: AppColors.brandPrimary.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(20.r),
-                        border: Border.all(
-                          color: AppColors.brandPrimary.withValues(alpha: 0.15),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16.w),
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 20.w,
+                          vertical: 8.h,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.brandPrimary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(20.r),
+                          border: Border.all(
+                            color: AppColors.brandPrimary.withValues(alpha: 0.15),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Text(
+                              'جدول تفاصيل ومتابعة العملاء والتقارير',
+                              style: TextStyle(
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'Cairo',
+                                color: AppColors.brandPrimary,
+                              ),
+                            ),
+                            SizedBox(width: 8.w),
+                            Icon(
+                              Icons.table_chart_rounded,
+                              color: AppColors.brandPrimary,
+                              size: 20.sp,
+                            ),
+                          ],
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Text(
-                            'جدول تفاصيل ومتابعة العملاء والتقارير',
-                            style: TextStyle(
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Cairo',
-                              color: AppColors.brandPrimary,
-                            ),
-                          ),
-                          SizedBox(width: 8.w),
-                          Icon(
-                            Icons.table_chart_rounded,
-                            color: AppColors.brandPrimary,
-                            size: 20.sp,
-                          ),
-                        ],
+                    ),
+                    Expanded(
+                      child: Divider(
+                        color: AppColors.brandPrimary.withValues(alpha: 0.2),
+                        thickness: 2.w,
                       ),
                     ),
-                  ),
-                  Expanded(
-                    child: Divider(
-                      color: AppColors.brandPrimary.withValues(alpha: 0.2),
-                      thickness: 2.w,
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 24.h),
+                  ],
+                ),
+                SizedBox(height: 24.h),
 
-              // Interactive Excel-like Leads Table
-              DashboardLeadsTable(
-                role: managedView ? 'manager' : 'sales',
-                userId: currentUserId,
-              ),
+                // Interactive Excel-like Leads Table
+                DashboardLeadsTable(
+                  role: 'manager',
+                  userId: currentUserId,
+                ),
+              ],
             ],
           ),
         ),

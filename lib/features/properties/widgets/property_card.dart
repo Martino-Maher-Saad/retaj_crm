@@ -331,7 +331,7 @@ class _PropertyCardState extends State<PropertyCard> {
   // ─── View Mode (4 Columns) ───
   Widget _buildViewMode() {
     final bool isMine = widget.property.createdBy == widget.currentUserId;
-    final bool shouldMask = widget.role == 'sales' && !isMine;
+    final bool shouldMask = (widget.role == 'sales' || widget.role == 'marketing') && !isMine;
     
     final String? firstImageUrl = widget.property.images.isNotEmpty ? widget.property.images.first.thumbnail : null;
     final String displayUrl = firstImageUrl ?? "https://upload.wikimedia.org/wikipedia/commons/a/a3/Image-not-found.png";
@@ -410,6 +410,21 @@ class _PropertyCardState extends State<PropertyCard> {
                                     ),
                                   ),
                                 ),
+                                Positioned(
+                                  top: 8.h, left: 8.w,
+                                  child: Container(
+                                    padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                                    decoration: BoxDecoration(
+                                      color: _getApprovalColor(widget.property.approvalStatusName),
+                                      borderRadius: BorderRadius.circular(8.r),
+                                      boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4, offset: const Offset(0, 2))],
+                                    ),
+                                    child: Text(
+                                      widget.property.approvalStatusName ?? "في الانتظار",
+                                      style: TextStyle(color: Colors.white, fontSize: 13.sp, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -425,7 +440,9 @@ class _PropertyCardState extends State<PropertyCard> {
                     // ─── Column 2: Info ───
                     Expanded(
                       flex: 3,
-                      child: Column(
+                      child: SingleChildScrollView(
+                        physics: const NeverScrollableScrollPhysics(),
+                        child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.start,
                         children: [
@@ -462,6 +479,7 @@ class _PropertyCardState extends State<PropertyCard> {
                           ),
                         ],
                       ),
+                      ),
                     ),
                     
                     Padding(
@@ -478,16 +496,75 @@ class _PropertyCardState extends State<PropertyCard> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.start,
                         children: [
-                          if (!shouldMask) ...[
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(child: _buildDetailRow("اسم المالك", widget.property.ownerName ?? "غير متوفر")),
-                                Expanded(child: _buildDetailRow("رقم المالك", widget.property.ownerPhone ?? "غير متوفر", isPhone: true)),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (!shouldMask) ...[
+                                Expanded(flex: 2, child: _buildDetailRow("اسم المالك", widget.property.ownerName ?? "غير متوفر")),
+                                Expanded(flex: 2, child: _buildDetailRow("رقم المالك", widget.property.ownerPhone ?? "غير متوفر", isPhone: true)),
                               ],
-                            ),
-                            Divider(height: 16.h, color: AppColors.borderSubtle),
-                          ],
+                              
+                              if (widget.property.managerNotes?.isNotEmpty == true || 
+                                  (widget.property.approvalStatusName?.contains('موافق') == true || widget.property.approvalStatusName?.contains('مقبول') == true))
+                                Expanded(
+                                  flex: 3,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        "ملاحظات / منصات",
+                                        style: TextStyle(fontSize: 14.sp, color: Colors.grey[500], fontWeight: FontWeight.bold),
+                                      ),
+                                      SizedBox(height: 4.h),
+                                      Wrap(
+                                        spacing: 6.w,
+                                        runSpacing: 6.h,
+                                        children: [
+                                          if (widget.property.managerNotes?.isNotEmpty == true)
+                                            InkWell(
+                                              onTap: () => _showManagerNotesDialog(widget.property.managerNotes!),
+                                              child: Container(
+                                                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.red.withValues(alpha: 0.1),
+                                                  borderRadius: BorderRadius.circular(6.r),
+                                                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Icon(Icons.notes_rounded, color: Colors.red, size: 14.sp),
+                                                    SizedBox(width: 4.w),
+                                                    Text("ملاحظات المدير", style: TextStyle(color: Colors.red, fontSize: 11.sp, fontWeight: FontWeight.bold)),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          if (widget.property.approvalStatusName?.contains('موافق') == true || widget.property.approvalStatusName?.contains('مقبول') == true)
+                                            ...widget.property.advertisingPlatforms.map((p) => Container(
+                                              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                                              decoration: BoxDecoration(
+                                                color: Colors.blue.withValues(alpha: 0.1),
+                                                borderRadius: BorderRadius.circular(6.r),
+                                                border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(Icons.campaign_rounded, color: Colors.blue, size: 14.sp),
+                                                  SizedBox(width: 4.w),
+                                                  Text(p.nameAr, style: TextStyle(color: Colors.blue[800], fontSize: 11.sp, fontWeight: FontWeight.bold)),
+                                                ],
+                                              ),
+                                            )),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                          Divider(height: 16.h, color: AppColors.borderSubtle),
                           Directionality(
                             textDirection: TextDirection.rtl,
                             child: Row(
@@ -999,6 +1076,44 @@ class _PropertyCardState extends State<PropertyCard> {
         isDense: true,
       ),
       textStyle: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.bold, color: Colors.black),
+    );
+  }
+
+  Color _getApprovalColor(String? status) {
+    if (status == null) return Colors.orange;
+    if (status.contains('موافق') || status.contains('مقبول')) return Colors.green;
+    if (status.contains('مرفوض')) return Colors.red;
+    return Colors.orange; // 'في الانتظار' or other
+  }
+
+  void _showManagerNotesDialog(String notes) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+        title: Row(
+          children: [
+            Icon(Icons.notes_rounded, color: Colors.red, size: 24.sp),
+            SizedBox(width: 8.w),
+            Text('ملاحظات المدير', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 18.sp, fontFamily: 'Cairo')),
+          ],
+        ),
+        content: Directionality(
+          textDirection: TextDirection.rtl,
+          child: Text(
+            notes,
+            style: TextStyle(fontSize: 16.sp, height: 1.5, color: Colors.grey[800], fontFamily: 'Cairo'),
+            textAlign: TextAlign.right,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إغلاق', style: TextStyle(color: AppColors.brandPrimary, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
     );
   }
 }

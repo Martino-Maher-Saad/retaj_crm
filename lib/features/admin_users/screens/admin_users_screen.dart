@@ -320,6 +320,10 @@ class _AddUserFormState extends State<_AddUserForm> {
                     child: Text('Sales (موظف مبيعات)'),
                   ),
                   DropdownMenuItem<String>(
+                    value: 'marketing',
+                    child: Text('Marketing (مسؤول تسويق)'),
+                  ),
+                  DropdownMenuItem<String>(
                     value: 'manager',
                     child: Text('Manager (مدير القسم)'),
                   ),
@@ -396,7 +400,7 @@ class _EditUserDialogState extends State<_EditUserDialog> {
     _emailCtrl = TextEditingController(text: widget.user.email);
     _passCtrl = TextEditingController();
     
-    final validRoles = ['sales', 'manager', 'admin', 'user'];
+    const validRoles = ['user', 'sales', 'marketing', 'manager', 'admin'];
     _selectedRole = validRoles.contains(widget.user.role.toLowerCase())
         ? widget.user.role.toLowerCase()
         : 'sales';
@@ -436,6 +440,10 @@ class _EditUserDialogState extends State<_EditUserDialog> {
                 DropdownMenuItem<String>(
                   value: 'sales',
                   child: Text('Sales'),
+                ),
+                DropdownMenuItem<String>(
+                  value: 'marketing',
+                  child: Text('Marketing'),
                 ),
                 DropdownMenuItem<String>(
                   value: 'manager',

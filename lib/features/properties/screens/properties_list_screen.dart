@@ -279,7 +279,7 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
               ? successState.filteredProperties 
               : successState.myProperties;
               
-      if (properties.isEmpty) return const Center(child: Text("لا توجد نتائج"));
+      if (properties.isEmpty && !_isAddingNewProperty) return const Center(child: Text("لا توجد نتائج"));
 
       final int totalCount = successState.isSearching 
           ? properties.length 

@@ -25,6 +25,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
   DateTime? _filterFromDate;
   DateTime? _filterToDate;
   bool? _filterIsArchived;
+  String? _filterApprovalStatusId;
 
   // Public Getters for Filters
   int? get filterCityId => _filterCityId;
@@ -37,6 +38,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
   DateTime? get filterFromDate => _filterFromDate;
   DateTime? get filterToDate => _filterToDate;
   bool? get filterIsArchived => _filterIsArchived;
+  String? get filterApprovalStatusId => _filterApprovalStatusId;
 
   bool _isLoadingMoreFiltered = false;
 
@@ -80,7 +82,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
       if (isRefresh) emit(PropertiesLoading());
 
       final isManagerOrAdmin =
-          role == 'manager' || role == 'admin' || role == 'ceo';
+          role == 'manager' || role == 'admin' || role == 'ceo' || role == 'marketing';
       final count = isManagerOrAdmin
           ? await _repo.fetchFilterCount()
           : await _repo.fetchMyCount(userId);
@@ -121,6 +123,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     DateTime? fromDate,
     DateTime? toDate,
     bool? isArchived,
+    String? approvalStatusId,
     bool searchAll = false,
     required String role,
     required String currentUserId,
@@ -131,7 +134,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     emit(PropertiesLoading());
     try {
       String? filterUserId;
-      if (role == 'manager' || role == 'admin' || role == 'ceo') {
+      if (role == 'manager' || role == 'admin' || role == 'ceo' || role == 'marketing') {
         filterUserId = selectedEmployee;
       } else if (!searchAll) {
         filterUserId = currentUserId;
@@ -148,6 +151,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
       _filterToDate = toDate;
       _filterAssignedTo = filterUserId;
       _filterIsArchived = isArchived;
+      _filterApprovalStatusId = approvalStatusId;
       _searchAll = searchAll;
 
       final count = await _repo.fetchFilterCount(
@@ -161,6 +165,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
         fromDate: fromDate,
         toDate: toDate,
         isArchived: isArchived,
+        approvalStatusId: approvalStatusId,
       );
       final newItems = await _repo.filterProperties(
         0,
@@ -175,6 +180,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
         fromDate: fromDate,
         toDate: toDate,
         isArchived: isArchived,
+        approvalStatusId: approvalStatusId,
       );
 
       emit(
@@ -266,6 +272,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
         fromDate: _filterFromDate,
         toDate: _filterToDate,
         isArchived: _filterIsArchived,
+        approvalStatusId: _filterApprovalStatusId,
       );
       emit(
         current.copyWith(
@@ -585,6 +592,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
           fromDate: _filterFromDate,
           toDate: _filterToDate,
           isArchived: _filterIsArchived,
+          approvalStatusId: _filterApprovalStatusId,
         );
       } else {
         return await _repo.getMyProperties(userId, 0, 50000);

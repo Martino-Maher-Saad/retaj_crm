@@ -163,7 +163,14 @@ class DashboardRepository {
       final startIso = startDate.toIso8601String();
       final endIso = endDate.toIso8601String();
       final propsResponse = await _service.getRawPropertiesForPeriod(startDate: startIso, endDate: endIso);
-      propertiesCount = propsResponse.length;
+      
+      Iterable<Map<String, dynamic>> filteredProps = propsResponse;
+      if (role == 'sales') {
+        filteredProps = propsResponse.where((p) => p['created_by'] == userId);
+      } else if (employeeId != null && employeeId.isNotEmpty) {
+        filteredProps = propsResponse.where((p) => p['created_by'] == employeeId);
+      }
+      propertiesCount = filteredProps.length;
     } catch (_) {}
 
     return DashboardStatsModel(

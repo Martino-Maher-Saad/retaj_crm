@@ -1,22 +1,22 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'dart:ui' as ui;
 
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
-
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/di/injection_container.dart' as di;
+import '../../../core/utils/static_data_manager.dart';
 import '../../../data/models/lead_model.dart';
 import '../../auth/cubit/auth_cubit.dart';
 import '../../auth/cubit/auth_states.dart';
 import '../cubit/leads_cubit.dart';
 import '../cubit/leads_state.dart';
 import '../screens/smart_match_screen.dart';
-import '../../../core/di/injection_container.dart' as di;
-import '../../../core/utils/static_data_manager.dart';
 
 class LeadCard extends StatefulWidget {
   final LeadModel lead;
@@ -27,7 +27,7 @@ class LeadCard extends StatefulWidget {
   final VoidCallback? onRestore;
   final VoidCallback onTap;
   final VoidCallback? onPinToggle;
-  
+
   // ─── Inline Edit/Add ───
   final bool initialEditMode;
   final bool isAddingMode;
@@ -68,7 +68,8 @@ class _LeadCardState extends State<LeadCard> {
   late bool _isEditing;
   bool _isSavingInline = false;
   final TextEditingController _inlineNameController = TextEditingController();
-  final TextEditingController _inlinePropertyCodeController = TextEditingController();
+  final TextEditingController _inlinePropertyCodeController =
+      TextEditingController();
   final TextEditingController _inlinePhoneController = TextEditingController();
   int? _inlineSelectedCityId;
   final TextEditingController _inlineNeedsController = TextEditingController();
@@ -93,7 +94,8 @@ class _LeadCardState extends State<LeadCard> {
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final RenderBox? box = _mainRowKey.currentContext?.findRenderObject() as RenderBox?;
+      final RenderBox? box =
+          _mainRowKey.currentContext?.findRenderObject() as RenderBox?;
       if (box != null) {
         final newH = box.size.height;
         if ((newH - _dividerHeight).abs() > 0.5) {
@@ -122,37 +124,52 @@ class _LeadCardState extends State<LeadCard> {
     _inlineNeedsController.text = widget.lead.descLeadNeed ?? '';
     _inlineBudgetFrom = widget.lead.budgetFrom;
     _inlineBudgetTo = widget.lead.budgetTo;
-    
+
     final dataManager = di.sl<StaticDataManager>();
 
-    final statusOptions = dataManager.getOptions('lead_status').toSet().toList();
+    final statusOptions = dataManager
+        .getOptions('lead_status')
+        .toSet()
+        .toList();
     if (widget.isAddingMode) {
       _inlineSelectedStatus = null;
     } else {
       _inlineSelectedStatus = widget.lead.leadStatus;
-      if (_inlineSelectedStatus == null || !statusOptions.contains(_inlineSelectedStatus)) {
-        _inlineSelectedStatus = statusOptions.isNotEmpty ? statusOptions.first : null;
+      if (_inlineSelectedStatus == null ||
+          !statusOptions.contains(_inlineSelectedStatus)) {
+        _inlineSelectedStatus = statusOptions.isNotEmpty
+            ? statusOptions.first
+            : null;
       }
     }
 
-    final propertyTypeOptions = dataManager.getOptions('property_type').toSet().toList();
+    final propertyTypeOptions = dataManager
+        .getOptions('property_type')
+        .toSet()
+        .toList();
     _inlineSelectedPropertyType = widget.lead.propertyType;
-    if (_inlineSelectedPropertyType != null && !propertyTypeOptions.contains(_inlineSelectedPropertyType)) {
+    if (_inlineSelectedPropertyType != null &&
+        !propertyTypeOptions.contains(_inlineSelectedPropertyType)) {
       _inlineSelectedPropertyType = null;
     }
 
-    final listingTypeOptions = dataManager.getOptions('listing_type').toSet().toList();
+    final listingTypeOptions = dataManager
+        .getOptions('listing_type')
+        .toSet()
+        .toList();
     _inlineSelectedListingType = widget.lead.listingType;
-    if (_inlineSelectedListingType != null && !listingTypeOptions.contains(_inlineSelectedListingType)) {
+    if (_inlineSelectedListingType != null &&
+        !listingTypeOptions.contains(_inlineSelectedListingType)) {
       _inlineSelectedListingType = null;
     }
 
     final platformOptions = dataManager.getOptions('platform').toSet().toList();
     _inlineSelectedPlatform = widget.lead.platform;
-    if (_inlineSelectedPlatform != null && !platformOptions.contains(_inlineSelectedPlatform)) {
+    if (_inlineSelectedPlatform != null &&
+        !platformOptions.contains(_inlineSelectedPlatform)) {
       _inlineSelectedPlatform = null;
     }
-    
+
     _inlineSelectedEmployeeId = widget.lead.assignedTo;
   }
 
@@ -356,11 +373,7 @@ class _LeadCardState extends State<LeadCard> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.copy,
-                          color: Colors.white,
-                          size: 12.sp,
-                        ),
+                        Icon(Icons.copy, color: Colors.white, size: 12.sp),
                         SizedBox(width: 4.w),
                         Text(
                           "مكرر $_duplicateCount",
@@ -394,10 +407,7 @@ class _LeadCardState extends State<LeadCard> {
                   color: Colors.grey[300],
                 ),
 
-                Expanded(
-                  flex: 4,
-                  child: _buildSecondColumn(context),
-                ),
+                Expanded(flex: 4, child: _buildSecondColumn(context)),
 
                 Container(
                   width: 1.w,
@@ -406,10 +416,7 @@ class _LeadCardState extends State<LeadCard> {
                   color: Colors.grey[300],
                 ),
 
-                Expanded(
-                  flex: 3,
-                  child: _buildThirdColumn(context),
-                ),
+                Expanded(flex: 3, child: _buildThirdColumn(context)),
 
                 SizedBox(width: 16.w),
                 _buildActions(isManagerOrAdmin),
@@ -420,7 +427,6 @@ class _LeadCardState extends State<LeadCard> {
       ),
     );
   }
-
 
   Widget _buildFirstColumn(
     BuildContext context,
@@ -465,12 +471,19 @@ class _LeadCardState extends State<LeadCard> {
                       ),
                       child: TextFormField(
                         controller: _inlineNameController,
-                        style: TextStyle(fontSize: 22.sp, fontWeight: FontWeight.bold, color: const Color(0xFF111827)),
+                        style: TextStyle(
+                          fontSize: 22.sp,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF111827),
+                        ),
                         decoration: InputDecoration(
                           hintText: 'اسم العميل (اختياري)',
                           border: InputBorder.none,
                           isDense: true,
-                          contentPadding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 12.w),
+                          contentPadding: EdgeInsets.symmetric(
+                            vertical: 12.h,
+                            horizontal: 12.w,
+                          ),
                         ),
                       ),
                     )
@@ -496,7 +509,10 @@ class _LeadCardState extends State<LeadCard> {
                             _scheduleDividerUpdate(resetFirst: willCollapse);
                           },
                           style: TextButton.styleFrom(
-                            padding: EdgeInsets.symmetric(horizontal: 0, vertical: 4.h),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 0,
+                              vertical: 4.h,
+                            ),
                             minimumSize: Size.zero,
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
@@ -528,7 +544,10 @@ class _LeadCardState extends State<LeadCard> {
                     ),
                   ),
                   Text(
-                    DateFormat('dd/MM/yyyy', 'ar').format(widget.lead.createdAt!),
+                    DateFormat(
+                      'dd/MM/yyyy',
+                      'ar',
+                    ).format(widget.lead.createdAt!),
                     style: TextStyle(
                       fontSize: 16.sp,
                       color: Colors.black87,
@@ -551,13 +570,22 @@ class _LeadCardState extends State<LeadCard> {
             child: TextFormField(
               controller: _inlinePhoneController,
               keyboardType: TextInputType.phone,
-              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9]'))],
-              style: TextStyle(fontSize: 22.sp, fontWeight: FontWeight.bold, color: AppColors.brandPrimary),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
+              ],
+              style: TextStyle(
+                fontSize: 22.sp,
+                fontWeight: FontWeight.bold,
+                color: AppColors.brandPrimary,
+              ),
               decoration: InputDecoration(
                 hintText: 'رقم الهاتف *',
                 border: InputBorder.none,
                 isDense: true,
-                contentPadding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 12.w),
+                contentPadding: EdgeInsets.symmetric(
+                  vertical: 12.h,
+                  horizontal: 12.w,
+                ),
               ),
             ),
           )
@@ -597,17 +625,30 @@ class _LeadCardState extends State<LeadCard> {
                   decoration: BoxDecoration(
                     color: Colors.green.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20.r),
-                    border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                    border: Border.all(
+                      color: Colors.green.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.chat, color: Colors.green, size: 14.sp),
+                      FaIcon(
+                        FontAwesomeIcons.whatsapp,
+                        color: Colors.green,
+                        size: 14.sp,
+                      ),
                       SizedBox(width: 4.w),
-                      Text("واتساب ويب", style: TextStyle(color: Colors.green, fontSize: 12.sp, fontWeight: FontWeight.bold)),
+                      Text(
+                        "واتساب",
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-              )
+              ),
             ],
           )
         else
@@ -626,35 +667,72 @@ class _LeadCardState extends State<LeadCard> {
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('المنصة *:', style: TextStyle(fontSize: 16.sp, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                        Text(
+                          'المنصة *:',
+                          style: TextStyle(
+                            fontSize: 16.sp,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         SizedBox(height: 4.h),
                         _buildInlineDropdownMenu<String>(
                           'المنصة',
                           _inlineSelectedPlatform,
-                          di.sl<StaticDataManager>().getOptions('platform').toSet().map((s) => DropdownMenuEntry(value: s, label: s)).toList(),
-                          (val) => setState(() => _inlineSelectedPlatform = val),
+                          di
+                              .sl<StaticDataManager>()
+                              .getOptions('platform')
+                              .toSet()
+                              .map((s) => DropdownMenuEntry(value: s, label: s))
+                              .toList(),
+                          (val) =>
+                              setState(() => _inlineSelectedPlatform = val),
                         ),
                       ],
                     )
-                  : _infoRowSmall('المنصة:', widget.lead.platform ?? 'غير محدد'),
+                  : _infoRowSmall(
+                      'المنصة:',
+                      widget.lead.platform ?? 'غير محدد',
+                    ),
             ),
-            Container(width: 1.w, height: 35.h, color: Colors.grey[300], margin: EdgeInsets.symmetric(horizontal: 16.w)),
+            Container(
+              width: 1.w,
+              height: 35.h,
+              color: Colors.grey[300],
+              margin: EdgeInsets.symmetric(horizontal: 16.w),
+            ),
             Expanded(
               child: _isEditing
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('حالة العميل:', style: TextStyle(fontSize: 16.sp, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                        Text(
+                          'حالة العميل:',
+                          style: TextStyle(
+                            fontSize: 16.sp,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         SizedBox(height: 4.h),
                         _buildInlineDropdownMenu<String>(
                           'الحالة',
                           _inlineSelectedStatus,
-                          di.sl<StaticDataManager>().getOptions('lead_status').toSet().map((s) => DropdownMenuEntry(value: s, label: s)).toList(),
+                          di
+                              .sl<StaticDataManager>()
+                              .getOptions('lead_status')
+                              .toSet()
+                              .map((s) => DropdownMenuEntry(value: s, label: s))
+                              .toList(),
                           (val) => setState(() => _inlineSelectedStatus = val),
                         ),
                       ],
                     )
-                  : _infoRowSmall('حالة العميل:', widget.lead.leadStatus ?? 'غير محدد', valueColor: sColor),
+                  : _infoRowSmall(
+                      'حالة العميل:',
+                      widget.lead.leadStatus ?? 'غير محدد',
+                      valueColor: sColor,
+                    ),
             ),
           ],
         ),
@@ -672,13 +750,34 @@ class _LeadCardState extends State<LeadCard> {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('المسؤول *:', style: TextStyle(fontSize: 16.sp, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                          Text(
+                            'المسؤول *:',
+                            style: TextStyle(
+                              fontSize: 16.sp,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                           SizedBox(height: 4.h),
                           _buildInlineDropdownMenu<String>(
                             'المسؤول',
-                            state.employees.any((e) => e.id == _inlineSelectedEmployeeId) ? _inlineSelectedEmployeeId : null,
-                            state.employees.map((e) => DropdownMenuEntry(value: e.id, label: e.firstName != null ? "${e.firstName} ${e.lastName}" : e.email)).toList(),
-                            (val) => setState(() => _inlineSelectedEmployeeId = val),
+                            state.employees.any(
+                                  (e) => e.id == _inlineSelectedEmployeeId,
+                                )
+                                ? _inlineSelectedEmployeeId
+                                : null,
+                            state.employees
+                                .map(
+                                  (e) => DropdownMenuEntry(
+                                    value: e.id,
+                                    label: e.firstName != null
+                                        ? "${e.firstName} ${e.lastName}"
+                                        : e.email,
+                                  ),
+                                )
+                                .toList(),
+                            (val) =>
+                                setState(() => _inlineSelectedEmployeeId = val),
                           ),
                         ],
                       );
@@ -689,13 +788,33 @@ class _LeadCardState extends State<LeadCard> {
               )
             else if (!_isEditing) ...[
               if (widget.lead.assignedTo == widget.lead.createdBy)
-                Expanded(child: _infoRowSmall('المسؤول والمُنشئ:', widget.lead.assignedToName ?? 'غير محدد'))
+                Expanded(
+                  child: _infoRowSmall(
+                    'المسؤول والمُنشئ:',
+                    widget.lead.assignedToName ?? 'غير محدد',
+                  ),
+                )
               else ...[
-                Expanded(child: _infoRowSmall('المُنشئ:', widget.lead.createdByName ?? 'غير محدد')),
-                Container(width: 1.w, height: 35.h, color: Colors.grey[300], margin: EdgeInsets.symmetric(horizontal: 16.w)),
-                Expanded(child: _infoRowSmall('المسؤول:', widget.lead.assignedToName ?? 'غير محدد')),
-              ]
-            ]
+                Expanded(
+                  child: _infoRowSmall(
+                    'المُنشئ:',
+                    widget.lead.createdByName ?? 'غير محدد',
+                  ),
+                ),
+                Container(
+                  width: 1.w,
+                  height: 35.h,
+                  color: Colors.grey[300],
+                  margin: EdgeInsets.symmetric(horizontal: 16.w),
+                ),
+                Expanded(
+                  child: _infoRowSmall(
+                    'المسؤول:',
+                    widget.lead.assignedToName ?? 'غير محدد',
+                  ),
+                ),
+              ],
+            ],
           ],
         ),
       ],
@@ -755,15 +874,29 @@ class _LeadCardState extends State<LeadCard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('المدينة *:', style: TextStyle(fontSize: 14.sp, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                    Text(
+                      'المدينة *:',
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     SizedBox(height: 4.h),
                     _buildInlineDropdownMenu<int>(
                       'المدينة',
                       _inlineSelectedCityId,
-                      di.sl<StaticDataManager>().allCities.map((c) => DropdownMenuEntry(value: c.id, label: c.name)).toList(),
+                      di
+                          .sl<StaticDataManager>()
+                          .allCities
+                          .map(
+                            (c) =>
+                                DropdownMenuEntry(value: c.id, label: c.name),
+                          )
+                          .toList(),
                       (val) => setState(() => _inlineSelectedCityId = val),
                     ),
-                  ]
+                  ],
                 ),
               ),
               SizedBox(width: 8.w),
@@ -771,18 +904,31 @@ class _LeadCardState extends State<LeadCard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('نوع العقار *:', style: TextStyle(fontSize: 14.sp, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                    Text(
+                      'نوع العقار *:',
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     SizedBox(height: 4.h),
                     _buildInlineDropdownMenu<String>(
                       'نوع العقار',
                       _inlineSelectedPropertyType,
-                      di.sl<StaticDataManager>().getOptions('property_type').toSet().map((s) => DropdownMenuEntry(value: s, label: s)).toList(),
-                      (val) => setState(() => _inlineSelectedPropertyType = val),
+                      di
+                          .sl<StaticDataManager>()
+                          .getOptions('property_type')
+                          .toSet()
+                          .map((s) => DropdownMenuEntry(value: s, label: s))
+                          .toList(),
+                      (val) =>
+                          setState(() => _inlineSelectedPropertyType = val),
                     ),
-                  ]
+                  ],
                 ),
               ),
-            ]
+            ],
           ),
           SizedBox(height: 12.h),
           Row(
@@ -791,15 +937,27 @@ class _LeadCardState extends State<LeadCard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('نوع الإعلان *:', style: TextStyle(fontSize: 14.sp, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                    Text(
+                      'نوع الإعلان *:',
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     SizedBox(height: 4.h),
                     _buildInlineDropdownMenu<String>(
                       'نوع الإعلان',
                       _inlineSelectedListingType,
-                      di.sl<StaticDataManager>().getOptions('listing_type').toSet().map((s) => DropdownMenuEntry(value: s, label: s)).toList(),
+                      di
+                          .sl<StaticDataManager>()
+                          .getOptions('listing_type')
+                          .toSet()
+                          .map((s) => DropdownMenuEntry(value: s, label: s))
+                          .toList(),
                       (val) => setState(() => _inlineSelectedListingType = val),
                     ),
-                  ]
+                  ],
                 ),
               ),
               SizedBox(width: 8.w),
@@ -807,15 +965,25 @@ class _LeadCardState extends State<LeadCard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('كود العقار (اختياري):', style: TextStyle(fontSize: 14.sp, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                    Text(
+                      'كود العقار (اختياري):',
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     SizedBox(height: 4.h),
-                    _buildInlineTextField(_inlinePropertyCodeController, 'كود العقار'),
-                  ]
+                    _buildInlineTextField(
+                      _inlinePropertyCodeController,
+                      'كود العقار',
+                    ),
+                  ],
                 ),
               ),
-            ]
-          )
-        ]
+            ],
+          ),
+        ],
       );
     } else {
       if (widget.lead.city != null && widget.lead.city!.isNotEmpty) {
@@ -876,14 +1044,17 @@ class _LeadCardState extends State<LeadCard> {
                     children: metaItems,
                   ),
                 ),
-              if (widget.lead.propertyCode != null && widget.lead.propertyCode!.isNotEmpty) ...[
+              if (widget.lead.propertyCode != null &&
+                  widget.lead.propertyCode!.isNotEmpty) ...[
                 if (metaItems.isNotEmpty) SizedBox(width: 8.w),
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
                   decoration: BoxDecoration(
                     color: AppColors.brandPrimary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6.r),
-                    border: Border.all(color: AppColors.brandPrimary.withValues(alpha: 0.2)),
+                    border: Border.all(
+                      color: AppColors.brandPrimary.withValues(alpha: 0.2),
+                    ),
                   ),
                   child: SelectableText(
                     'كود: ${widget.lead.propertyCode!}',
@@ -898,7 +1069,11 @@ class _LeadCardState extends State<LeadCard> {
             ],
           ),
 
-        if (editFields != null || metaItems.isNotEmpty || (widget.lead.propertyCode != null && widget.lead.propertyCode!.isNotEmpty)) SizedBox(height: 6.h),
+        if (editFields != null ||
+            metaItems.isNotEmpty ||
+            (widget.lead.propertyCode != null &&
+                widget.lead.propertyCode!.isNotEmpty))
+          SizedBox(height: 6.h),
 
         Row(
           children: [
@@ -938,60 +1113,66 @@ class _LeadCardState extends State<LeadCard> {
             runSpacing: 6.h,
             children: [
               OutlinedButton.icon(
-              icon: Icon(Icons.edit_note, size: 28.sp),
-              label: Text(
-                'تعديل الوصف والميزانية',
-                style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.bold),
-              ),
-              style: OutlinedButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 14.h),
-                minimumSize: Size.zero,
-                foregroundColor: AppColors.brandPrimary,
-                side: BorderSide(
-                  color: AppColors.brandPrimary.withValues(alpha: 0.5),
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6.r),
-                ),
-              ),
-              onPressed: _editNeedsDialog,
-            ),
-            if (hasNeed)
-              ElevatedButton.icon(
-                icon: Icon(Icons.auto_awesome, size: 28.sp),
+                icon: Icon(Icons.edit_note, size: 28.sp),
                 label: Text(
-                  'المطابقة الذكية',
+                  'تعديل الوصف والميزانية',
                   style: TextStyle(
                     fontSize: 20.sp,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                style: ElevatedButton.styleFrom(
+                style: OutlinedButton.styleFrom(
                   padding: EdgeInsets.symmetric(
                     horizontal: 20.w,
                     vertical: 14.h,
                   ),
                   minimumSize: Size.zero,
-                  backgroundColor: AppColors.brandPrimary,
-                  foregroundColor: Colors.white,
+                  foregroundColor: AppColors.brandPrimary,
+                  side: BorderSide(
+                    color: AppColors.brandPrimary.withValues(alpha: 0.5),
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(6.r),
                   ),
                 ),
-                onPressed: () {
-                  final authState = context.read<AuthCubit>().state;
-                  final currentUser = (authState as dynamic).user;
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => SmartMatchScreen(
-                        lead: widget.lead,
-                        currentUser: currentUser,
-                      ),
-                    ),
-                  );
-                },
+                onPressed: _editNeedsDialog,
               ),
+              if (hasNeed)
+                ElevatedButton.icon(
+                  icon: Icon(Icons.auto_awesome, size: 28.sp),
+                  label: Text(
+                    'المطابقة الذكية',
+                    style: TextStyle(
+                      fontSize: 20.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 20.w,
+                      vertical: 14.h,
+                    ),
+                    minimumSize: Size.zero,
+                    backgroundColor: AppColors.brandPrimary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6.r),
+                    ),
+                  ),
+                  onPressed: () {
+                    final authState = context.read<AuthCubit>().state;
+                    final currentUser = (authState as dynamic).user;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SmartMatchScreen(
+                          lead: widget.lead,
+                          currentUser: currentUser,
+                        ),
+                      ),
+                    );
+                  },
+                ),
             ],
           ),
         ),
@@ -1011,14 +1192,27 @@ class _LeadCardState extends State<LeadCard> {
                   children: [
                     ElevatedButton.icon(
                       icon: _isSavingInline
-                          ? SizedBox(width: 16.sp, height: 16.sp, child: const CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          ? SizedBox(
+                              width: 16.sp,
+                              height: 16.sp,
+                              child: const CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
                           : Icon(Icons.save, size: 28.sp),
                       label: Text(
                         'حفظ',
-                        style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 20.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       style: ElevatedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 14.h),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 20.w,
+                          vertical: 14.h,
+                        ),
                         minimumSize: Size.zero,
                         backgroundColor: AppColors.brandPrimary,
                         foregroundColor: Colors.white,
@@ -1039,7 +1233,10 @@ class _LeadCardState extends State<LeadCard> {
                         }
                       },
                       style: OutlinedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 14.h),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 20.w,
+                          vertical: 14.h,
+                        ),
                         minimumSize: Size.zero,
                         foregroundColor: Colors.grey[600],
                         side: BorderSide(color: Colors.grey[300]!),
@@ -1047,7 +1244,13 @@ class _LeadCardState extends State<LeadCard> {
                           borderRadius: BorderRadius.circular(6.r),
                         ),
                       ),
-                      child: Text('إلغاء', style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold)),
+                      child: Text(
+                        'إلغاء',
+                        style: TextStyle(
+                          fontSize: 18.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ],
                 )
@@ -1055,10 +1258,16 @@ class _LeadCardState extends State<LeadCard> {
                   icon: Icon(Icons.add_comment, size: 28.sp),
                   label: Text(
                     'إضافة تعليق',
-                    style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 20.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 14.h),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 20.w,
+                      vertical: 14.h,
+                    ),
                     minimumSize: Size.zero,
                     backgroundColor: Colors.white,
                     foregroundColor: AppColors.brandPrimary,
@@ -1137,7 +1346,10 @@ class _LeadCardState extends State<LeadCard> {
                       _scheduleDividerUpdate(resetFirst: willCollapse);
                     },
                     style: TextButton.styleFrom(
-                      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 8.w,
+                        vertical: 4.h,
+                      ),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
@@ -1160,10 +1372,16 @@ class _LeadCardState extends State<LeadCard> {
 
   void _editNeedsDialog() {
     final TextEditingController needController = TextEditingController(
-      text: _isEditing ? _inlineNeedsController.text : (widget.lead.descLeadNeed ?? ''),
+      text: _isEditing
+          ? _inlineNeedsController.text
+          : (widget.lead.descLeadNeed ?? ''),
     );
-    final num? currentBudgetFrom = _isEditing ? _inlineBudgetFrom : widget.lead.budgetFrom;
-    final num? currentBudgetTo = _isEditing ? _inlineBudgetTo : widget.lead.budgetTo;
+    final num? currentBudgetFrom = _isEditing
+        ? _inlineBudgetFrom
+        : widget.lead.budgetFrom;
+    final num? currentBudgetTo = _isEditing
+        ? _inlineBudgetTo
+        : widget.lead.budgetTo;
 
     final TextEditingController budgetFromController = TextEditingController(
       text: currentBudgetFrom != null
@@ -1303,9 +1521,16 @@ class _LeadCardState extends State<LeadCard> {
                   : () async {
                       if (_isEditing) {
                         setState(() {
-                          _inlineNeedsController.text = needController.text.trim();
-                          _inlineBudgetFrom = int.tryParse(budgetFromController.text.replaceAll(',', '').trim());
-                          _inlineBudgetTo = int.tryParse(budgetToController.text.replaceAll(',', '').trim());
+                          _inlineNeedsController.text = needController.text
+                              .trim();
+                          _inlineBudgetFrom = int.tryParse(
+                            budgetFromController.text
+                                .replaceAll(',', '')
+                                .trim(),
+                          );
+                          _inlineBudgetTo = int.tryParse(
+                            budgetToController.text.replaceAll(',', '').trim(),
+                          );
                         });
                         Navigator.pop(ctx);
                         return;
@@ -1340,7 +1565,9 @@ class _LeadCardState extends State<LeadCard> {
                           notes: widget.lead.notes,
                           logs: widget.lead.logs,
                           budgetFrom: int.tryParse(
-                            budgetFromController.text.replaceAll(',', '').trim(),
+                            budgetFromController.text
+                                .replaceAll(',', '')
+                                .trim(),
                           ),
                           budgetTo: int.tryParse(
                             budgetToController.text.replaceAll(',', '').trim(),
@@ -1574,7 +1801,10 @@ class _LeadCardState extends State<LeadCard> {
               if (latestNoteDate != null && hasComment) ...[
                 const Spacer(),
                 Text(
-                  DateFormat('dd/MM/yyyy - hh:mm a', 'ar').format(latestNoteDate),
+                  DateFormat(
+                    'dd/MM/yyyy - hh:mm a',
+                    'ar',
+                  ).format(latestNoteDate),
                   style: TextStyle(
                     fontSize: 16.sp,
                     color: Colors.grey[700],
@@ -1617,7 +1847,10 @@ class _LeadCardState extends State<LeadCard> {
                           _scheduleDividerUpdate(resetFirst: willCollapse);
                         },
                         style: TextButton.styleFrom(
-                          padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 8.w,
+                            vertical: 4.h,
+                          ),
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
@@ -1645,57 +1878,52 @@ class _LeadCardState extends State<LeadCard> {
   Widget _buildActions(bool isManagerOrAdmin) {
     return SelectionContainer.disabled(
       child: Column(
-      children: [
-        _actionBtn(
-          Icons.open_in_new_rounded,
-          AppColors.brandPrimary,
-          widget.onTap,
-          'فتح التفاصيل',
-        ),
-        SizedBox(height: 8.h),
-        if (widget.onPinToggle != null) ...[
+        children: [
           _actionBtn(
-            widget.lead.isPinned
-                ? Icons.push_pin_rounded
-                : Icons.push_pin_outlined,
-            widget.lead.isPinned ? AppColors.brandPrimary : Colors.grey,
-            widget.onPinToggle!,
-            widget.lead.isPinned ? 'إلغاء التثبيت' : 'تثبيت',
+            Icons.open_in_new_rounded,
+            AppColors.brandPrimary,
+            widget.onTap,
+            'فتح التفاصيل',
           ),
           SizedBox(height: 8.h),
-        ],
-        if (widget.onEdit != null)
-          _actionBtn(
-            Icons.edit_rounded,
-            AppColors.info,
-            () {
+          if (widget.onPinToggle != null) ...[
+            _actionBtn(
+              widget.lead.isPinned
+                  ? Icons.push_pin_rounded
+                  : Icons.push_pin_outlined,
+              widget.lead.isPinned ? AppColors.brandPrimary : Colors.grey,
+              widget.onPinToggle!,
+              widget.lead.isPinned ? 'إلغاء التثبيت' : 'تثبيت',
+            ),
+            SizedBox(height: 8.h),
+          ],
+          if (widget.onEdit != null)
+            _actionBtn(Icons.edit_rounded, AppColors.info, () {
               setState(() {
                 _isEditing = true;
                 _initInlineEditData();
               });
-            },
-            'تعديل',
-          ),
+            }, 'تعديل'),
 
-        if (widget.onRestore != null) ...[
-          SizedBox(height: 8.h),
-          _actionBtn(
-            Icons.restore_page_outlined,
-            Colors.green,
-            widget.onRestore!,
-            'استعادة',
-          ),
+          if (widget.onRestore != null) ...[
+            SizedBox(height: 8.h),
+            _actionBtn(
+              Icons.restore_page_outlined,
+              Colors.green,
+              widget.onRestore!,
+              'استعادة',
+            ),
+          ],
+          if (widget.onDelete != null) ...[
+            SizedBox(height: 8.h),
+            _actionBtn(
+              Icons.delete_outline_rounded,
+              AppColors.brandAccent,
+              widget.onDelete!,
+              'حذف',
+            ),
+          ],
         ],
-        if (widget.onDelete != null) ...[
-          SizedBox(height: 8.h),
-          _actionBtn(
-            Icons.delete_outline_rounded,
-            AppColors.brandAccent,
-            widget.onDelete!,
-            'حذف',
-          ),
-        ],
-      ],
       ),
     );
   }
@@ -1726,47 +1954,64 @@ class _LeadCardState extends State<LeadCard> {
   Future<void> _saveInlineLead() async {
     final name = _inlineNameController.text.trim();
     final finalName = name;
-    
+
     final phoneStr = _inlinePhoneController.text.trim();
     if (phoneStr.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('رقم الهاتف الأساسي مطلوب')));
-      return;
-    }
-    
-    if (_inlineSelectedCityId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('المدينة مطلوبة')));
-      return;
-    }
-    
-    if (_inlineSelectedStatus == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('حالة العميل مطلوبة')));
-      return;
-    }
-    
-    if (_inlineSelectedListingType == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('نوع الإعلان مطلوب')));
-      return;
-    }
-    
-    if (_inlineSelectedPropertyType == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('نوع العقار مطلوب')));
-      return;
-    }
-    
-    if (_inlineSelectedPlatform == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('المنصة مطلوبة')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('رقم الهاتف الأساسي مطلوب')));
       return;
     }
 
-    final bool isManagerOrAdmin = widget.role == 'manager' || widget.role == 'admin' || widget.role == 'ceo';
-    if (isManagerOrAdmin && _inlineSelectedEmployeeId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الموظف المسؤول مطلوب')));
+    if (_inlineSelectedCityId == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('المدينة مطلوبة')));
       return;
     }
-    
+
+    if (_inlineSelectedStatus == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('حالة العميل مطلوبة')));
+      return;
+    }
+
+    if (_inlineSelectedListingType == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('نوع الإعلان مطلوب')));
+      return;
+    }
+
+    if (_inlineSelectedPropertyType == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('نوع العقار مطلوب')));
+      return;
+    }
+
+    if (_inlineSelectedPlatform == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('المنصة مطلوبة')));
+      return;
+    }
+
+    final bool isManagerOrAdmin =
+        widget.role == 'manager' ||
+        widget.role == 'admin' ||
+        widget.role == 'ceo';
+    if (isManagerOrAdmin && _inlineSelectedEmployeeId == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('الموظف المسؤول مطلوب')));
+      return;
+    }
+
     setState(() => _isSavingInline = true);
     final dataManager = di.sl<StaticDataManager>();
-    
+
     final statusId = _inlineSelectedStatus != null
         ? dataManager.getIdByName('lead_status', _inlineSelectedStatus!)
         : null;
@@ -1790,7 +2035,7 @@ class _LeadCardState extends State<LeadCard> {
         rawPhone = rawPhone.replaceAll(arabicDigits[i], englishDigits[i]);
       }
       rawPhone = rawPhone.replaceAll(RegExp(r'[^0-9]'), '');
-      
+
       if (phones.isNotEmpty) {
         phones[0] = LeadPhoneModel(
           phoneNumber: rawPhone,
@@ -1814,7 +2059,14 @@ class _LeadCardState extends State<LeadCard> {
       assignedTo: _inlineSelectedEmployeeId,
       cityId: _inlineSelectedCityId,
       governorate: widget.lead.governorate,
-      city: di.sl<StaticDataManager>().allCities.where((c) => c.id == _inlineSelectedCityId).firstOrNull?.name ?? widget.lead.city,
+      city:
+          di
+              .sl<StaticDataManager>()
+              .allCities
+              .where((c) => c.id == _inlineSelectedCityId)
+              .firstOrNull
+              ?.name ??
+          widget.lead.city,
       propertyCode: _inlinePropertyCodeController.text.trim(),
       descLeadNeed: _inlineNeedsController.text.trim(),
       budgetFrom: _inlineBudgetFrom,
@@ -1824,14 +2076,23 @@ class _LeadCardState extends State<LeadCard> {
 
     try {
       // ─── Duplicate Check ───
-      final duplicates = await context.read<LeadCubit>().checkDuplicates(phones.map((p) => p.phoneNumber).toList());
+      final duplicates = await context.read<LeadCubit>().checkDuplicates(
+        phones.map((p) => p.phoneNumber).toList(),
+      );
       if (duplicates.isNotEmpty) {
         // Exclude the current lead if we are editing
-        final otherDuplicates = duplicates.where((d) => d.id != widget.lead.id).toList();
+        final otherDuplicates = duplicates
+            .where((d) => d.id != widget.lead.id)
+            .toList();
         if (otherDuplicates.isNotEmpty) {
-          final isManagerOrAdmin = widget.role == 'manager' || widget.role == 'admin' || widget.role == 'ceo';
+          final isManagerOrAdmin =
+              widget.role == 'manager' ||
+              widget.role == 'admin' ||
+              widget.role == 'ceo';
           final authState = context.read<AuthCubit>().state;
-          final currentUserId = (authState is AuthSuccess) ? authState.user.id : null;
+          final currentUserId = (authState is AuthSuccess)
+              ? authState.user.id
+              : null;
 
           bool shouldWarn = false;
           String warningMsg = '';
@@ -1841,7 +2102,9 @@ class _LeadCardState extends State<LeadCard> {
             warningMsg = 'هذا الرقم مسجل بالفعل في النظام.';
           } else {
             // Sales
-            final hasOwnDuplicate = otherDuplicates.any((d) => d.assignedTo == currentUserId);
+            final hasOwnDuplicate = otherDuplicates.any(
+              (d) => d.assignedTo == currentUserId,
+            );
             if (hasOwnDuplicate) {
               shouldWarn = true;
               warningMsg = 'هذا الرقم مسجل بالفعل لديك.';
@@ -1850,12 +2113,14 @@ class _LeadCardState extends State<LeadCard> {
 
           if (shouldWarn) {
             if (mounted) setState(() => _isSavingInline = false);
-            
+
             final bool? proceed = await showDialog<bool>(
               context: context,
               builder: (ctx) => AlertDialog(
                 title: const Text('رقم مكرر ⚠️'),
-                content: Text('$warningMsg\n\nالرقم المكرر:\n${phones.map((p) => p.phoneNumber).join('، ')}\n\nهل تريد المتابعة والحفظ على أي حال؟'),
+                content: Text(
+                  '$warningMsg\n\nالرقم المكرر:\n${phones.map((p) => p.phoneNumber).join('، ')}\n\nهل تريد المتابعة والحفظ على أي حال؟',
+                ),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(ctx, false),
@@ -1863,7 +2128,10 @@ class _LeadCardState extends State<LeadCard> {
                   ),
                   TextButton(
                     onPressed: () => Navigator.pop(ctx, true),
-                    child: const Text('حفظ رغم التكرار', style: TextStyle(color: Colors.red)),
+                    child: const Text(
+                      'حفظ رغم التكرار',
+                      style: TextStyle(color: Colors.red),
+                    ),
                   ),
                 ],
               ),
@@ -1891,11 +2159,19 @@ class _LeadCardState extends State<LeadCard> {
     } catch (e) {
       if (mounted) {
         setState(() => _isSavingInline = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('حدث خطأ أثناء الحفظ: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('حدث خطأ أثناء الحفظ: $e')));
       }
     }
   }
-  Widget _buildInlineDropdownMenu<T>(String hint, T? value, List<DropdownMenuEntry<T>> entries, Function(T?) onChanged) {
+
+  Widget _buildInlineDropdownMenu<T>(
+    String hint,
+    T? value,
+    List<DropdownMenuEntry<T>> entries,
+    Function(T?) onChanged,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.grey[100],
@@ -1907,9 +2183,13 @@ class _LeadCardState extends State<LeadCard> {
         enableFilter: true,
         requestFocusOnTap: true,
         expandedInsets: EdgeInsets.zero,
-        menuHeight: 200, 
+        menuHeight: 200,
         hintText: hint,
-        textStyle: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.grey[800]),
+        textStyle: TextStyle(
+          fontSize: 16.sp,
+          fontWeight: FontWeight.bold,
+          color: Colors.grey[800],
+        ),
         inputDecorationTheme: const InputDecorationTheme(
           isDense: true,
           contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1923,7 +2203,12 @@ class _LeadCardState extends State<LeadCard> {
     );
   }
 
-  Widget _buildInlineTextField(TextEditingController controller, String hint, {List<TextInputFormatter>? formatters, TextInputType? keyboardType}) {
+  Widget _buildInlineTextField(
+    TextEditingController controller,
+    String hint, {
+    List<TextInputFormatter>? formatters,
+    TextInputType? keyboardType,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.grey[100],
@@ -1934,11 +2219,18 @@ class _LeadCardState extends State<LeadCard> {
         controller: controller,
         keyboardType: keyboardType,
         inputFormatters: formatters,
-        style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold, color: Colors.grey[800]),
+        style: TextStyle(
+          fontSize: 16.sp,
+          fontWeight: FontWeight.bold,
+          color: Colors.grey[800],
+        ),
         decoration: InputDecoration(
           hintText: hint,
           isDense: true,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 11,
+          ),
         ),
       ),
     );
@@ -1952,14 +2244,16 @@ class _LeadCardState extends State<LeadCard> {
     } else if (formattedPhone.startsWith('1')) {
       formattedPhone = '+20$formattedPhone';
     }
-    final url = Uri.parse('https://web.whatsapp.com/send?phone=$formattedPhone');
+    final url = Uri.parse(
+      'https://web.whatsapp.com/send?phone=$formattedPhone',
+    );
     if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
+      await launchUrl(url, webOnlyWindowName: 'whatsapp_web');
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('لا يمكن فتح واتساب ويب')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('لا يمكن فتح واتساب ويب')));
       }
     }
   }
@@ -1968,7 +2262,9 @@ class _LeadCardState extends State<LeadCard> {
 class ThousandsSeparatorInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     if (newValue.text.isEmpty) {
       return newValue.copyWith(text: '');
     }
