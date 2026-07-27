@@ -658,7 +658,8 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
       final model = PropertyModel(
         id: widget.property?.id ?? '',
         propertyCode: finalCode,
-        createdBy: widget.userId,
+        createdBy: widget.property?.createdBy ?? widget.userId,
+        createdByName: widget.property?.createdByName,
         status: status,
         titleAr: _controllers['titleAr']!.text,
         descAr: _controllers['descAr']!.text,

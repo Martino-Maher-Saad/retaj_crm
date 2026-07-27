@@ -40,6 +40,10 @@ class PropertyTasksCubit extends Cubit<PropertyTasksState> {
   Future<void> fetchPendingApprovals({
     required String pendingStatusId,
     String? filteredEmployeeId,
+    DateTime? fromDate,
+    DateTime? toDate,
+    String? listingTypeId,
+    String? propertyTypeId,
     bool isRefresh = false,
   }) async {
     final current = _current;
@@ -61,6 +65,10 @@ class PropertyTasksCubit extends Cubit<PropertyTasksState> {
         100,
         approvalStatusId: pendingStatusId,
         assignedTo: filteredEmployeeId,
+        fromDate: fromDate,
+        toDate: toDate,
+        listingTypeId: listingTypeId,
+        propertyTypeId: propertyTypeId,
       );
       emit(
         current.copyWith(

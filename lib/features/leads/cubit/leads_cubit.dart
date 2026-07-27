@@ -150,6 +150,35 @@ class LeadCubit extends Cubit<LeadState> {
     }
   }
 
+  Future<List<LeadModel>> fetchAllForExport({
+    required String role,
+    required String userId,
+  }) async {
+    try {
+      return await _repository.getAllLeads(
+        role: role,
+        userId: userId,
+        filterByEmployeeId: _currentFilterByEmployeeId,
+        platformId: _currentPlatformId,
+        leadStatusId: _currentLeadStatusId,
+        propertyTypeId: _currentPropertyTypeId,
+        listingTypeId: _currentListingTypeId,
+        governorateId: _currentGovernorateId,
+        cityId: _currentCityId,
+        fromDate: _currentFromDate,
+        toDate: _currentToDate,
+        isArchived: _currentIsArchived,
+        isStagnant: _currentIsStagnant,
+        isForTasks: _currentIsForTasks,
+        from: 0,
+        to: 50000,
+      );
+    } catch (e) {
+      print('Export fetch error: $e');
+      return [];
+    }
+  }
+
   Future<void> search(String query, {required String role, required String userId, String type = 'phone'}) async {
     final currentState = state is LeadLoaded ? state as LeadLoaded : null;
     if (currentState == null) return;

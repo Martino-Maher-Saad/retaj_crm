@@ -6,6 +6,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 
+import 'package:url_launcher/url_launcher.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/lead_model.dart';
 import '../../auth/cubit/auth_cubit.dart';
@@ -560,28 +562,53 @@ class _LeadCardState extends State<LeadCard> {
             ),
           )
         else if (_primaryPhone != null)
-          GestureDetector(
-            onTap: () => _copyPhone(_primaryPhone!.phoneNumber),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.phone_outlined,
-                  size: 18.sp,
-                  color: AppColors.brandPrimary,
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: () => _copyPhone(_primaryPhone!.phoneNumber),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.phone_outlined,
+                      size: 18.sp,
+                      color: AppColors.brandPrimary,
+                    ),
+                    SizedBox(width: 4.w),
+                    SelectableText(
+                      _primaryPhone!.phoneNumber,
+                      style: TextStyle(
+                        fontSize: 24.sp,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.brandPrimary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(width: 4.w),
-                SelectableText(
-                  _primaryPhone!.phoneNumber,
-                  style: TextStyle(
-                    fontSize: 24.sp,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.brandPrimary,
-                    letterSpacing: 0.5,
+              ),
+              SizedBox(width: 12.w),
+              InkWell(
+                onTap: () => _launchWhatsAppWeb(_primaryPhone!.phoneNumber),
+                borderRadius: BorderRadius.circular(20.r),
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20.r),
+                    border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.chat, color: Colors.green, size: 14.sp),
+                      SizedBox(width: 4.w),
+                      Text("واتساب ويب", style: TextStyle(color: Colors.green, fontSize: 12.sp, fontWeight: FontWeight.bold)),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              )
+            ],
           )
         else
           Text(
@@ -634,42 +661,43 @@ class _LeadCardState extends State<LeadCard> {
 
         SizedBox(height: 12.h),
 
-        if (isManagerOrAdmin)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (widget.lead.assignedToName != null || _isEditing)
-                Expanded(
-                  child: _isEditing
-                      ? BlocBuilder<LeadCubit, LeadState>(
-                          builder: (context, state) {
-                            if (state is LeadLoaded && state.employees.isNotEmpty) {
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('المسؤول *:', style: TextStyle(fontSize: 16.sp, color: Colors.grey[600], fontWeight: FontWeight.w600)),
-                                  SizedBox(height: 4.h),
-                                  _buildInlineDropdownMenu<String>(
-                                    'المسؤول',
-                                    state.employees.any((e) => e.id == _inlineSelectedEmployeeId) ? _inlineSelectedEmployeeId : null,
-                                    state.employees.map((e) => DropdownMenuEntry(value: e.id, label: e.firstName != null ? "${e.firstName} ${e.lastName}" : e.email)).toList(),
-                                    (val) => setState(() => _inlineSelectedEmployeeId = val),
-                                  ),
-                                ],
-                              );
-                            }
-                            return const SizedBox.shrink();
-                          },
-                        )
-                      : _infoRowSmall('المسؤول:', widget.lead.assignedToName!),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_isEditing && isManagerOrAdmin)
+              Expanded(
+                child: BlocBuilder<LeadCubit, LeadState>(
+                  builder: (context, state) {
+                    if (state is LeadLoaded && state.employees.isNotEmpty) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('المسؤول *:', style: TextStyle(fontSize: 16.sp, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                          SizedBox(height: 4.h),
+                          _buildInlineDropdownMenu<String>(
+                            'المسؤول',
+                            state.employees.any((e) => e.id == _inlineSelectedEmployeeId) ? _inlineSelectedEmployeeId : null,
+                            state.employees.map((e) => DropdownMenuEntry(value: e.id, label: e.firstName != null ? "${e.firstName} ${e.lastName}" : e.email)).toList(),
+                            (val) => setState(() => _inlineSelectedEmployeeId = val),
+                          ),
+                        ],
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
                 ),
-              if (widget.lead.createdByName != null && widget.lead.createdBy != widget.lead.assignedTo && !_isEditing) ...[
-                if (widget.lead.assignedToName != null)
-                  Container(width: 1.w, height: 35.h, color: Colors.grey[300], margin: EdgeInsets.symmetric(horizontal: 16.w)),
-                Expanded(child: _infoRowSmall('المُسند:', widget.lead.transferredFromName ?? widget.lead.createdByName!)),
-              ],
-            ],
-          ),
+              )
+            else if (!_isEditing) ...[
+              if (widget.lead.assignedTo == widget.lead.createdBy)
+                Expanded(child: _infoRowSmall('المسؤول والمُنشئ:', widget.lead.assignedToName ?? 'غير محدد'))
+              else ...[
+                Expanded(child: _infoRowSmall('المُنشئ:', widget.lead.createdByName ?? 'غير محدد')),
+                Container(width: 1.w, height: 35.h, color: Colors.grey[300], margin: EdgeInsets.symmetric(horizontal: 16.w)),
+                Expanded(child: _infoRowSmall('المسؤول:', widget.lead.assignedToName ?? 'غير محدد')),
+              ]
+            ]
+          ],
+        ),
       ],
     );
   }
@@ -1911,10 +1939,29 @@ class _LeadCardState extends State<LeadCard> {
           hintText: hint,
           isDense: true,
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-          border: InputBorder.none,
         ),
       ),
     );
+  }
+
+  Future<void> _launchWhatsAppWeb(String phone) async {
+    // تنسيق الرقم ليكون دولياً إذا لم يكن كذلك (افتراض مصر إذا لم يبدأ بـ +)
+    String formattedPhone = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (formattedPhone.startsWith('01')) {
+      formattedPhone = '+2$formattedPhone';
+    } else if (formattedPhone.startsWith('1')) {
+      formattedPhone = '+20$formattedPhone';
+    }
+    final url = Uri.parse('https://web.whatsapp.com/send?phone=$formattedPhone');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('لا يمكن فتح واتساب ويب')),
+        );
+      }
+    }
   }
 }
 

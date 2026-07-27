@@ -294,45 +294,6 @@ class _ManagerDashboardViewState extends State<ManagerDashboardView> {
 
           // ─── [ GROUP 3: VISUAL SEPARATOR ] ───
           SizedBox(height: 40.h),
-          Row(
-            children: [
-              Expanded(child: Divider(color: AppColors.brandPrimary.withValues(alpha: 0.2), thickness: 2.w)),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.w),
-                child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 8.h),
-                  decoration: BoxDecoration(
-                    color: AppColors.brandPrimary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(20.r),
-                    border: Border.all(color: AppColors.brandPrimary.withValues(alpha: 0.15)),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        'جدول تفاصيل ومتابعة العملاء والتقارير',
-                        style: TextStyle(
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'Cairo',
-                          color: AppColors.brandPrimary,
-                        ),
-                      ),
-                      SizedBox(width: 8.w),
-                      Icon(Icons.table_chart_rounded, color: AppColors.brandPrimary, size: 20.sp),
-                    ],
-                  ),
-                ),
-              ),
-              Expanded(child: Divider(color: AppColors.brandPrimary.withValues(alpha: 0.2), thickness: 2.w)),
-            ],
-          ),
-          SizedBox(height: 24.h),
-
-          // ─── Interactive Leads Table ───
-          DashboardLeadsTable(
-            role: 'manager',
-            userId: state.selectedEmployeeId ?? widget.user.id,
-          ),
         ],
       ),
     );

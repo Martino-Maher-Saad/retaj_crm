@@ -47,84 +47,71 @@ class _PropertySearchBarState extends State<PropertySearchBar> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 15.h),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             child: Column(
               children: [
-                // 1. بحث عام (الذكاء الاصطناعي)
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildSearchField(
+                        hint: "بحث برقم المالك...",
+                        type: 'phone',
+                        icon: Icons.phone,
+                        keyboardType: TextInputType.phone,
+                      ),
+                    ),
+                    SizedBox(width: 10.w),
+                    Expanded(
+                      child: _buildSearchField(
+                        hint: "بحث بكود العقار...",
+                        type: 'code',
+                        icon: Icons.numbers,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 10.h),
                 _buildSearchField(
                   hint: "بحث عام / بالذكاء الاصطناعي...",
                   type: 'general',
                   icon: Icons.auto_awesome,
                 ),
-                SizedBox(height: 10.h),
-                // 2. بحث بكود العقار
-                _buildSearchField(
-                  hint: "بحث بكود العقار...",
-                  type: 'code',
-                  icon: Icons.numbers,
-                ),
-                SizedBox(height: 10.h),
-                // 3. بحث برقم المالك
-                _buildSearchField(
-                  hint: "بحث برقم المالك...",
-                  type: 'phone',
-                  icon: Icons.phone,
-                  keyboardType: TextInputType.phone,
-                ),
               ],
             ),
           ),
-          SizedBox(width: 10.w),
-
-          // ─── زر الفلاتر المتقدمة ───
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              GestureDetector(
-                onTap: widget.onFilterTap,
-                child: Container(
-                  padding: EdgeInsets.all(10.w),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10.r),
-                  ),
-                  child: const Icon(Icons.tune, color: AppColors.brandPrimary),
-                ),
+          if (widget.showToggle) ...[
+            SizedBox(width: 10.w),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+              decoration: BoxDecoration(
+                color: widget.searchAll ? AppColors.brandPrimary.withOpacity(0.1) : Colors.white,
+                borderRadius: BorderRadius.circular(8.r),
+                border: Border.all(color: widget.searchAll ? AppColors.brandPrimary : Colors.grey.shade300),
               ),
-              if (widget.showToggle) ...[
-                SizedBox(height: 15.h),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-                  decoration: BoxDecoration(
-                    color: widget.searchAll ? AppColors.brandPrimary.withOpacity(0.1) : Colors.white,
-                    borderRadius: BorderRadius.circular(8.r),
-                    border: Border.all(color: widget.searchAll ? AppColors.brandPrimary : Colors.grey.shade300),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    "الكل",
+                    style: TextStyle(
+                      fontSize: 10.sp,
+                      fontWeight: FontWeight.bold,
+                      color: widget.searchAll ? AppColors.brandPrimary : Colors.grey,
+                    ),
                   ),
-                  child: Column(
-                    children: [
-                      Text(
-                        "الكل",
-                        style: TextStyle(
-                          fontSize: 10.sp,
-                          fontWeight: FontWeight.bold,
-                          color: widget.searchAll ? AppColors.brandPrimary : Colors.grey,
-                        ),
-                      ),
-                      Switch(
-                        value: widget.searchAll,
-                        onChanged: widget.onToggleSearchAll,
-                        activeColor: AppColors.brandPrimary,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ],
+                  Switch(
+                    value: widget.searchAll,
+                    onChanged: widget.onToggleSearchAll,
+                    activeColor: AppColors.brandPrimary,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                ),
-              ],
-            ],
-          ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

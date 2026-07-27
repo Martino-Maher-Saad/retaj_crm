@@ -570,6 +570,31 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     }
   }
 
+  Future<List<PropertyModel>> fetchAllForExport({required String role, required String userId}) async {
+    try {
+      if (role == 'manager' || role == 'admin' || role == 'ceo') {
+        return await _repo.filterProperties(
+          0, 50000,
+          cityId: _filterCityId,
+          propertyTypeId: _filterPropertyTypeId,
+          governorateId: _filterGovernorateId,
+          listingTypeId: _filterListingTypeId,
+          minPrice: _filterMinPrice,
+          maxPrice: _filterMaxPrice,
+          assignedTo: _filterAssignedTo,
+          fromDate: _filterFromDate,
+          toDate: _filterToDate,
+          isArchived: _filterIsArchived,
+        );
+      } else {
+        return await _repo.getMyProperties(userId, 0, 50000);
+      }
+    } catch (e) {
+      print('Properties export fetch error: $e');
+      return [];
+    }
+  }
+
   Future<void> sharePropertyInternal({
     required String propertyId,
     required String receiverId,

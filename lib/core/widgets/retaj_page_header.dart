@@ -8,8 +8,8 @@ class RetajPageHeader extends StatelessWidget {
   final String title;
   final String subtitle;
   final int? totalCount;
-  final String addLabel;
-  final VoidCallback onAdd;
+  final String? addLabel;
+  final VoidCallback? onAdd;
   final VoidCallback? onFilter;
   final String? filterLabel;
   final Widget? searchBar;
@@ -22,8 +22,8 @@ class RetajPageHeader extends StatelessWidget {
     super.key,
     required this.title,
     required this.subtitle,
-    required this.addLabel,
-    required this.onAdd,
+    this.addLabel,
+    this.onAdd,
     this.totalCount,
     this.onFilter,
     this.filterLabel,
@@ -103,11 +103,9 @@ class RetajPageHeader extends StatelessWidget {
 
               // ─── أزرار الإجراءات ───
               if (onFilter != null) ...[
-                OutlinedButton.icon(
+                OutlinedButton(
                   onPressed: onFilter,
-                  icon: Icon(Icons.filter_list_rounded,
-                      size: 20.sp, color: AppColors.brandPrimary),
-                  label: Text(filterLabel ?? 'فلاتر',
+                  child: Text(filterLabel ?? 'فلاتر',
                       style: TextStyle(
                           fontSize: 14.sp,
                           color: AppColors.brandPrimary,
@@ -130,50 +128,52 @@ class RetajPageHeader extends StatelessWidget {
               ],
 
               // زر الإضافة (gradient)
-              Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12.r),
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.brandPrimary,
-                      AppColors.brandPrimary.withValues(alpha: 0.8),
+              if (onAdd != null && addLabel != null)
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12.r),
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.brandPrimary,
+                        AppColors.brandPrimary.withValues(alpha: 0.8),
+                      ],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.brandPrimary.withValues(alpha: 0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
                     ],
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.brandPrimary.withValues(alpha: 0.3),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: onAdd,
-                    borderRadius: BorderRadius.circular(12.r),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                          horizontal: 18.w, vertical: 12.h),
-                      child: Row(
-                        children: [
-                          Icon(Icons.add_rounded,
-                              color: Colors.white, size: 20.sp),
-                          SizedBox(width: 8.w),
-                          Text(
-                            addLabel,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 14.sp,
-                              fontWeight: FontWeight.w700,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12.r),
+                      onTap: onAdd,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 24.w, vertical: 12.h),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.add_rounded,
+                                color: Colors.white, size: 20.sp),
+                            SizedBox(width: 8.w),
+                            Text(
+                              addLabel!,
+                              style: TextStyle(
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
 

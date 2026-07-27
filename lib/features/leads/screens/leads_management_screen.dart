@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:intl/intl.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/utils/excel_export_service.dart';
 import '../../../core/utils/static_data_manager.dart';
+import '../../../core/utils/responsive_debouncer_wrapper.dart';
 import '../../../core/widgets/retaj_page_header.dart';
 import '../../../data/models/lead_model.dart';
 import '../../../data/models/profile_model.dart';
@@ -16,13 +19,16 @@ import '../widgets/lead_card.dart';
 import '../widgets/list/lead_delete_dialog.dart';
 import '../widgets/list/lead_archive_dialog.dart';
 import '../widgets/list/lead_empty_state.dart';
-import '../widgets/list/lead_top_actions_bar.dart';
 import '../widgets/list/lead_filter_dialog.dart';
 import '../widgets/list/lead_search_bar.dart';
 import '../widgets/list/leads_status_filter_bar.dart';
 import 'lead_details_screen.dart';
 import 'lead_form_screen.dart';
 import 'bulk_add_leads_screen.dart';
+import '../widgets/list/leads_table_view.dart';
+import '../../../core/widgets/retaj_shared_fields.dart';
+import '../../../data/repositories/lead_repository.dart';
+
 /// شاشة إدارة العملاء (Leads)
 class LeadsManagementScreen extends StatefulWidget {
   final ProfileModel user;
@@ -37,6 +43,10 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
   late LeadCubit _cubit;
   bool _isFiltering = false;
   bool _isAddingNewLead = false;
+  
+  bool _isExcelView = false;
+  bool _isBulkSelectMode = false;
+  final Set<String> _selectedLeadIds = {};
 
   final _dataManager = di.sl<StaticDataManager>();
 
@@ -178,6 +188,73 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                       isSearching: (state is LeadLoaded) ? state.isSearching : false,
                     ),
 
+                    // شريط الأدوات (Toggle View & Bulk Select)
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: AppConstants.p16, vertical: 8.h),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Toggle View
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8.r),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: Row(
+                              children: [
+                                IconButton(
+                                  icon: Icon(Icons.grid_view_rounded, color: !_isExcelView ? AppColors.brandPrimary : Colors.grey),
+                                  onPressed: () => setState(() => _isExcelView = false),
+                                  tooltip: 'عرض الكروت',
+                                ),
+                                Container(width: 1.w, height: 24.h, color: Colors.grey.shade300),
+                                IconButton(
+                                  icon: Icon(Icons.table_chart_rounded, color: _isExcelView ? AppColors.brandPrimary : Colors.grey),
+                                  onPressed: () => setState(() => _isExcelView = true),
+                                  tooltip: 'عرض الجدول',
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          // Export Button
+                          if (widget.user.role == 'manager' || widget.user.role == 'admin' || widget.user.role == 'ceo')
+                            IconButton(
+                              icon: const Icon(Icons.file_download, color: AppColors.brandPrimary),
+                              onPressed: _exportLeads,
+                              tooltip: 'تصدير لإكسيل',
+                            ),
+                          
+                          const Spacer(),
+                          // Bulk Select & Reassign (Admins only)
+                          if (widget.user.role == 'manager' || widget.user.role == 'admin' || widget.user.role == 'ceo')
+                            Row(
+                              children: [
+                                if (_isBulkSelectMode && _selectedLeadIds.isNotEmpty)
+                                  ElevatedButton.icon(
+                                    onPressed: _showBulkReassignDialog,
+                                    icon: const Icon(Icons.swap_horiz, color: Colors.white),
+                                    label: Text('نقل للموظف (${_selectedLeadIds.length})', style: const TextStyle(color: Colors.white)),
+                                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.brandPrimary),
+                                  ),
+                                SizedBox(width: 8.w),
+                                OutlinedButton.icon(
+                                  onPressed: () {
+                                    setState(() {
+                                      _isBulkSelectMode = !_isBulkSelectMode;
+                                      if (!_isBulkSelectMode) _selectedLeadIds.clear();
+                                    });
+                                  },
+                                  icon: Icon(_isBulkSelectMode ? Icons.close : Icons.checklist_rtl),
+                                  label: Text(_isBulkSelectMode ? 'إلغاء التحديد' : 'تحديد متعدد'),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+
                     // شريط "فلاتر نشطة"
                     if (_isFiltering)
                       Container(
@@ -269,7 +346,24 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                               userId: widget.user.id,
                               isRefresh: true,
                             ),
-                            child: ListView.builder(
+                            child: _isExcelView
+                                ? LeadsTableView(
+                                    leads: state.filteredLeads,
+                                    isBulkSelectMode: _isBulkSelectMode,
+                                    selectedIds: _selectedLeadIds,
+                                    scrollController: _scrollController,
+                                    isLoadingMore: state.isLoadingMore,
+                                    onSelect: (id, isSelected) {
+                                      setState(() {
+                                        if (isSelected == true) {
+                                          _selectedLeadIds.add(id);
+                                        } else {
+                                          _selectedLeadIds.remove(id);
+                                        }
+                                      });
+                                    },
+                                  )
+                                : ListView.builder(
                         controller: _scrollController,
                         padding: EdgeInsets.only(bottom: 20.h, top: 10.h),
                         itemCount: state.filteredLeads.length +
@@ -313,7 +407,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                           }
 
                           final lead = state.filteredLeads[actualIndex];
-                          return LeadCard(
+                          final card = LeadCard(
                             key: ValueKey(lead.id),
                             lead: lead,
                             role: widget.user.role,
@@ -335,6 +429,32 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                               : null,
                             onPinToggle: () => _cubit.toggleLeadPin(lead),
                           );
+
+                          if (_isBulkSelectMode) {
+                            return Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Checkbox(
+                                    value: _selectedLeadIds.contains(lead.id),
+                                    onChanged: (val) {
+                                      setState(() {
+                                        if (val == true) {
+                                          _selectedLeadIds.add(lead.id!);
+                                        } else {
+                                          _selectedLeadIds.remove(lead.id);
+                                        }
+                                      });
+                                    },
+                                    activeColor: AppColors.brandPrimary,
+                                  ),
+                                  Expanded(child: card),
+                                ],
+                              ),
+                            );
+                          }
+                          return card;
                         },
                             ),
                           ),
@@ -378,4 +498,128 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
       ),
     );
   }
+
+  void _showBulkReassignDialog() {
+    final state = _cubit.state;
+    if (state is! LeadLoaded || state.employees.isEmpty) return;
+
+    String? selectedEmployeeId;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) {
+          return AlertDialog(
+            title: const Text('نقل العملاء المحددين'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('اختر الموظف لنقل ${_selectedLeadIds.length} عميل إليه:'),
+                SizedBox(height: 16.h),
+                RetajDropdown<String>(
+                  label: "الموظف المسؤول",
+                  value: selectedEmployeeId,
+                  items: state.employees.map((e) => DropdownMenuItem<String>(
+                    value: e.id,
+                    child: Text(e.firstName != null ? "${e.firstName} ${e.lastName}" : e.email),
+                  )).toList(),
+                  onChanged: (val) => setStateDialog(() => selectedEmployeeId = val),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton(
+                onPressed: selectedEmployeeId == null ? null : () {
+                  Navigator.pop(ctx);
+                  _performBulkReassign(selectedEmployeeId!);
+                },
+                child: const Text('تأكيد النقل'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _exportLeads() async {
+    final leads = await _cubit.fetchAllForExport(role: widget.user.role, userId: widget.user.id);
+    if (leads.isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا توجد بيانات للتصدير')));
+      return;
+    }
+    
+    final allColumns = [
+      '#', 'اسم العميل', 'أرقام الهاتف', 'المسؤول', 'تاريخ الإضافة',
+      'كود العقار', 'طلب العميل', 'المنصة', 'الحالة الحالية',
+      'سبب الاستبعاد', 'نوع الإعلان', 'نوع العقار', 'المدينة', 'الملاحظات'
+    ];
+    
+    final dataRows = leads.asMap().entries.map((entry) {
+      final i = entry.key;
+      final l = entry.value;
+      final phonesStr = l.phones.map((p) => p.phoneNumber).join('\n');
+      final notesStr = l.notes.isEmpty ? '—' : l.notes.map((n) => '• ${n.noteText}').join('\n');
+      
+      return [
+        i + 1,
+        l.clientName,
+        phonesStr,
+        l.assignedToName ?? '—',
+        l.createdAt != null ? DateFormat("dd/MM/yyyy HH:mm").format(l.createdAt!) : '—',
+        l.propertyCode ?? '—',
+        l.descLeadNeed ?? '—',
+        l.platform ?? '—',
+        l.leadStatus ?? '—',
+        l.exclusionReasonName ?? '—',
+        l.listingType ?? '—',
+        l.propertyType ?? '—',
+        l.city ?? '—',
+        notesStr
+      ];
+    }).toList();
+
+    if (mounted) {
+      await ExcelExportService.showExportDialog(
+        context: context,
+        title: 'العملاء',
+        allColumns: allColumns,
+        dataRows: dataRows,
+      );
+    }
+  }
+
+  Future<void> _performBulkReassign(String employeeId) async {
+    showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
+    
+    try {
+      final repository = di.sl<LeadRepository>();
+      for (final id in _selectedLeadIds) {
+        final currentLead = _cubit.state is LeadLoaded ? (_cubit.state as LeadLoaded).filteredLeads.firstWhere((l) => l.id == id, orElse: () => LeadModel(id: '', clientName: '', createdBy: '', assignedTo: '')) : null;
+        if (currentLead != null && currentLead.id!.isNotEmpty) {
+          await repository.updateLeadStatusAndEmployee(id, '460be748-7685-49ef-abcf-c4dd49511ab7', employeeId);
+        }
+      }
+      
+      if (mounted) {
+        Navigator.pop(context); // close loading
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم النقل بنجاح')));
+        setState(() {
+          _isBulkSelectMode = false;
+          _selectedLeadIds.clear();
+        });
+        _cubit.getAllLeads(role: widget.user.role, userId: widget.user.id, isRefresh: true);
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // close loading
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل النقل: $e')));
+      }
+    }
+  }
 }
+

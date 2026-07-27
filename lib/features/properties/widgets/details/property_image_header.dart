@@ -32,7 +32,10 @@ class PropertyImageHeader extends StatelessWidget {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => PropertyFullScreenImage(imageUrl: images[index].original),
+                    builder: (_) => PropertyFullScreenImage(
+                      imageUrls: images.map((img) => img.original).toList(),
+                      initialIndex: index,
+                    ),
                   ),
                 ),
                 child: Container(
