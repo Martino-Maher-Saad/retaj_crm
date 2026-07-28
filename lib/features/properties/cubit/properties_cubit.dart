@@ -30,6 +30,15 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     return r == 'manager' || r == 'admin' || r == 'ceo' || r == 'marketing';
   }
 
+  final Set<String> _myRecentActions = {};
+  
+  void _markActionByMe(String id) {
+    _myRecentActions.add(id);
+    Future.delayed(const Duration(seconds: 10), () {
+      _myRecentActions.remove(id);
+    });
+  }
+
   void _handleRealtimeEvent(event) async {
     if (event.entity != 'property') return;
     
@@ -46,20 +55,48 @@ class PropertiesCubit extends Cubit<PropertiesState> {
         }
 
         if (!canView) return;
-        if (currentState.myProperties.any((p) => p.id == event.id) ||
-            currentState.pendingProperties.any((p) => p.id == event.id)) {
+
+        // تأخير متعمد عشان ندي فرصة للصور تترفع على الـ Storage وتتضاف في الداتا بيز
+        // الـ Delay ده مش هيوقف التطبيق لأنه async، ومهم جداً عشان العقار ميجيش فاضي للمدير
+        await Future.delayed(const Duration(milliseconds: 2000));
+
+        final newProp = await _repo.getPropertyById(event.id);
+        
+        if (isClosed) return;
+        final freshState = state is PropertiesSuccess ? state as PropertiesSuccess : null;
+        if (freshState == null) return;
+
+        if (freshState.myProperties.any((p) => p.id == event.id) ||
+            freshState.pendingProperties.any((p) => p.id == event.id)) {
           return;
         }
 
-        final newProp = await _repo.getPropertyById(event.id);
-        final newPending = List<PropertyModel>.from(currentState.pendingProperties)..insert(0, newProp);
-        emit(currentState.copyWith(hasNewUpdates: true, pendingProperties: newPending));
+        final isMine = newProp.createdBy == _currentUserId || _myRecentActions.contains(event.id);
+
+        if (isMine) {
+           final newMy = List<PropertyModel>.from(freshState.myProperties)..insert(0, newProp);
+           final newFiltered = List<PropertyModel>.from(freshState.filteredProperties)..insert(0, newProp);
+           final newPending = freshState.pendingProperties.where((p) => p.id != event.id).toList();
+           emit(freshState.copyWith(
+              myProperties: newMy,
+              filteredProperties: newFiltered,
+              pendingProperties: newPending,
+              myTotalCount: freshState.myTotalCount + 1,
+           ));
+        } else {
+           final newPending = List<PropertyModel>.from(freshState.pendingProperties)..insert(0, newProp);
+           emit(freshState.copyWith(hasNewUpdates: true, pendingProperties: newPending));
+        }
       } catch (e) {
         // Ignore silently, don't show banner if fetch fails
       }
     } else if (event.action == 'update' || event.action == 'transfer') {
       try {
         final updatedProperty = await _repo.getPropertyById(event.id); 
+
+        if (isClosed) return;
+        final freshState = state is PropertiesSuccess ? state as PropertiesSuccess : null;
+        if (freshState == null) return;
 
         bool canView = true;
         if (!_isManagerOrAdmin() && !_searchAll) {
@@ -68,16 +105,44 @@ class PropertiesCubit extends Cubit<PropertiesState> {
           if (_filterAssignedTo != null && updatedProperty.createdBy != _filterAssignedTo) canView = false;
         }
 
-        final newMy = List<PropertyModel>.from(currentState.myProperties);
+        final newMy = List<PropertyModel>.from(freshState.myProperties);
         final idxMy = newMy.indexWhere((p) => p.id == event.id);
 
-        final newFiltered = List<PropertyModel>.from(currentState.filteredProperties);
+        final newFiltered = List<PropertyModel>.from(freshState.filteredProperties);
         final idxFiltered = newFiltered.indexWhere((p) => p.id == event.id);
+        
+        final idxPending = freshState.pendingProperties.indexWhere((p) => p.id == event.id);
 
         if (idxMy == -1 && idxFiltered == -1) {
-           if (!canView) return; // Ignore if they can't view it
-           final newPending = List<PropertyModel>.from(currentState.pendingProperties)..insert(0, updatedProperty);
-           emit(currentState.copyWith(hasNewUpdates: true, pendingProperties: newPending));
+           if (!canView) {
+              if (idxPending != -1) {
+                 final newPending = List<PropertyModel>.from(freshState.pendingProperties)..removeAt(idxPending);
+                 emit(freshState.copyWith(pendingProperties: newPending));
+              }
+              return;
+           }
+           
+           final isMine = _myRecentActions.contains(event.id);
+
+           if (isMine) {
+              final newMy = List<PropertyModel>.from(freshState.myProperties)..insert(0, updatedProperty);
+              final newFiltered = List<PropertyModel>.from(freshState.filteredProperties)..insert(0, updatedProperty);
+              final newPending = freshState.pendingProperties.where((p) => p.id != event.id).toList();
+              emit(freshState.copyWith(
+                 myProperties: newMy,
+                 filteredProperties: newFiltered,
+                 pendingProperties: newPending,
+                 myTotalCount: freshState.myTotalCount + 1,
+              ));
+           } else {
+              final newPending = List<PropertyModel>.from(freshState.pendingProperties);
+              if (idxPending != -1) {
+                 newPending[idxPending] = updatedProperty;
+              } else {
+                 newPending.insert(0, updatedProperty);
+              }
+              emit(freshState.copyWith(hasNewUpdates: true, pendingProperties: newPending));
+           }
            return;
         }
 
@@ -86,9 +151,13 @@ class PropertiesCubit extends Cubit<PropertiesState> {
         if (idxMy != -1) newMy[idxMy] = updatedProperty;
         if (idxFiltered != -1) newFiltered[idxFiltered] = updatedProperty;
 
-        emit(currentState.copyWith(
+        final newPending = List<PropertyModel>.from(freshState.pendingProperties);
+        if (idxPending != -1) newPending[idxPending] = updatedProperty;
+
+        emit(freshState.copyWith(
           myProperties: newMy,
           filteredProperties: newFiltered,
+          pendingProperties: newPending,
           blinkItemId: event.id,
         ));
 
@@ -116,38 +185,44 @@ class PropertiesCubit extends Cubit<PropertiesState> {
       } catch (e) {
         // If it fails (e.g. RLS blocks them because they lost ownership), blink and remove it!
         if (event.action == 'transfer' || event.action == 'update') {
-           emit(currentState.copyWith(blinkItemId: event.id));
-           Future.delayed(const Duration(milliseconds: 1000), () {
-              if (!isClosed) {
-                final st = state is PropertiesSuccess ? state as PropertiesSuccess : null;
-                if (st != null) {
-                  final myProps = st.myProperties.where((p) => p.id != event.id).toList();
-                  final filProps = st.filteredProperties.where((p) => p.id != event.id).toList();
-                  emit(st.copyWith(myProperties: myProps, filteredProperties: filProps, blinkItemId: null, myTotalCount: st.myTotalCount > 0 ? st.myTotalCount - 1 : 0));
+           final st = state is PropertiesSuccess ? state as PropertiesSuccess : null;
+           if (st != null) {
+              emit(st.copyWith(blinkItemId: event.id));
+              Future.delayed(const Duration(milliseconds: 1000), () {
+                if (!isClosed) {
+                  final st = state is PropertiesSuccess ? state as PropertiesSuccess : null;
+                  if (st != null) {
+                    final myProps = st.myProperties.where((p) => p.id != event.id).toList();
+                    final filProps = st.filteredProperties.where((p) => p.id != event.id).toList();
+                    emit(st.copyWith(myProperties: myProps, filteredProperties: filProps, blinkItemId: null, myTotalCount: st.myTotalCount > 0 ? st.myTotalCount - 1 : 0));
+                  }
                 }
-              }
-           });
+              });
+           }
         }
       }
     } else if (event.action == 'delete') {
       // Blink and remove
-      emit(currentState.copyWith(blinkItemId: event.id));
-      Future.delayed(const Duration(milliseconds: 1000), () {
-        if (!isClosed) {
-          final st = state is PropertiesSuccess ? state as PropertiesSuccess : null;
-          if (st != null) {
-            final newMy = st.myProperties.where((p) => p.id != event.id).toList();
-            final newFiltered = st.filteredProperties.where((p) => p.id != event.id).toList();
-            emit(st.copyWith(
-              myProperties: newMy, 
-              filteredProperties: newFiltered, 
-              blinkItemId: null,
-              myTotalCount: st.myTotalCount > 0 ? st.myTotalCount - 1 : 0,
-              filteredTotalCount: st.filteredTotalCount > 0 ? st.filteredTotalCount - 1 : 0,
-            ));
+      final st = state is PropertiesSuccess ? state as PropertiesSuccess : null;
+      if (st != null) {
+        emit(st.copyWith(blinkItemId: event.id));
+        Future.delayed(const Duration(milliseconds: 1000), () {
+          if (!isClosed) {
+            final st = state is PropertiesSuccess ? state as PropertiesSuccess : null;
+            if (st != null) {
+              final newMy = st.myProperties.where((p) => p.id != event.id).toList();
+              final newFiltered = st.filteredProperties.where((p) => p.id != event.id).toList();
+              emit(st.copyWith(
+                myProperties: newMy, 
+                filteredProperties: newFiltered, 
+                blinkItemId: null,
+                myTotalCount: st.myTotalCount > 0 ? st.myTotalCount - 1 : 0,
+                filteredTotalCount: st.filteredTotalCount > 0 ? st.filteredTotalCount - 1 : 0,
+              ));
+            }
           }
-        }
-      });
+        });
+      }
     } else if (event.action == 'bulk_transfer') {
       emit(currentState.copyWith(hasNewUpdates: true));
     }
@@ -617,9 +692,13 @@ class PropertiesCubit extends Cubit<PropertiesState> {
       di.sl<PropertyTasksCubit>()
         ..invalidateTasks()
         ..invalidateApprovals();
+        
+      if (current.myProperties.any((e) => e.id == newProp.id)) return;
+      final updated = [newProp, ...current.myProperties];
       emit(
         current.copyWith(
-          myProperties: [newProp, ...current.myProperties],
+          myProperties: updated,
+          filteredProperties: updated,
           myTotalCount: current.myTotalCount + 1,
         ),
       );
@@ -630,63 +709,64 @@ class PropertiesCubit extends Cubit<PropertiesState> {
   }
 
   Future<void> deleteFullProperty(String id) async {
-    final current = state is PropertiesSuccess
-        ? state as PropertiesSuccess
-        : PropertiesSuccess();
-    try {
-      await _repo.deleteFullProperty(id);
-      final updatedList = current.myProperties
-          .where((p) => p.id != id)
-          .toList();
-      final filteredList = current.filteredProperties
-          .where((p) => p.id != id)
-          .toList();
-      final searchedList = current.searchedProperties
-          .where((p) => p.id != id)
-          .toList();
-      emit(
-        current.copyWith(
-          myProperties: updatedList,
-          filteredProperties: filteredList,
-          searchedProperties: searchedList,
-          myTotalCount: current.myTotalCount > 0 ? current.myTotalCount - 1 : 0,
-          filteredTotalCount: current.filteredTotalCount > 0
-              ? current.filteredTotalCount - 1
-              : 0,
-        ),
-      );
-    } catch (e) {
-      emit(PropertiesError("فشل الحذف: $e"));
-      emit(current);
+    _markActionByMe(id);
+    if (state is PropertiesSuccess) {
+      final current = state as PropertiesSuccess;
+      try {
+        await _repo.deleteFullProperty(id);
+        final updatedList = current.myProperties
+            .where((p) => p.id != id)
+            .toList();
+        final filteredList = current.filteredProperties
+            .where((p) => p.id != id)
+            .toList();
+        final searchedList = current.searchedProperties
+            .where((p) => p.id != id)
+            .toList();
+        emit(
+          current.copyWith(
+            myProperties: updatedList,
+            filteredProperties: filteredList,
+            searchedProperties: searchedList,
+            myTotalCount: current.myTotalCount > 0 ? current.myTotalCount - 1 : 0,
+            filteredTotalCount: current.filteredTotalCount > 0
+                ? current.filteredTotalCount - 1
+                : 0,
+          ),
+        );
+      } catch (e) {
+        emit(PropertiesError("فشل الحذف: $e"));
+        emit(current);
+      }
     }
   }
 
   Future<void> togglePropertyPin(PropertyModel p) async {
-    final current = state is PropertiesSuccess
-        ? state as PropertiesSuccess
-        : PropertiesSuccess();
-    try {
-      final updated = await _repo.togglePin(p.id, !p.isPinned);
+    _markActionByMe(p.id!);
+    if (state is PropertiesSuccess) {
+      final current = state as PropertiesSuccess;
+      try {
+        final updated = await _repo.togglePin(p.id, !p.isPinned);
 
-      final updatedList = List<PropertyModel>.from(current.myProperties);
-      final index = updatedList.indexWhere((x) => x.id == p.id);
-      if (index != -1) {
-        updatedList[index] = updated;
+        final updatedList = List<PropertyModel>.from(current.myProperties);
+        final index = updatedList.indexWhere((x) => x.id == p.id);
+        if (index != -1) {
+          updatedList[index] = updated;
 
-        // إعادة ترتيب القائمة لرفع المثبت للأعلى
-        updatedList.sort((a, b) {
-          if (a.isPinned && !b.isPinned) return -1;
-          if (!a.isPinned && b.isPinned) return 1;
-          final dateA = a.createdAt ?? DateTime.now();
-          final dateB = b.createdAt ?? DateTime.now();
-          return dateB.compareTo(dateA);
-        });
+          updatedList.sort((a, b) {
+            if (a.isPinned && !b.isPinned) return -1;
+            if (!a.isPinned && b.isPinned) return 1;
+            final dateA = a.createdAt ?? DateTime.now();
+            final dateB = b.createdAt ?? DateTime.now();
+            return dateB.compareTo(dateA);
+          });
 
-        emit(current.copyWith(myProperties: updatedList));
+          emit(current.copyWith(myProperties: updatedList));
+        }
+      } catch (e) {
+        emit(PropertiesError(e.toString()));
+        emit(current);
       }
-    } catch (e) {
-      emit(PropertiesError(e.toString()));
-      emit(current);
     }
   }
 
@@ -696,6 +776,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     List<PropertyImageModel>? imagesToDelete,
     List<String> platformIds = const [],
   }) async {
+    _markActionByMe(property.id!);
     final current = state is PropertiesSuccess
         ? state as PropertiesSuccess
         : PropertiesSuccess();
@@ -715,7 +796,10 @@ class PropertiesCubit extends Cubit<PropertiesState> {
       final updatedList = current.myProperties.map((p) {
         return p.id == updatedProp.id ? updatedProp : p;
       }).toList();
-      emit(current.copyWith(myProperties: updatedList));
+      emit(current.copyWith(
+        myProperties: updatedList,
+        filteredProperties: updatedList,
+      ));
     } catch (e) {
       emit(PropertiesError("فشل تحديث العقار: $e"));
       emit(current);
