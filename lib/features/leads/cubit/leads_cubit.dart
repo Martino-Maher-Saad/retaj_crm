@@ -24,6 +24,15 @@ class LeadCubit extends Cubit<LeadState> {
     return r == 'manager' || r == 'admin' || r == 'ceo';
   }
 
+  final Set<String> _myRecentActions = {};
+  
+  void _markActionByMe(String id) {
+    _myRecentActions.add(id);
+    Future.delayed(const Duration(seconds: 10), () {
+      _myRecentActions.remove(id);
+    });
+  }
+
   void _handleRealtimeEvent(event) async {
     if (event.entity != 'lead') return;
     
@@ -41,12 +50,18 @@ class LeadCubit extends Cubit<LeadState> {
 
         if (!canView) return;
 
-        if (currentState.allLeads.any((l) => l.id == event.id) ||
-            currentState.pendingLeads.any((l) => l.id == event.id)) {
-          return; // Ignore local echo if already processed
-        }
+        if (!canView) return;
 
         final newLead = await _repository.getLeadById(event.id);
+        
+        if (isClosed) return;
+        final freshState = state is LeadLoaded ? state as LeadLoaded : null;
+        if (freshState == null) return;
+
+        if (freshState.allLeads.any((l) => l.id == event.id) ||
+            freshState.pendingLeads.any((l) => l.id == event.id)) {
+          return; // Ignore local echo if already processed
+        }
 
         bool matchesFilters = true;
         if (_currentPlatformId != null && newLead.platformId != _currentPlatformId) matchesFilters = false;
@@ -58,14 +73,34 @@ class LeadCubit extends Cubit<LeadState> {
 
         if (!matchesFilters) return;
 
-        final newPending = List<LeadModel>.from(currentState.pendingLeads)..insert(0, newLead);
-        emit(currentState.copyWith(hasNewUpdates: true, pendingLeads: newPending));
+        if (!matchesFilters) return;
+
+        final isMine = newLead.createdBy == _currentUserId || _myRecentActions.contains(event.id);
+
+        if (isMine) {
+            final newAll = List<LeadModel>.from(freshState.allLeads)..insert(0, newLead);
+            final newFiltered = List<LeadModel>.from(freshState.filteredLeads)..insert(0, newLead);
+            final newPending = freshState.pendingLeads.where((l) => l.id != event.id).toList();
+            emit(freshState.copyWith(
+              allLeads: newAll, 
+              filteredLeads: newFiltered, 
+              pendingLeads: newPending,
+              totalCount: freshState.totalCount + 1,
+            ));
+        } else {
+            final newPending = List<LeadModel>.from(freshState.pendingLeads)..insert(0, newLead);
+            emit(freshState.copyWith(hasNewUpdates: true, pendingLeads: newPending));
+        }
       } catch (e) {
         // Ignore silently, don't show banner if fetch fails
       }
     } else if (event.action == 'update' || event.action == 'transfer') {
       try {
         final updatedLead = await _repository.getLeadById(event.id);
+        
+        if (isClosed) return;
+        final freshState = state is LeadLoaded ? state as LeadLoaded : null;
+        if (freshState == null) return;
         
         bool canView = true;
         if (!_isManagerOrAdmin()) {
@@ -75,14 +110,22 @@ class LeadCubit extends Cubit<LeadState> {
         }
 
         // Find index and update
-        final newAll = List<LeadModel>.from(currentState.allLeads);
+        final newAll = List<LeadModel>.from(freshState.allLeads);
         final indexAll = newAll.indexWhere((l) => l.id == event.id);
         
-        final newFiltered = List<LeadModel>.from(currentState.filteredLeads);
+        final newFiltered = List<LeadModel>.from(freshState.filteredLeads);
         final indexFiltered = newFiltered.indexWhere((l) => l.id == event.id);
+        
+        final indexPending = freshState.pendingLeads.indexWhere((l) => l.id == event.id);
 
         if (indexAll == -1 && indexFiltered == -1) {
-          if (!canView) return; // If they can't view it and didn't have it, ignore.
+          if (!canView) {
+             if (indexPending != -1) {
+                final newPending = List<LeadModel>.from(freshState.pendingLeads)..removeAt(indexPending);
+                emit(freshState.copyWith(pendingLeads: newPending));
+             }
+             return; 
+          }
           
           bool matchesFilters = true;
           if (_currentPlatformId != null && updatedLead.platformId != _currentPlatformId) matchesFilters = false;
@@ -94,9 +137,27 @@ class LeadCubit extends Cubit<LeadState> {
 
           if (!matchesFilters) return;
 
-          // It's a new item for this user (e.g. they just got it via transfer)
-          final newPending = List<LeadModel>.from(currentState.pendingLeads)..insert(0, updatedLead);
-          emit(currentState.copyWith(hasNewUpdates: true, pendingLeads: newPending));
+          final isMine = _myRecentActions.contains(event.id);
+
+          if (isMine) {
+             final newAll = List<LeadModel>.from(freshState.allLeads)..insert(0, updatedLead);
+             final newFiltered = List<LeadModel>.from(freshState.filteredLeads)..insert(0, updatedLead);
+             final newPending = freshState.pendingLeads.where((l) => l.id != event.id).toList();
+             emit(freshState.copyWith(
+               allLeads: newAll, 
+               filteredLeads: newFiltered,
+               pendingLeads: newPending,
+               totalCount: freshState.totalCount + 1,
+             ));
+          } else {
+             final newPending = List<LeadModel>.from(freshState.pendingLeads);
+             if (indexPending != -1) {
+                newPending[indexPending] = updatedLead;
+             } else {
+                newPending.insert(0, updatedLead);
+             }
+             emit(freshState.copyWith(hasNewUpdates: true, pendingLeads: newPending));
+          }
           return;
         }
 
@@ -105,9 +166,13 @@ class LeadCubit extends Cubit<LeadState> {
         if (indexAll != -1) newAll[indexAll] = updatedLead;
         if (indexFiltered != -1) newFiltered[indexFiltered] = updatedLead;
 
-        emit(currentState.copyWith(
+        final newPending = List<LeadModel>.from(freshState.pendingLeads);
+        if (indexPending != -1) newPending[indexPending] = updatedLead;
+
+        emit(freshState.copyWith(
           allLeads: newAll,
           filteredLeads: newFiltered,
+          pendingLeads: newPending,
           blinkItemId: event.id,
         ));
         
@@ -137,32 +202,38 @@ class LeadCubit extends Cubit<LeadState> {
       } catch (e) {
         // If it fails (e.g. RLS blocks them because they lost ownership), blink and remove it!
         if (event.action == 'transfer' || event.action == 'update') {
-           emit(currentState.copyWith(blinkItemId: event.id));
-           Future.delayed(const Duration(milliseconds: 1000), () {
-              if (!isClosed) {
-                final st = state is LeadLoaded ? state as LeadLoaded : null;
-                if (st != null) {
-                  final all = st.allLeads.where((l) => l.id != event.id).toList();
-                  final filtered = st.filteredLeads.where((l) => l.id != event.id).toList();
-                  emit(st.copyWith(allLeads: all, filteredLeads: filtered, blinkItemId: null, totalCount: st.totalCount - 1));
+           final st = state is LeadLoaded ? state as LeadLoaded : null;
+           if (st != null) {
+              emit(st.copyWith(blinkItemId: event.id));
+              Future.delayed(const Duration(milliseconds: 1000), () {
+                if (!isClosed) {
+                  final st = state is LeadLoaded ? state as LeadLoaded : null;
+                  if (st != null) {
+                    final all = st.allLeads.where((l) => l.id != event.id).toList();
+                    final filtered = st.filteredLeads.where((l) => l.id != event.id).toList();
+                    emit(st.copyWith(allLeads: all, filteredLeads: filtered, blinkItemId: null, totalCount: st.totalCount - 1));
+                  }
                 }
-              }
-           });
+              });
+           }
         }
       }
     } else if (event.action == 'delete') {
       // Blink and remove
-      emit(currentState.copyWith(blinkItemId: event.id));
-      Future.delayed(const Duration(milliseconds: 1000), () {
-        if (!isClosed) {
-          final st = state is LeadLoaded ? state as LeadLoaded : null;
-          if (st != null) {
-            final newAll = st.allLeads.where((l) => l.id != event.id).toList();
-            final newFiltered = st.filteredLeads.where((l) => l.id != event.id).toList();
-            emit(st.copyWith(allLeads: newAll, filteredLeads: newFiltered, blinkItemId: null, totalCount: st.totalCount - 1));
+      final st = state is LeadLoaded ? state as LeadLoaded : null;
+      if (st != null) {
+        emit(st.copyWith(blinkItemId: event.id));
+        Future.delayed(const Duration(milliseconds: 1000), () {
+          if (!isClosed) {
+            final st = state is LeadLoaded ? state as LeadLoaded : null;
+            if (st != null) {
+              final newAll = st.allLeads.where((l) => l.id != event.id).toList();
+              final newFiltered = st.filteredLeads.where((l) => l.id != event.id).toList();
+              emit(st.copyWith(allLeads: newAll, filteredLeads: newFiltered, blinkItemId: null, totalCount: st.totalCount - 1));
+            }
           }
-        }
-      });
+        });
+      }
     } else if (event.action == 'bulk_transfer') {
       emit(currentState.copyWith(hasNewUpdates: true));
     }
@@ -511,12 +582,17 @@ class LeadCubit extends Cubit<LeadState> {
             : <LeadNoteModel>[];
 
         final addedLead = await _repository.addNewLead(newLead, phones, notes: notes);
-        final updatedAll = [addedLead, ...currentState.allLeads];
-        emit(currentState.copyWith(
-          allLeads: updatedAll,
-          filteredLeads: updatedAll,
-          totalCount: currentState.totalCount + 1,
-        ));
+        
+        final freshState = state is LeadLoaded ? state as LeadLoaded : null;
+        if (freshState != null) {
+          if (freshState.allLeads.any((l) => l.id == addedLead.id)) return;
+          final updatedAll = [addedLead, ...freshState.allLeads];
+          emit(freshState.copyWith(
+            allLeads: updatedAll,
+            filteredLeads: updatedAll,
+            totalCount: freshState.totalCount + 1,
+          ));
+        }
       } catch (e) {
         emit(LeadError(e.toString()));
         emit(currentState);
@@ -526,6 +602,7 @@ class LeadCubit extends Cubit<LeadState> {
 
   /// تحديث حالة العميل فقط
   Future<void> updateLeadStatus(String id, String statusId) async {
+    _markActionByMe(id);
     if (state is LeadLoaded) {
       final currentState = state as LeadLoaded;
       try {
@@ -547,6 +624,7 @@ class LeadCubit extends Cubit<LeadState> {
   }
 
   Future<void> updateLeadStatusAndEmployee(String id, String statusId, String employeeId) async {
+    _markActionByMe(id);
     if (state is LeadLoaded) {
       final currentState = state as LeadLoaded;
       try {
@@ -568,6 +646,7 @@ class LeadCubit extends Cubit<LeadState> {
   }
 
   /// استعادة عميل من الأرشيف — يُزيله فوراً من قائمة الأرشيف
+
   Future<void> restoreLeadFromArchive(String id, String statusId, {String? employeeId}) async {
     if (state is LeadLoaded) {
       final currentState = state as LeadLoaded;
