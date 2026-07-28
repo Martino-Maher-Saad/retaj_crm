@@ -33,10 +33,6 @@ class LeadCard extends StatefulWidget {
   final bool isAddingMode;
   final VoidCallback? onCancelAdd;
 
-  // ─── Inline Edit/Add ───
-  final bool initialEditMode;
-  final bool isAddingMode;
-  final VoidCallback? onCancelAdd;
 
   const LeadCard({
     super.key,
@@ -2281,28 +2277,6 @@ class ThousandsSeparatorInputFormatter extends TextInputFormatter {
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
-    if (newValue.text.isEmpty) {
-      return newValue.copyWith(text: '');
-    }
-    final int selectionIndexFromRight =
-        newValue.text.length - newValue.selection.end;
-    final String digits = newValue.text.replaceAll(RegExp(r'\D'), '');
-    final String newString = NumberFormat.decimalPattern().format(
-      digits.isEmpty ? 0 : int.parse(digits),
-    );
-    return TextEditingValue(
-      text: newString,
-      selection: TextSelection.collapsed(
-        offset: newString.length - selectionIndexFromRight,
-      ),
-    );
-  }
-}
-
-class ThousandsSeparatorInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
     if (newValue.text.isEmpty) {
       return newValue.copyWith(text: '');
     }
