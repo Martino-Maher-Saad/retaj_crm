@@ -61,6 +61,13 @@ class LeadCubit extends Cubit<LeadState> {
       try {
         final updatedLead = await _repository.getLeadById(event.id);
         
+        bool canView = true;
+        if (_currentUserRole != 'manager' && _currentUserRole != 'admin' && _currentUserRole != 'ceo') {
+          if (updatedLead.assignedTo != _currentUserId) canView = false;
+        } else {
+          if (_currentFilterByEmployeeId != null && updatedLead.assignedTo != _currentFilterByEmployeeId) canView = false;
+        }
+
         // Find index and update
         final newAll = List<LeadModel>.from(currentState.allLeads);
         final indexAll = newAll.indexWhere((l) => l.id == event.id);
@@ -69,29 +76,25 @@ class LeadCubit extends Cubit<LeadState> {
         final indexFiltered = newFiltered.indexWhere((l) => l.id == event.id);
 
         if (indexAll == -1 && indexFiltered == -1) {
+          if (!canView) return; // If they can't view it and didn't have it, ignore.
+          
+          bool matchesFilters = true;
+          if (_currentPlatformId != null && updatedLead.platformId != _currentPlatformId) matchesFilters = false;
+          if (_currentLeadStatusId != null && updatedLead.statusId != _currentLeadStatusId) matchesFilters = false;
+          if (_currentPropertyTypeId != null && updatedLead.propertyTypeId != _currentPropertyTypeId) matchesFilters = false;
+          if (_currentListingTypeId != null && updatedLead.listingTypeId != _currentListingTypeId) matchesFilters = false;
+          if (_currentGovernorateId != null && updatedLead.governorateId != _currentGovernorateId) matchesFilters = false;
+          if (_currentCityId != null && updatedLead.cityId != _currentCityId) matchesFilters = false;
+
+          if (!matchesFilters) return;
+
           // It's a new item for this user (e.g. they just got it via transfer)
           final newPending = List<LeadModel>.from(currentState.pendingLeads)..insert(0, updatedLead);
           emit(currentState.copyWith(hasNewUpdates: true, pendingLeads: newPending));
           return;
         }
 
-        // It exists in their list. Let's see if they lost ownership.
-        // Assuming user profile is accessible via injection or we can just check if they are the new owner.
-        // But we don't have the current user's ID inside LeadsCubit easily accessible. 
-        // We do have _currentFilterByEmployeeId though.
-        bool lostOwnership = false;
-        if (event.action == 'transfer' || event.action == 'update') {
-          // If the user is an admin viewing a specific employee, they lose it if it transfers out.
-          if (_currentFilterByEmployeeId != null && updatedLead.assignedTo != _currentFilterByEmployeeId) {
-             lostOwnership = true;
-          } 
-          // If the user is a normal employee (or admin viewing only their own leads)
-          else if (_currentUserRole != 'manager' && _currentUserRole != 'admin' && _currentUserRole != 'ceo') {
-             if (updatedLead.assignedTo != _currentUserId) {
-               lostOwnership = true;
-             }
-          }
-        }
+        bool lostOwnership = !canView;
 
         if (indexAll != -1) newAll[indexAll] = updatedLead;
         if (indexFiltered != -1) newFiltered[indexFiltered] = updatedLead;

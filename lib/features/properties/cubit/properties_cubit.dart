@@ -17,6 +17,9 @@ class PropertiesCubit extends Cubit<PropertiesState> {
   final RealtimeService _realtimeService;
   late final StreamSubscription _realtimeSubscription;
 
+  String? _currentUserId;
+  String? _currentUserRole;
+
   PropertiesCubit(this._repo, this._realtimeService) : super(PropertiesInitial()) {
     _realtimeSubscription = _realtimeService.eventStream.listen(_handleRealtimeEvent);
   }
@@ -29,6 +32,16 @@ class PropertiesCubit extends Cubit<PropertiesState> {
 
     if (event.action == 'insert') {
       try {
+        bool canView = true;
+        final isManagerOrAdmin = _currentUserRole == 'manager' || _currentUserRole == 'admin' || _currentUserRole == 'ceo' || _currentUserRole == 'marketing';
+        
+        if (!isManagerOrAdmin && !_searchAll) {
+          if (event.createdBy != _currentUserId) canView = false;
+        } else {
+          if (_filterAssignedTo != null && event.createdBy != _filterAssignedTo) canView = false;
+        }
+
+        if (!canView) return;
         if (currentState.myProperties.any((p) => p.id == event.id) ||
             currentState.pendingProperties.any((p) => p.id == event.id)) {
           return;
@@ -44,6 +57,15 @@ class PropertiesCubit extends Cubit<PropertiesState> {
       try {
         final updatedProperty = await _repo.getPropertyById(event.id); 
 
+        bool canView = true;
+        final isManagerOrAdmin = _currentUserRole == 'manager' || _currentUserRole == 'admin' || _currentUserRole == 'ceo' || _currentUserRole == 'marketing';
+        
+        if (!isManagerOrAdmin && !_searchAll) {
+          if (updatedProperty.createdBy != _currentUserId) canView = false;
+        } else {
+          if (_filterAssignedTo != null && updatedProperty.createdBy != _filterAssignedTo) canView = false;
+        }
+
         final newMy = List<PropertyModel>.from(currentState.myProperties);
         final idxMy = newMy.indexWhere((p) => p.id == event.id);
 
@@ -51,10 +73,13 @@ class PropertiesCubit extends Cubit<PropertiesState> {
         final idxFiltered = newFiltered.indexWhere((p) => p.id == event.id);
 
         if (idxMy == -1 && idxFiltered == -1) {
+           if (!canView) return; // Ignore if they can't view it
            final newPending = List<PropertyModel>.from(currentState.pendingProperties)..insert(0, updatedProperty);
            emit(currentState.copyWith(hasNewUpdates: true, pendingProperties: newPending));
            return;
         }
+
+        bool lostOwnership = !canView;
 
         if (idxMy != -1) newMy[idxMy] = updatedProperty;
         if (idxFiltered != -1) newFiltered[idxFiltered] = updatedProperty;
@@ -65,28 +90,42 @@ class PropertiesCubit extends Cubit<PropertiesState> {
           blinkItemId: event.id,
         ));
 
-        // Just reset blink
-        Future.delayed(const Duration(milliseconds: 1600), () {
-          if (!isClosed) {
-            final st = state is PropertiesSuccess ? state as PropertiesSuccess : null;
-            if (st != null && st.blinkItemId == event.id) {
-              emit(st.copyWith(blinkItemId: null));
+        if (lostOwnership) {
+          Future.delayed(const Duration(milliseconds: 1000), () {
+            if (!isClosed) {
+              final st = state is PropertiesSuccess ? state as PropertiesSuccess : null;
+              if (st != null) {
+                final myProps = st.myProperties.where((p) => p.id != event.id).toList();
+                final filProps = st.filteredProperties.where((p) => p.id != event.id).toList();
+                emit(st.copyWith(myProperties: myProps, filteredProperties: filProps, blinkItemId: null, myTotalCount: st.myTotalCount - 1));
+              }
             }
-          }
-        });
+          });
+        } else {
+          Future.delayed(const Duration(milliseconds: 1600), () {
+            if (!isClosed) {
+              final st = state is PropertiesSuccess ? state as PropertiesSuccess : null;
+              if (st != null && st.blinkItemId == event.id) {
+                emit(st.copyWith(blinkItemId: null));
+              }
+            }
+          });
+        }
       } catch (e) {
         // If it fails (e.g. RLS blocks them because they lost ownership), blink and remove it!
-        emit(currentState.copyWith(blinkItemId: event.id));
-        Future.delayed(const Duration(milliseconds: 1000), () {
-          if (!isClosed) {
-            final st = state is PropertiesSuccess ? state as PropertiesSuccess : null;
-            if (st != null) {
-              final newMy = st.myProperties.where((p) => p.id != event.id).toList();
-              final newFiltered = st.filteredProperties.where((p) => p.id != event.id).toList();
-              emit(st.copyWith(myProperties: newMy, filteredProperties: newFiltered, blinkItemId: null));
-            }
-          }
-        });
+        if (event.action == 'transfer' || event.action == 'update') {
+           emit(currentState.copyWith(blinkItemId: event.id));
+           Future.delayed(const Duration(milliseconds: 1000), () {
+              if (!isClosed) {
+                final st = state is PropertiesSuccess ? state as PropertiesSuccess : null;
+                if (st != null) {
+                  final myProps = st.myProperties.where((p) => p.id != event.id).toList();
+                  final filProps = st.filteredProperties.where((p) => p.id != event.id).toList();
+                  emit(st.copyWith(myProperties: myProps, filteredProperties: filProps, blinkItemId: null, myTotalCount: st.myTotalCount > 0 ? st.myTotalCount - 1 : 0));
+                }
+              }
+           });
+        }
       }
     } else if (event.action == 'delete') {
       // Blink and remove
@@ -194,12 +233,14 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     if (!isClosed) super.emit(state);
   }
 
-  // 1. جلب عقارات الموظف (أو المدير) — Infinite Scroll
   Future<void> fetchMyProperties({
     bool isRefresh = false,
     required String userId,
     required String role,
   }) async {
+    _currentUserId = userId;
+    _currentUserRole = role;
+
     final current = state is PropertiesSuccess
         ? state as PropertiesSuccess
         : PropertiesSuccess();
@@ -242,7 +283,6 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     }
   }
 
-  // 2. الفلترة المتقدمة — تستخدم IDs
   Future<void> applyAdvancedFilters({
     int? cityId,
     String? propertyTypeId,
@@ -259,6 +299,9 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     required String role,
     required String currentUserId,
   }) async {
+    _currentUserId = currentUserId;
+    _currentUserRole = role;
+
     final current = state is PropertiesSuccess
         ? state as PropertiesSuccess
         : PropertiesSuccess();
