@@ -13,6 +13,7 @@ class LeadsTableView extends StatelessWidget {
 
   final ScrollController scrollController;
   final bool isLoadingMore;
+  final String? blinkItemId;
 
   const LeadsTableView({
     super.key,
@@ -22,6 +23,7 @@ class LeadsTableView extends StatelessWidget {
     required this.onSelect,
     required this.scrollController,
     this.isLoadingMore = false,
+    this.blinkItemId,
   });
 
   @override
@@ -77,9 +79,14 @@ class LeadsTableView extends StatelessWidget {
                   
                   final lead = leads[index];
                   final isSelected = selectedIds.contains(lead.id);
-                  return Container(
+                  final isBlinking = lead.id == blinkItemId;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.easeInOut,
                     decoration: BoxDecoration(
-                      color: index.isEven ? Colors.white : Colors.grey.shade50,
+                      color: isBlinking 
+                          ? Colors.green.withValues(alpha: 0.15) 
+                          : (index.isEven ? Colors.white : Colors.grey.shade50),
                       border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
                     ),
                     child: Material(

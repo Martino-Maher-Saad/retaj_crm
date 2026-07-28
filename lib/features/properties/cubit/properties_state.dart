@@ -13,6 +13,9 @@ class PropertiesSuccess extends PropertiesState {
   final bool isSearching;
   final bool isFiltering;
   final bool hasMoreSmartSearch;
+  final bool hasNewUpdates;
+  final String? blinkItemId;
+  final List<PropertyModel> pendingProperties;
 
   PropertiesSuccess({
     this.myProperties = const [],
@@ -23,6 +26,9 @@ class PropertiesSuccess extends PropertiesState {
     this.isSearching = false,
     this.isFiltering = false,
     this.hasMoreSmartSearch = true,
+    this.hasNewUpdates = false,
+    this.blinkItemId,
+    this.pendingProperties = const [],
   });
 
   PropertiesSuccess copyWith({
@@ -34,6 +40,9 @@ class PropertiesSuccess extends PropertiesState {
     bool? isSearching,
     bool? isFiltering,
     bool? hasMoreSmartSearch,
+    bool? hasNewUpdates,
+    String? blinkItemId,
+    List<PropertyModel>? pendingProperties,
   }) {
     return PropertiesSuccess(
       myProperties: myProperties ?? this.myProperties,
@@ -44,6 +53,9 @@ class PropertiesSuccess extends PropertiesState {
       isSearching: isSearching ?? this.isSearching,
       isFiltering: isFiltering ?? this.isFiltering,
       hasMoreSmartSearch: hasMoreSmartSearch ?? this.hasMoreSmartSearch,
+      hasNewUpdates: hasNewUpdates ?? this.hasNewUpdates,
+      blinkItemId: blinkItemId,
+      pendingProperties: pendingProperties ?? this.pendingProperties,
     );
   }
 }

@@ -8,9 +8,22 @@ import '../../properties/cubit/properties_cubit.dart';
 import '../../leads/cubit/leads_cubit.dart';
 import 'duplicates_views.dart';
 
-class DuplicatesScreen extends StatelessWidget {
+class DuplicatesScreen extends StatefulWidget {
   final ProfileModel user;
   const DuplicatesScreen({super.key, required this.user});
+
+  @override
+  State<DuplicatesScreen> createState() => _DuplicatesScreenState();
+}
+
+class _DuplicatesScreenState extends State<DuplicatesScreen> {
+  Key _refreshKey = UniqueKey();
+
+  void _refresh() {
+    setState(() {
+      _refreshKey = UniqueKey();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +42,13 @@ class DuplicatesScreen extends StatelessWidget {
               fontWeight: FontWeight.w900,
             ),
           ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh, color: AppColors.brandPrimary),
+              onPressed: _refresh,
+              tooltip: 'تحديث',
+            ),
+          ],
           bottom: TabBar(
             indicatorColor: AppColors.brandPrimary,
             labelColor: AppColors.brandPrimary,
@@ -41,14 +61,15 @@ class DuplicatesScreen extends StatelessWidget {
           ),
         ),
         body: TabBarView(
+          key: _refreshKey,
           children: [
             BlocProvider(
               create: (_) => di.sl<PropertiesCubit>(),
-              child: PropertyDuplicatesView(user: user),
+              child: PropertyDuplicatesView(user: widget.user),
             ),
             BlocProvider(
               create: (_) => di.sl<LeadCubit>(),
-              child: LeadDuplicatesView(user: user),
+              child: LeadDuplicatesView(user: widget.user),
             ),
           ],
         ),

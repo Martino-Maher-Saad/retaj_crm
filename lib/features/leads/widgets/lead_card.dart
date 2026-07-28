@@ -1764,7 +1764,18 @@ class _LeadCardState extends State<LeadCard> {
     latestNoteDate ??= widget.lead.lastCommentDate;
 
     String? rawComment = latestNoteText ?? widget.lead.lastComment?.trim();
-    if (rawComment == 'تم إنشاء العميل في النظام') {
+    
+    // إخفاء كل رسائل النظام التلقائية حتى لا تظهر في UI كتعليق أخير
+    final systemLogs = [
+      'تم إنشاء العميل في النظام',
+      'تم نقل العميل إلى سلة المهملات',
+      'تمت استعادة العميل من سلة المهملات',
+      'تم تحويل العميل للموظف الجديد',
+      'تعديل بيانات العميل الأساسية',
+      'تم نقل العميل بسبب إيقاف حساب الموظف السابق',
+    ];
+    
+    if (rawComment != null && systemLogs.contains(rawComment)) {
       rawComment = null;
     }
 

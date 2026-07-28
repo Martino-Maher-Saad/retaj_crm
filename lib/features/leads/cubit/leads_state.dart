@@ -23,7 +23,11 @@ class LeadLoaded extends LeadState {
   final int totalCount;
   final bool isLoadingMore;
   final bool isSearching;
+  final bool hasNewUpdates;
+  final String? blinkItemId;
   final List<ProfileModel> employees;
+  final List<LeadModel> pendingLeads;
+
   const LeadLoaded({
     required this.allLeads,
     required this.filteredLeads,
@@ -31,7 +35,10 @@ class LeadLoaded extends LeadState {
     this.totalCount = 0,
     this.isLoadingMore = false,
     this.isSearching = false,
+    this.hasNewUpdates = false,
+    this.blinkItemId,
     this.employees = const [],
+    this.pendingLeads = const [],
   });
 
   LeadLoaded copyWith({
@@ -41,7 +48,10 @@ class LeadLoaded extends LeadState {
     int? totalCount,
     bool? isLoadingMore,
     bool? isSearching,
+    bool? hasNewUpdates,
+    String? blinkItemId,
     List<ProfileModel>? employees,
+    List<LeadModel>? pendingLeads,
   }) {
     return LeadLoaded(
       allLeads: allLeads ?? this.allLeads,
@@ -50,12 +60,15 @@ class LeadLoaded extends LeadState {
       totalCount: totalCount ?? this.totalCount,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       isSearching: isSearching ?? this.isSearching,
+      hasNewUpdates: hasNewUpdates ?? this.hasNewUpdates,
+      blinkItemId: blinkItemId, // Can be null to clear blink
       employees: employees ?? this.employees,
+      pendingLeads: pendingLeads ?? this.pendingLeads,
     );
   }
 
   @override
-  List<Object?> get props => [allLeads, filteredLeads, currentFilter, totalCount, isLoadingMore, isSearching, employees];
+  List<Object?> get props => [allLeads, filteredLeads, currentFilter, totalCount, isLoadingMore, isSearching, hasNewUpdates, blinkItemId, employees, pendingLeads];
 }
 
 // حالة الخطأ

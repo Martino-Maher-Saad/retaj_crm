@@ -3,6 +3,8 @@ import '../models/lead_model.dart';
 import '../models/profile_model.dart';
 import '../../core/di/injection_container.dart' as di;
 import '../../core/utils/static_data_manager.dart';
+import 'realtime_service.dart';
+import '../models/crm_event.dart';
 
 class LeadService {
   final _supabase = Supabase.instance.client;
@@ -72,6 +74,8 @@ class LeadService {
     int? cityId,
     DateTime? fromDate,
     DateTime? toDate,
+    DateTime? lastCommentFromDate,
+    DateTime? lastCommentToDate,
     bool? isArchived = false, // القيمة الافتراضية هنا لا تجلب الأرشيف
     bool? isStagnant, // إذا كان true يجلب اللي مر عليهم يومين بدون تحديث
     bool? isForTasks, // يجلب العملاء المتأخرين والمحولين معاً
@@ -122,6 +126,8 @@ class LeadService {
     if (cityId != null) query = query.eq('city_id', cityId);
     if (fromDate != null) query = query.gte('created_at', fromDate.toIso8601String());
     if (toDate != null) query = query.lte('created_at', toDate.toIso8601String());
+    if (lastCommentFromDate != null) query = query.gte('last_comment_date', lastCommentFromDate.toIso8601String());
+    if (lastCommentToDate != null) query = query.lte('last_comment_date', lastCommentToDate.toIso8601String());
 
     // ترتيب بحيث يظهر المثبت (is_pinned = true) أولاً
     query = query.order('is_pinned', ascending: false).order('created_at', ascending: false);
@@ -142,6 +148,8 @@ class LeadService {
     int? cityId,
     DateTime? fromDate,
     DateTime? toDate,
+    DateTime? lastCommentFromDate,
+    DateTime? lastCommentToDate,
     bool? isArchived = false,
     bool? isStagnant,
     bool? isForTasks,
@@ -192,6 +200,8 @@ class LeadService {
     if (cityId != null) query = query.eq('city_id', cityId);
     if (fromDate != null) query = query.gte('created_at', fromDate.toIso8601String());
     if (toDate != null) query = query.lte('created_at', toDate.toIso8601String());
+    if (lastCommentFromDate != null) query = query.gte('last_comment_date', lastCommentFromDate.toIso8601String());
+    if (lastCommentToDate != null) query = query.lte('last_comment_date', lastCommentToDate.toIso8601String());
 
     final response = await query.limit(0).count(CountOption.exact);
     return response.count ?? 0;
@@ -261,7 +271,26 @@ class LeadService {
       'p_notes':            notesJson,
     });
 
-    return await getLeadById(leadId.toString());
+    // إضافة الكومنت في خانة last_comment لكي تظهر فوراً
+    if (notesJson.isNotEmpty) {
+      final String text = notesJson.last['note_text'] as String;
+      await _supabase.from('leads').update({
+        'last_comment': text,
+        'last_comment_date': DateTime.now().toUtc().toIso8601String(),
+      }).eq('id', leadId);
+    }
+
+    final newLead = await getLeadById(leadId.toString());
+    
+    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
+      entity: 'lead',
+      action: 'insert',
+      id: newLead.id!,
+      assignedTo: newLead.assignedTo,
+      createdBy: newLead.createdBy,
+    ));
+    
+    return newLead;
   }
 
   /// إضافة مجموعة عملاء دفعة واحدة (مقسمة لباتشات لحماية السيرفر)
@@ -326,22 +355,29 @@ class LeadService {
       'p_new_note':         newNote ?? '',
     });
 
-    // تحديث المحول منه بشكل منفصل لعدم دعمه في الـ RPC
     await _supabase.from('leads').update({
       'transferred_from': lead.transferredFrom
     }).eq('id', id);
 
-    return await getLeadById(id);
+    final updatedLead = await getLeadById(id);
+    
+    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
+      entity: 'lead',
+      action: 'update',
+      id: id,
+      assignedTo: updatedLead.assignedTo,
+      createdBy: updatedLead.createdBy,
+    ));
+    
+    return updatedLead;
   }
 
-  /// تحديث متجه البحث لطلب العميل (Embedding) في قاعدة البيانات
   Future<void> updateLeadEmbedding(String id, List<double>? vector) async {
     await _supabase.from('leads').update({
       'embedding': vector,
     }).eq('id', id);
   }
 
-  /// تحديث حالة العميل فقط وتفريغ المحول منه لإنهاء المهمة
   Future<LeadModel> updateLeadStatus(String leadId, String statusId) async {
     final isExcluded = statusId == '34f6f48c-3179-4b83-b34e-edc3fdc2e3d4';
     await _supabase
@@ -353,7 +389,17 @@ class LeadService {
           if (isExcluded) 'is_archived': true,
         })
         .eq('id', leadId);
-    return await getLeadById(leadId);
+    final updatedLead = await getLeadById(leadId);
+    
+    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
+      entity: 'lead',
+      action: 'update',
+      id: leadId,
+      assignedTo: updatedLead.assignedTo,
+      createdBy: updatedLead.createdBy,
+    ));
+    
+    return updatedLead;
   }
 
   Future<LeadModel> updateLeadStatusAndEmployee(String leadId, String statusId, String employeeId) async {
@@ -368,7 +414,17 @@ class LeadService {
           if (isExcluded) 'is_archived': true,
         })
         .eq('id', leadId);
-    return await getLeadById(leadId);
+    final updatedLead = await getLeadById(leadId);
+
+    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
+      entity: 'lead',
+      action: 'transfer',
+      id: leadId,
+      assignedTo: updatedLead.assignedTo,
+      createdBy: updatedLead.createdBy,
+    ));
+    
+    return updatedLead;
   }
 
   Future<LeadModel> togglePin(String leadId, bool isPinned) async {
@@ -383,7 +439,6 @@ class LeadService {
     await _supabase.from('leads').update({'is_archived': isArchived}).eq('id', leadId);
   }
 
-  /// إضافة ملاحظة من شاشة التفاصيل — عملية واحدة لا تحتاج RPC
   Future<LeadModel> addNote(String leadId, String noteText) async {
     final text = noteText.trim();
     await _supabase.from('lead_notes').insert({
@@ -392,13 +447,22 @@ class LeadService {
       'note_text': text,
     });
     
-    // التحديث في جدول العملاء مباشرة لتسريع جلب البيانات وتقليل الضغط
     await _supabase.from('leads').update({
       'last_comment': text,
       'last_comment_date': DateTime.now().toUtc().toIso8601String(),
     }).eq('id', leadId);
     
-    return await getLeadById(leadId);
+    final updatedLead = await getLeadById(leadId);
+
+    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
+      entity: 'lead',
+      action: 'update',
+      id: leadId,
+      assignedTo: updatedLead.assignedTo,
+      createdBy: updatedLead.createdBy,
+    ));
+    
+    return updatedLead;
   }
 
   Future<LeadModel> getLeadById(String id) async {
@@ -412,6 +476,11 @@ class LeadService {
 
   Future<void> deleteLead(String id) async {
     await _supabase.from('leads').delete().eq('id', id);
+    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
+      entity: 'lead',
+      action: 'delete',
+      id: id,
+    ));
   }
 
   Future<List<LeadModel>> searchLeadsByAi({
@@ -425,8 +494,8 @@ class LeadService {
   }) async {
     final response = await _supabase.rpc('match_leads', params: {
       'query_embedding': vector,
-      'match_threshold': 0.15, // تقليل الحد الأدنى للمطابقة لضمان الحصول على نتائج للبحث المخصص
-      'match_count': 50,       // جلب عدد كافٍ من النتائج للتصفية اللاحقة حسب الموظف
+      'match_threshold': 0.15,
+      'match_count': 50,
       'filter_property_type_id': propertyTypeId,
       'filter_listing_type_id': listingTypeId,
       'filter_governorate_id': governorateId,

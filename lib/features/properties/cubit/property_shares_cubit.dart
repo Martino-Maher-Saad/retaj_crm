@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../data/models/property_share_model.dart';
 import '../../../../data/repositories/property_repository.dart';
 import '../../../../core/di/injection_container.dart' as di;
+import '../../../../data/services/realtime_service.dart';
+import '../../../../data/models/crm_event.dart';
 
 abstract class PropertySharesState {}
 
@@ -15,8 +17,23 @@ class PropertySharesLoaded extends PropertySharesState {
   final List<PropertyShareModel> inbox;
   final List<PropertyShareModel> sent;
   final String fetchedForUserId;
+  final bool hasNewUpdates;
 
-  PropertySharesLoaded(this.inbox, this.sent, this.fetchedForUserId);
+  PropertySharesLoaded(this.inbox, this.sent, this.fetchedForUserId, {this.hasNewUpdates = false});
+
+  PropertySharesLoaded copyWith({
+    List<PropertyShareModel>? inbox,
+    List<PropertyShareModel>? sent,
+    String? fetchedForUserId,
+    bool? hasNewUpdates,
+  }) {
+    return PropertySharesLoaded(
+      inbox ?? this.inbox,
+      sent ?? this.sent,
+      fetchedForUserId ?? this.fetchedForUserId,
+      hasNewUpdates: hasNewUpdates ?? this.hasNewUpdates,
+    );
+  }
 }
 
 class PropertySharesError extends PropertySharesState {
@@ -27,28 +44,33 @@ class PropertySharesError extends PropertySharesState {
 class PropertySharesCubit extends Cubit<PropertySharesState> {
   final PropertyRepository _repo;
   final String userId;
-  StreamSubscription<List<Map<String, dynamic>>>? _subscription;
+  final RealtimeService _realtimeService;
+  late final StreamSubscription _realtimeSubscription;
 
-  PropertySharesCubit(this.userId, {PropertyRepository? repo})
+  PropertySharesCubit(this.userId, {PropertyRepository? repo, RealtimeService? realtimeService})
       : _repo = repo ?? di.sl<PropertyRepository>(),
+        _realtimeService = realtimeService ?? di.sl<RealtimeService>(),
         super(PropertySharesInitial()) {
-    // تم إيقاف الـ Realtime مؤقتاً لتجنب خطأ Hot Restart على الويب
-    // _initRealtime();
+    _realtimeSubscription = _realtimeService.eventStream.listen(_handleRealtimeEvent);
     fetchShares();
   }
 
-  void _initRealtime() {
-    // Listen for any changes in property_shares table where user is sender or receiver
-    _subscription = Supabase.instance.client
-        .from('property_shares')
-        .stream(primaryKey: ['id'])
-        .listen((data) {
-          // Whenever the stream pushes data, we re-fetch to get the joined properties/profiles
-          // This ensures instant updates when a colleague shares a property or when someone deletes one.
-          fetchShares();
-        }, onError: (e) {
-          print('Realtime error: $e');
-        });
+  void _handleRealtimeEvent(CrmEvent event) {
+    if (event.entity != 'property_share') return;
+
+    // Show refresh banner if they receive a new share or if one of their shares is updated
+    final currentState = state;
+    if (currentState is PropertySharesLoaded) {
+      if (event.action == 'insert' || event.action == 'delete') {
+        emit(currentState.copyWith(hasNewUpdates: true));
+      }
+    }
+  }
+
+  @override
+  Future<void> close() {
+    _realtimeSubscription.cancel();
+    return super.close();
   }
 
   Future<void> fetchShares({String? filterByUserId}) async {
@@ -85,11 +107,5 @@ class PropertySharesCubit extends Cubit<PropertySharesState> {
       emit(prevState);
       emit(PropertySharesError("فشل حذف المشاركة: $e"));
     }
-  }
-
-  @override
-  Future<void> close() {
-    _subscription?.cancel();
-    return super.close();
   }
 }

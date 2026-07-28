@@ -75,14 +75,25 @@ class AdminUsersCubit extends Cubit<AdminUsersState> {
     }
   }
 
-  Future<void> deleteUser(String targetUserId) async {
+  Future<Map<String, int>> getUserStats(String targetUserId) async {
+    return await _adminUserService.getUserStats(targetUserId);
+  }
+
+  Future<void> deleteUserWithTransfer(String targetUserId, {String? transferToUserId}) async {
     final currentState = state;
     emit(AdminUsersLoading());
     try {
+      if (transferToUserId != null) {
+        await _adminUserService.transferData(targetUserId, transferToUserId);
+      }
       await _adminUserService.deleteUser(targetUserId);
-      emit(const AdminActionSuccess("تم حذف حساب الموظف وكل البيانات المتعلقة به بنجاح!"));
+      emit(const AdminActionSuccess("تم نقل البيانات وحذف حساب الموظف بنجاح!"));
       await fetchAllUsers();
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('=== ERROR IN DELETE USER WITH TRANSFER ===');
+      print('Error: $e');
+      print('StackTrace: $stackTrace');
+      print('==========================================');
       emit(AdminUsersError(e.toString()));
       if (currentState is AdminUsersLoaded) emit(currentState);
     }

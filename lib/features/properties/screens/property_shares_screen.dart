@@ -127,10 +127,45 @@ class _PropertySharesScreenState extends State<PropertySharesScreen> {
               } else if (state is PropertySharesError) {
                 return Center(child: Text(state.message, style: const TextStyle(color: Colors.red)));
               } else if (state is PropertySharesLoaded) {
-                return TabBarView(
+                return Column(
                   children: [
-                    _buildTabContent(context, state.inbox, isInbox: true, targetId: targetId),
-                    _buildTabContent(context, state.sent, isInbox: false, targetId: targetId),
+                    if (state.hasNewUpdates)
+                      GestureDetector(
+                        onTap: () => _sharesCubit.fetchShares(filterByUserId: _selectedEmployeeId ?? widget.user.id),
+                        child: Container(
+                          width: double.infinity,
+                          margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                          padding: EdgeInsets.symmetric(vertical: 10.h),
+                          decoration: BoxDecoration(
+                            color: AppColors.brandPrimary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.brandPrimary.withValues(alpha: 0.5)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.refresh, color: AppColors.brandPrimary, size: 20.sp),
+                              SizedBox(width: 8.w),
+                              Text(
+                                'يوجد تحديثات للمشاركات، انقر للتحديث',
+                                style: TextStyle(
+                                  color: AppColors.brandPrimary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14.sp,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    Expanded(
+                      child: TabBarView(
+                        children: [
+                          _buildTabContent(context, state.inbox, isInbox: true, targetId: targetId),
+                          _buildTabContent(context, state.sent, isInbox: false, targetId: targetId),
+                        ],
+                      ),
+                    ),
                   ],
                 );
               }

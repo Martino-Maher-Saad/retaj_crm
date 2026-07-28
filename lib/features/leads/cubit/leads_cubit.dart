@@ -4,13 +4,167 @@ import '../../../data/models/lead_model.dart';
 import '../../../data/models/profile_model.dart';
 import '../../../data/repositories/lead_repository.dart';
 import '../../../core/utils/lead_sync_notifier.dart';
+import '../../../data/services/realtime_service.dart';
+import 'dart:async';
 import 'leads_state.dart';
 
 class LeadCubit extends Cubit<LeadState> {
   final LeadRepository _repository;
   final LeadSyncNotifier _sync;
+  final RealtimeService _realtimeService;
+  late final StreamSubscription _realtimeSubscription;
 
-  LeadCubit(this._repository, this._sync) : super(LeadInitial());
+  LeadCubit(this._repository, this._sync, this._realtimeService) : super(LeadInitial()) {
+    _realtimeSubscription = _realtimeService.eventStream.listen(_handleRealtimeEvent);
+  }
+
+  void _handleRealtimeEvent(event) async {
+    if (event.entity != 'lead') return;
+    
+    final currentState = state is LeadLoaded ? state as LeadLoaded : null;
+    if (currentState == null) return;
+
+    if (event.action == 'insert') {
+      try {
+        final newLead = await _repository.getLeadById(event.id);
+        final newPending = List<LeadModel>.from(currentState.pendingLeads)..insert(0, newLead);
+        emit(currentState.copyWith(hasNewUpdates: true, pendingLeads: newPending));
+      } catch (e) {
+        emit(currentState.copyWith(hasNewUpdates: true));
+      }
+    } else if (event.action == 'update' || event.action == 'transfer') {
+      try {
+        final updatedLead = await _repository.getLeadById(event.id);
+        
+        // Find index and update
+        final newAll = List<LeadModel>.from(currentState.allLeads);
+        final indexAll = newAll.indexWhere((l) => l.id == event.id);
+        
+        final newFiltered = List<LeadModel>.from(currentState.filteredLeads);
+        final indexFiltered = newFiltered.indexWhere((l) => l.id == event.id);
+
+        if (indexAll == -1 && indexFiltered == -1) {
+          // It's a new item for this user (e.g. they just got it via transfer)
+          final newPending = List<LeadModel>.from(currentState.pendingLeads)..insert(0, updatedLead);
+          emit(currentState.copyWith(hasNewUpdates: true, pendingLeads: newPending));
+          return;
+        }
+
+        // It exists in their list. Let's see if they lost ownership.
+        // Assuming user profile is accessible via injection or we can just check if they are the new owner.
+        // But we don't have the current user's ID inside LeadsCubit easily accessible. 
+        // We do have _currentFilterByEmployeeId though.
+        bool lostOwnership = false;
+        if (event.action == 'transfer' || event.action == 'update') {
+          // If the user is an admin viewing a specific employee, they lose it if it transfers out.
+          if (_currentFilterByEmployeeId != null && updatedLead.assignedTo != _currentFilterByEmployeeId) {
+             lostOwnership = true;
+          } 
+          // If the user is a normal employee (or admin viewing only their own leads)
+          else if (_currentUserRole != 'manager' && _currentUserRole != 'admin' && _currentUserRole != 'ceo') {
+             if (updatedLead.assignedTo != _currentUserId) {
+               lostOwnership = true;
+             }
+          }
+        }
+
+        if (indexAll != -1) newAll[indexAll] = updatedLead;
+        if (indexFiltered != -1) newFiltered[indexFiltered] = updatedLead;
+
+        emit(currentState.copyWith(
+          allLeads: newAll,
+          filteredLeads: newFiltered,
+          blinkItemId: event.id,
+        ));
+        
+        if (lostOwnership) {
+          // Blink and remove
+          Future.delayed(const Duration(milliseconds: 1000), () {
+            if (!isClosed) {
+              final st = state is LeadLoaded ? state as LeadLoaded : null;
+              if (st != null) {
+                final all = st.allLeads.where((l) => l.id != event.id).toList();
+                final filtered = st.filteredLeads.where((l) => l.id != event.id).toList();
+                emit(st.copyWith(allLeads: all, filteredLeads: filtered, blinkItemId: null, totalCount: st.totalCount - 1));
+              }
+            }
+          });
+        } else {
+          // Just reset blink
+          Future.delayed(const Duration(milliseconds: 1600), () {
+            if (!isClosed) {
+              final st = state is LeadLoaded ? state as LeadLoaded : null;
+              if (st != null && st.blinkItemId == event.id) {
+                emit(st.copyWith(blinkItemId: null));
+              }
+            }
+          });
+        }
+      } catch (e) {
+        // If it fails (e.g. RLS blocks them because they lost ownership), blink and remove it!
+        if (event.action == 'transfer' || event.action == 'update') {
+           emit(currentState.copyWith(blinkItemId: event.id));
+           Future.delayed(const Duration(milliseconds: 1000), () {
+              if (!isClosed) {
+                final st = state is LeadLoaded ? state as LeadLoaded : null;
+                if (st != null) {
+                  final all = st.allLeads.where((l) => l.id != event.id).toList();
+                  final filtered = st.filteredLeads.where((l) => l.id != event.id).toList();
+                  emit(st.copyWith(allLeads: all, filteredLeads: filtered, blinkItemId: null, totalCount: st.totalCount - 1));
+                }
+              }
+           });
+        }
+      }
+    } else if (event.action == 'delete') {
+      // Blink and remove
+      emit(currentState.copyWith(blinkItemId: event.id));
+      Future.delayed(const Duration(milliseconds: 1000), () {
+        if (!isClosed) {
+          final st = state is LeadLoaded ? state as LeadLoaded : null;
+          if (st != null) {
+            final newAll = st.allLeads.where((l) => l.id != event.id).toList();
+            final newFiltered = st.filteredLeads.where((l) => l.id != event.id).toList();
+            emit(st.copyWith(allLeads: newAll, filteredLeads: newFiltered, blinkItemId: null, totalCount: st.totalCount - 1));
+          }
+        }
+      });
+    } else if (event.action == 'bulk_transfer') {
+      emit(currentState.copyWith(hasNewUpdates: true));
+    }
+  }
+
+  void applyPendingUpdates() {
+    final currentState = state is LeadLoaded ? state as LeadLoaded : null;
+    if (currentState == null || currentState.pendingLeads.isEmpty) return;
+
+    final newAll = [...currentState.pendingLeads, ...currentState.allLeads];
+    final newFiltered = [...currentState.pendingLeads, ...currentState.filteredLeads];
+    
+    emit(currentState.copyWith(
+      allLeads: newAll,
+      filteredLeads: newFiltered,
+      pendingLeads: [],
+      hasNewUpdates: false,
+      blinkItemId: currentState.pendingLeads.first.id,
+      totalCount: currentState.totalCount + currentState.pendingLeads.length,
+    ));
+
+    Future.delayed(const Duration(milliseconds: 1600), () {
+      if (!isClosed) {
+        final st = state is LeadLoaded ? state as LeadLoaded : null;
+        if (st != null && st.blinkItemId == currentState.pendingLeads.first.id) {
+          emit(st.copyWith(blinkItemId: null));
+        }
+      }
+    });
+  }
+
+  @override
+  Future<void> close() {
+    _realtimeSubscription.cancel();
+    return super.close();
+  }
 
   @override
   void emit(LeadState state) {
@@ -26,10 +180,14 @@ class LeadCubit extends Cubit<LeadState> {
   int? _currentCityId;
   DateTime? _currentFromDate;
   DateTime? _currentToDate;
+  DateTime? _currentLastCommentFromDate;
+  DateTime? _currentLastCommentToDate;
   String? _currentFilterByEmployeeId;
   bool? _currentIsArchived;
   bool? _currentIsStagnant;
   bool? _currentIsForTasks;
+  String? _currentUserId;
+  String? _currentUserRole;
 
   // Public Getters for Filters
   String? get currentPlatformId => _currentPlatformId;
@@ -40,6 +198,8 @@ class LeadCubit extends Cubit<LeadState> {
   int? get currentCityId => _currentCityId;
   DateTime? get currentFromDate => _currentFromDate;
   DateTime? get currentToDate => _currentToDate;
+  DateTime? get currentLastCommentFromDate => _currentLastCommentFromDate;
+  DateTime? get currentLastCommentToDate => _currentLastCommentToDate;
   String? get currentFilterByEmployeeId => _currentFilterByEmployeeId;
   bool? get currentIsArchived => _currentIsArchived;
   bool? get currentIsStagnant => _currentIsStagnant;
@@ -58,6 +218,8 @@ class LeadCubit extends Cubit<LeadState> {
     int? cityId,
     DateTime? fromDate,
     DateTime? toDate,
+    DateTime? lastCommentFromDate,
+    DateTime? lastCommentToDate,
     bool? isArchived = false,
     bool? isStagnant,
     bool? isForTasks,
@@ -66,6 +228,8 @@ class LeadCubit extends Cubit<LeadState> {
 
     if (isRefresh || currentState == null) emit(LeadLoading());
 
+    _currentUserId = userId;
+    _currentUserRole = role;
     _currentFilterByEmployeeId = filterByEmployeeId;
     _currentPlatformId = platformId;
     _currentLeadStatusId = leadStatusId;
@@ -75,6 +239,8 @@ class LeadCubit extends Cubit<LeadState> {
     _currentCityId = cityId;
     _currentFromDate = fromDate;
     _currentToDate = toDate;
+    _currentLastCommentFromDate = lastCommentFromDate;
+    _currentLastCommentToDate = lastCommentToDate;
     _currentIsArchived = isArchived;
     _currentIsStagnant = isStagnant;
     _currentIsForTasks = isForTasks;
@@ -92,6 +258,8 @@ class LeadCubit extends Cubit<LeadState> {
         cityId: cityId,
         fromDate: fromDate,
         toDate: toDate,
+        lastCommentFromDate: lastCommentFromDate,
+        lastCommentToDate: lastCommentToDate,
         isArchived: isArchived,
         isStagnant: isStagnant,
         isForTasks: isForTasks,
@@ -110,6 +278,8 @@ class LeadCubit extends Cubit<LeadState> {
         cityId: cityId,
         fromDate: fromDate,
         toDate: toDate,
+        lastCommentFromDate: lastCommentFromDate,
+        lastCommentToDate: lastCommentToDate,
         isArchived: isArchived,
         isStagnant: isStagnant,
         isForTasks: isForTasks,
@@ -167,6 +337,8 @@ class LeadCubit extends Cubit<LeadState> {
         cityId: _currentCityId,
         fromDate: _currentFromDate,
         toDate: _currentToDate,
+        lastCommentFromDate: _currentLastCommentFromDate,
+        lastCommentToDate: _currentLastCommentToDate,
         isArchived: _currentIsArchived,
         isStagnant: _currentIsStagnant,
         isForTasks: _currentIsForTasks,

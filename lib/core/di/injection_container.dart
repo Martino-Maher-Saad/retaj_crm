@@ -17,6 +17,7 @@ import '../../data/services/property_service.dart';
 import '../../data/services/storage_service.dart';
 import '../../data/services/dropdown_service.dart';
 import '../../data/services/dashboard_service.dart';
+import '../../data/services/realtime_service.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/utils/static_data_manager.dart';
@@ -42,8 +43,8 @@ Future<void> init() async {
   // ملاحظة: نستخدم registerFactory للـ Cubits إذا كنا نريد إنشاء نسخة جديدة كل مرة (مستحسن للـ Cubits)
   // أو registerLazySingleton إذا أردنا الاحتفاظ بنفس الـ State عبر التطبيق
   sl.registerFactory(() => AuthCubit(sl()));
-  sl.registerFactory(() => PropertiesCubit(sl()));
-  sl.registerFactory(() => LeadCubit(sl(), sl()));
+  sl.registerFactory(() => PropertiesCubit(sl(), sl()));
+  sl.registerFactory(() => LeadCubit(sl(), sl(), sl()));
   sl.registerFactory(() => DesignsCubit(sl()));
   sl.registerFactory(() => AdminUsersCubit(sl()));
   sl.registerFactory(() => ProfileCubit(sl()));
@@ -53,7 +54,7 @@ Future<void> init() async {
   sl.registerLazySingleton(() => PropertySyncNotifier());
   sl.registerLazySingleton(() => LeadSyncNotifier());
   sl.registerLazySingleton(() => PropertyTasksCubit(sl(), sl()));
-  sl.registerLazySingleton(() => LeadTasksCubit(sl()));
+  sl.registerLazySingleton(() => LeadTasksCubit(sl(), sl()));
 
   // ─── Repositories ───
   sl.registerLazySingleton(() => AuthRepository(sl()));
@@ -74,5 +75,6 @@ Future<void> init() async {
   sl.registerLazySingleton(() => ProfileService());
   sl.registerLazySingleton(() => DropdownService());
   sl.registerLazySingleton(() => DashboardService());
+  sl.registerLazySingleton(() => RealtimeService());
   sl.registerLazySingleton<StaticDataManager>(() => StaticDataManagerImpl(sl(), sl()));
 }

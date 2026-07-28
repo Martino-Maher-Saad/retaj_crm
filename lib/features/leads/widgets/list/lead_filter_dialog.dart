@@ -34,6 +34,8 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
   String? _selectedEmployee;
   DateTime? _fromDate;
   DateTime? _toDate;
+  DateTime? _lastCommentFromDate;
+  DateTime? _lastCommentToDate;
   bool _isStagnant = false;
   bool _isArchived = false;
 
@@ -58,6 +60,24 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
     }
   }
 
+  Future<void> _pickLastCommentDate({required bool isFrom}) async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+    );
+    if (date != null && mounted) {
+      setState(() {
+        if (isFrom) {
+          _lastCommentFromDate = date;
+        } else {
+          _lastCommentToDate = date;
+        }
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -68,6 +88,8 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
     _selectedEmployee = cubit.currentFilterByEmployeeId;
     _fromDate = cubit.currentFromDate;
     _toDate = cubit.currentToDate;
+    _lastCommentFromDate = cubit.currentLastCommentFromDate;
+    _lastCommentToDate = cubit.currentLastCommentToDate;
 
     if (cubit.currentLeadStatusId != null) {
       try {
@@ -236,6 +258,28 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
                             ),
                           ],
                         ),
+                        SizedBox(height: 14.h),
+
+                        // ─── تاريخ آخر تعليق ───
+                        _sectionLabel('تاريخ آخر تعليق', Icons.comment_outlined),
+                        SizedBox(height: 8.h),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildDateButton(
+                                label: _lastCommentFromDate == null ? 'من تاريخ' : DateFormat('dd/MM/yyyy').format(_lastCommentFromDate!),
+                                onTap: () => _pickLastCommentDate(isFrom: true),
+                              ),
+                            ),
+                            SizedBox(width: 12.w),
+                            Expanded(
+                              child: _buildDateButton(
+                                label: _lastCommentToDate == null ? 'إلى تاريخ' : DateFormat('dd/MM/yyyy').format(_lastCommentToDate!),
+                                onTap: () => _pickLastCommentDate(isFrom: false),
+                              ),
+                            ),
+                          ],
+                        ),
 
                         // ─── الموظف (للمدير فقط) ───
                         if (isManager && employees.isNotEmpty) ...[
@@ -329,6 +373,8 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
                               _selectedEmployee = null;
                               _fromDate = null;
                               _toDate = null;
+                              _lastCommentFromDate = null;
+                              _lastCommentToDate = null;
                               _isStagnant = false;
                               _isArchived = false;
                             });
@@ -382,6 +428,8 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
                               filterByEmployeeId: _selectedEmployee,
                               fromDate: _fromDate,
                               toDate: _toDate,
+                              lastCommentFromDate: _lastCommentFromDate,
+                              lastCommentToDate: _lastCommentToDate,
                               isStagnant: _isStagnant ? true : null,
                               isArchived: _isArchived,
                             );

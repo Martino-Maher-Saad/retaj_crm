@@ -17,12 +17,16 @@ class LeadTasksLoaded extends LeadTasksState {
   final int totalCount;
   final bool isLoadingMore;
   final bool hasFetched;
+  final String? blinkItemId;
+  final bool hasNewUpdates;
 
   const LeadTasksLoaded({
     required this.leads,
     this.totalCount = 0,
     this.isLoadingMore = false,
     this.hasFetched = false,
+    this.blinkItemId,
+    this.hasNewUpdates = false,
   });
 
   LeadTasksLoaded copyWith({
@@ -30,17 +34,21 @@ class LeadTasksLoaded extends LeadTasksState {
     int? totalCount,
     bool? isLoadingMore,
     bool? hasFetched,
+    String? blinkItemId,
+    bool? hasNewUpdates,
   }) {
     return LeadTasksLoaded(
       leads: leads ?? this.leads,
       totalCount: totalCount ?? this.totalCount,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       hasFetched: hasFetched ?? this.hasFetched,
+      blinkItemId: blinkItemId, // Allow null to clear blink
+      hasNewUpdates: hasNewUpdates ?? this.hasNewUpdates,
     );
   }
 
   @override
-  List<Object?> get props => [leads, totalCount, isLoadingMore, hasFetched];
+  List<Object?> get props => [leads, totalCount, isLoadingMore, hasFetched, blinkItemId, hasNewUpdates];
 }
 
 class LeadTasksError extends LeadTasksState {

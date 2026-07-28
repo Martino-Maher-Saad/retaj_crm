@@ -7,6 +7,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/static_data_manager.dart';
 import 'core/di/injection_container.dart' as di;
+import 'data/services/realtime_service.dart';
 import 'features/auth/cubit/auth_cubit.dart';
 import 'features/auth/cubit/auth_states.dart';
 import 'features/auth/screens/login_web_screen.dart';
@@ -23,6 +24,7 @@ void main() async {
   );
 
   await di.sl<StaticDataManager>().initialize();
+  di.sl<RealtimeService>().init();
 
   runApp(
     BlocProvider(

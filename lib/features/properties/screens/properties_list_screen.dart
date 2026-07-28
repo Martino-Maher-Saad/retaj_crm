@@ -18,6 +18,7 @@ import '../widgets/list/property_search_bar.dart';
 import '../widgets/list/property_shimmer_list.dart';
 import '../widgets/list/internal_share_dialog.dart' as import_helper;
 import '../widgets/property_card.dart';
+import '../../../../core/widgets/blink_container.dart';
 import '../widgets/list/advanced_filter_dialog.dart';
 
 class PropertiesListScreen extends StatefulWidget {
@@ -247,6 +248,51 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
                         ],
                       ),
                     ),
+                  BlocBuilder<PropertiesCubit, PropertiesState>(
+                    builder: (context, state) {
+                      if (state is PropertiesSuccess && state.hasNewUpdates) {
+                        return GestureDetector(
+                          onTap: () {
+                            if (state.pendingProperties.isNotEmpty) {
+                              _cubit.applyPendingUpdates();
+                            } else {
+                              _cubit.fetchMyProperties(
+                                userId: widget.userId,
+                                role: widget.role,
+                                isRefresh: true,
+                              );
+                            }
+                          },
+                          child: Container(
+                            width: double.infinity,
+                            margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                            padding: EdgeInsets.symmetric(vertical: 10.h),
+                            decoration: BoxDecoration(
+                              color: AppColors.brandPrimary.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.brandPrimary.withValues(alpha: 0.5)),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.refresh, color: AppColors.brandPrimary, size: 20.sp),
+                                SizedBox(width: 8.w),
+                                Text(
+                                  'يوجد تحديثات للعقارات، انقر للتحديث',
+                                  style: TextStyle(
+                                    color: AppColors.brandPrimary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14.sp,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
                   Expanded(
                     child: RefreshIndicator(
                       onRefresh: () => _cubit.fetchMyProperties(
@@ -376,30 +422,35 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
                   }
                 }
                 final property = properties[actualIndex];
-                return PropertyCard(
-                  key: ValueKey(property.id),
-                  property: property,
-                  currentUserId: widget.userId,
-                  role: widget.role,
-                  onTap: () {},
-                  onEdit: () {},
-                  onArchive: () => PropertyArchiveDialog.show(
-                    context,
-                    property,
-                    () => _cubit.archiveProperty(property.id, true),
+                final isBlinking = property.id == successState.blinkItemId;
+
+                return BlinkContainer(
+                  isBlinking: isBlinking,
+                  child: PropertyCard(
+                    key: ValueKey(property.id),
+                    property: property,
+                    currentUserId: widget.userId,
+                    role: widget.role,
+                    onTap: () {},
+                    onEdit: () {},
+                    onArchive: () => PropertyArchiveDialog.show(
+                      context,
+                      property,
+                      () => _cubit.archiveProperty(property.id, true),
+                    ),
+                    onDelete: () => PropertyDeleteDialog.show(
+                      context,
+                      property,
+                      () => _cubit.deleteFullProperty(property.id),
+                    ),
+                    onShareInternal: () => import_helper.InternalShareDialog.show(
+                      context,
+                      property,
+                      widget.userId,
+                      _cubit,
+                    ),
+                    onPinToggle: () => _cubit.togglePropertyPin(property),
                   ),
-                  onDelete: () => PropertyDeleteDialog.show(
-                    context,
-                    property,
-                    () => _cubit.deleteFullProperty(property.id),
-                  ),
-                  onShareInternal: () => import_helper.InternalShareDialog.show(
-                    context,
-                    property,
-                    widget.userId,
-                    _cubit,
-                  ),
-                  onPinToggle: () => _cubit.togglePropertyPin(property),
                 );
               },
             ),

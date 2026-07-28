@@ -24,6 +24,8 @@ class LeadRepository {
     int? cityId,
     DateTime? fromDate,
     DateTime? toDate,
+    DateTime? lastCommentFromDate,
+    DateTime? lastCommentToDate,
     bool? isArchived = false,
     bool? isStagnant,
     bool? isForTasks,
@@ -43,6 +45,8 @@ class LeadRepository {
         cityId: cityId,
         fromDate: fromDate,
         toDate: toDate,
+        lastCommentFromDate: lastCommentFromDate,
+        lastCommentToDate: lastCommentToDate,
         isArchived: isArchived,
         isStagnant: isStagnant,
         isForTasks: isForTasks,
@@ -96,6 +100,8 @@ class LeadRepository {
     int? cityId,
     DateTime? fromDate,
     DateTime? toDate,
+    DateTime? lastCommentFromDate,
+    DateTime? lastCommentToDate,
     bool? isArchived = false,
     bool? isStagnant,
     bool? isForTasks,
@@ -113,12 +119,24 @@ class LeadRepository {
         cityId: cityId,
         fromDate: fromDate,
         toDate: toDate,
+        lastCommentFromDate: lastCommentFromDate,
+        lastCommentToDate: lastCommentToDate,
         isArchived: isArchived,
         isStagnant: isStagnant,
         isForTasks: isForTasks,
       );
     } catch (e) {
       return 0;
+    }
+  }
+
+  Future<LeadModel> getLeadById(String id) async {
+    try {
+      return await _leadService.getLeadById(id);
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
+    } catch (e) {
+      throw 'حدث خطأ أثناء جلب تفاصيل العميل';
     }
   }
 

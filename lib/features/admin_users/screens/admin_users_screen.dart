@@ -543,31 +543,92 @@ class _DeleteUserConfirmationDialog extends StatefulWidget {
 class _DeleteUserConfirmationDialogState extends State<_DeleteUserConfirmationDialog> {
   final _nameCtrl = TextEditingController();
   bool _canDelete = false;
+  
+  bool _isLoadingStats = true;
+  int _propertiesCount = 0;
+  int _leadsCount = 0;
+  String? _transferToUserId;
+  List<ProfileModel> _availableUsers = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchStats();
+  }
+
+  Future<void> _fetchStats() async {
+    try {
+      final cubit = context.read<AdminUsersCubit>();
+      final stats = await cubit.getUserStats(widget.user.id);
+      
+      final state = cubit.state;
+      if (state is AdminUsersLoaded) {
+        _availableUsers = state.users.where((u) => u.id != widget.user.id).toList();
+      }
+
+      if (mounted) {
+        setState(() {
+          _propertiesCount = stats['properties'] ?? 0;
+          _leadsCount = stats['leads'] ?? 0;
+          _isLoadingStats = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingStats = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final hasData = _propertiesCount > 0 || _leadsCount > 0;
+
     return AlertDialog(
       title: const Text('تحذير خطير: حذف نهائي', style: TextStyle(color: AppColors.brandAccent)),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('سيتم حذف هذا الحساب نهائياً، وسيتم معه مسح جميع العقارات والعملاء المرتبطين به بسبب نظام الـ Cascade.'),
-          SizedBox(height: 16.h),
-          Text('للتأكيد، يرجى كتابة الاسم الأول للموظف בדיוק: "${widget.user.firstName}"', style: const TextStyle(fontWeight: FontWeight.bold)),
-          SizedBox(height: 8.h),
-          TextFormField(
-            controller: _nameCtrl,
-            onChanged: (v) {
-              setState(() => _canDelete = (v.trim() == widget.user.firstName));
-            },
-            decoration: const InputDecoration(
-              hintText: 'اكتب اسم الموظف هنا...',
-              border: OutlineInputBorder(),
-            ),
+      content: _isLoadingStats 
+        ? const SizedBox(
+            height: 100, 
+            child: Center(child: CircularProgressIndicator())
+          )
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (hasData) ...[
+                Text('هذا الحساب يمتلك $_propertiesCount عقار و $_leadsCount عميل.', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                SizedBox(height: 8.h),
+                const Text('يجب نقل جميع العقارات والعملاء إلى موظف آخر قبل إتمام الحذف.'),
+                SizedBox(height: 16.h),
+                RetajDropdown<String>(
+                  label: 'اختر موظفاً لنقل البيانات إليه',
+                  value: _transferToUserId,
+                  items: _availableUsers.map((u) => DropdownMenuItem(value: u.id, child: Text('${u.fullName} (${u.role})'))).toList(),
+                  onChanged: (v) {
+                    setState(() {
+                      _transferToUserId = v;
+                      _canDelete = v != null;
+                    });
+                  },
+                ),
+              ] else ...[
+                const Text('سيتم حذف هذا الحساب نهائياً، وسيتم معه مسح جميع البيانات المتعلقة به.'),
+                SizedBox(height: 16.h),
+                Text('للتأكيد، يرجى كتابة الاسم الأول للموظف בדיוק: "${widget.user.firstName}"', style: const TextStyle(fontWeight: FontWeight.bold)),
+                SizedBox(height: 8.h),
+                TextFormField(
+                  controller: _nameCtrl,
+                  onChanged: (v) {
+                    setState(() => _canDelete = (v.trim() == widget.user.firstName));
+                  },
+                  decoration: const InputDecoration(
+                    hintText: 'اكتب اسم الموظف هنا...',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ],
           ),
-        ],
-      ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
         BlocBuilder<AdminUsersCubit, AdminUsersState>(
@@ -575,7 +636,10 @@ class _DeleteUserConfirmationDialogState extends State<_DeleteUserConfirmationDi
             final isLoading = state is AdminUsersLoading;
             return ElevatedButton(
               onPressed: _canDelete && !isLoading ? () {
-                context.read<AdminUsersCubit>().deleteUser(widget.user.id).then((_) {
+                context.read<AdminUsersCubit>().deleteUserWithTransfer(
+                  widget.user.id,
+                  transferToUserId: _transferToUserId,
+                ).then((_) {
                   if (mounted && context.read<AdminUsersCubit>().state is AdminActionSuccess) {
                     Navigator.pop(context); // إغلاق نافذة التأكيد
                     Navigator.pop(context); // إغلاق نافذة التعديل
@@ -585,7 +649,7 @@ class _DeleteUserConfirmationDialogState extends State<_DeleteUserConfirmationDi
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.brandAccent),
               child: isLoading 
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
-                : const Text('حذف نهائي', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                : Text(hasData ? 'نقل وحذف نهائي' : 'حذف نهائي', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             );
           }
         )

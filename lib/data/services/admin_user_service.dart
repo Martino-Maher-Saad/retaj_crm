@@ -1,6 +1,9 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/profile_model.dart';
 import '../../core/error/app_exceptions.dart';
+import '../../core/di/injection_container.dart' as di;
+import 'realtime_service.dart';
+import '../models/crm_event.dart';
 
 class AdminUserService {
   final _supabase = Supabase.instance.client;
@@ -62,6 +65,65 @@ class AdminUserService {
       );
     } catch (e) {
       throw ServerException('فشل تحديث الحساب للإدارة: $e');
+    }
+  }
+
+  // جلب إحصائيات المستخدم من عقارات وعملاء
+  Future<Map<String, int>> getUserStats(String targetUserId) async {
+    try {
+      final props = await _supabase.from('properties').select('id').eq('created_by', targetUserId);
+      final leads = await _supabase.from('leads').select('id').eq('assigned_to', targetUserId);
+      return {
+        'properties': (props as List).length,
+        'leads': (leads as List).length,
+      };
+    } catch (e, stackTrace) {
+      print('=== ERROR IN GET USER STATS ===');
+      print('Error: $e');
+      print('StackTrace: $stackTrace');
+      throw ServerException('فشل جلب إحصائيات المستخدم: $e');
+    }
+  }
+
+  // نقل البيانات من مستخدم لآخر
+  Future<void> transferData(String oldUserId, String newUserId) async {
+    try {
+      // نقل التنبيهات
+      await _supabase.from('notifications').update({'user_id': newUserId}).eq('user_id', oldUserId);
+      
+      // نقل العقارات
+      await _supabase.from('properties').update({'created_by': newUserId}).eq('created_by', oldUserId);
+      
+      // نقل العملاء وكل ما يتعلق بهم
+      await _supabase.from('leads').update({'assigned_to': newUserId}).eq('assigned_to', oldUserId);
+      await _supabase.from('leads').update({'created_by': newUserId}).eq('created_by', oldUserId);
+      await _supabase.from('leads').update({'transferred_from': newUserId}).eq('transferred_from', oldUserId);
+      
+      // نقل ملاحظات وسجلات العملاء
+      await _supabase.from('lead_notes').update({'user_id': newUserId}).eq('user_id', oldUserId);
+      await _supabase.from('lead_logs').update({'changed_by': newUserId}).eq('changed_by', oldUserId);
+
+      // نقل مشاركات العقارات
+      await _supabase.from('property_shares').update({'sender_id': newUserId}).eq('sender_id', oldUserId);
+      await _supabase.from('property_shares').update({'receiver_id': newUserId}).eq('receiver_id', oldUserId);
+
+      // Send Realtime Broadcasts for bulk updates
+      final realtime = di.sl<RealtimeService>();
+      realtime.broadcastEvent(CrmEvent(
+        entity: 'lead',
+        action: 'bulk_transfer',
+        id: 'bulk',
+      ));
+      realtime.broadcastEvent(CrmEvent(
+        entity: 'property',
+        action: 'bulk_transfer',
+        id: 'bulk',
+      ));
+    } catch (e, stackTrace) {
+      print('=== ERROR IN TRANSFER DATA ===');
+      print('Error: $e');
+      print('StackTrace: $stackTrace');
+      throw ServerException('فشل نقل البيانات: $e');
     }
   }
 

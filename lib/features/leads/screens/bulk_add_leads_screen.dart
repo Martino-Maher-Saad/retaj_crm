@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../core/utils/static_data_manager.dart';
@@ -540,6 +541,9 @@ class _ExcelTextFieldState extends State<_ExcelTextField> {
         maxLines: widget.type == TextInputType.multiline ? null : 1,
         expands: widget.type == TextInputType.multiline,
         textAlignVertical: TextAlignVertical.top,
+        inputFormatters: widget.type == TextInputType.phone || widget.type == TextInputType.number
+            ? [FilteringTextInputFormatter.allow(RegExp(r'[0-9]'))]
+            : null,
         decoration: InputDecoration(
           border: InputBorder.none,
           enabledBorder: InputBorder.none,

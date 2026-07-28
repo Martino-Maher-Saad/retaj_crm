@@ -8,11 +8,137 @@ import '../../tasks/cubit/property_tasks_cubit.dart';
 import '../../../data/models/property_image_model.dart';
 import '../../../data/models/property_model.dart';
 import '../../../data/repositories/property_repository.dart';
+import '../../../data/services/realtime_service.dart';
+import 'dart:async';
 import 'properties_state.dart';
 
 class PropertiesCubit extends Cubit<PropertiesState> {
   final PropertyRepository _repo;
-  PropertiesCubit(this._repo) : super(PropertiesInitial());
+  final RealtimeService _realtimeService;
+  late final StreamSubscription _realtimeSubscription;
+
+  PropertiesCubit(this._repo, this._realtimeService) : super(PropertiesInitial()) {
+    _realtimeSubscription = _realtimeService.eventStream.listen(_handleRealtimeEvent);
+  }
+
+  void _handleRealtimeEvent(event) async {
+    if (event.entity != 'property') return;
+    
+    final currentState = state is PropertiesSuccess ? state as PropertiesSuccess : null;
+    if (currentState == null) return;
+
+    if (event.action == 'insert') {
+      try {
+        final newProp = await _repo.getPropertyById(event.id);
+        final newPending = List<PropertyModel>.from(currentState.pendingProperties)..insert(0, newProp);
+        emit(currentState.copyWith(hasNewUpdates: true, pendingProperties: newPending));
+      } catch (e) {
+        emit(currentState.copyWith(hasNewUpdates: true));
+      }
+    } else if (event.action == 'update' || event.action == 'transfer') {
+      try {
+        final updatedProperty = await _repo.getPropertyById(event.id); 
+
+        final newMy = List<PropertyModel>.from(currentState.myProperties);
+        final idxMy = newMy.indexWhere((p) => p.id == event.id);
+
+        final newFiltered = List<PropertyModel>.from(currentState.filteredProperties);
+        final idxFiltered = newFiltered.indexWhere((p) => p.id == event.id);
+
+        if (idxMy == -1 && idxFiltered == -1) {
+           final newPending = List<PropertyModel>.from(currentState.pendingProperties)..insert(0, updatedProperty);
+           emit(currentState.copyWith(hasNewUpdates: true, pendingProperties: newPending));
+           return;
+        }
+
+        if (idxMy != -1) newMy[idxMy] = updatedProperty;
+        if (idxFiltered != -1) newFiltered[idxFiltered] = updatedProperty;
+
+        emit(currentState.copyWith(
+          myProperties: newMy,
+          filteredProperties: newFiltered,
+          blinkItemId: event.id,
+        ));
+
+        // Just reset blink
+        Future.delayed(const Duration(milliseconds: 1600), () {
+          if (!isClosed) {
+            final st = state is PropertiesSuccess ? state as PropertiesSuccess : null;
+            if (st != null && st.blinkItemId == event.id) {
+              emit(st.copyWith(blinkItemId: null));
+            }
+          }
+        });
+      } catch (e) {
+        // If it fails (e.g. RLS blocks them because they lost ownership), blink and remove it!
+        emit(currentState.copyWith(blinkItemId: event.id));
+        Future.delayed(const Duration(milliseconds: 1000), () {
+          if (!isClosed) {
+            final st = state is PropertiesSuccess ? state as PropertiesSuccess : null;
+            if (st != null) {
+              final newMy = st.myProperties.where((p) => p.id != event.id).toList();
+              final newFiltered = st.filteredProperties.where((p) => p.id != event.id).toList();
+              emit(st.copyWith(myProperties: newMy, filteredProperties: newFiltered, blinkItemId: null));
+            }
+          }
+        });
+      }
+    } else if (event.action == 'delete') {
+      // Blink and remove
+      emit(currentState.copyWith(blinkItemId: event.id));
+      Future.delayed(const Duration(milliseconds: 1000), () {
+        if (!isClosed) {
+          final st = state is PropertiesSuccess ? state as PropertiesSuccess : null;
+          if (st != null) {
+            final newMy = st.myProperties.where((p) => p.id != event.id).toList();
+            final newFiltered = st.filteredProperties.where((p) => p.id != event.id).toList();
+            emit(st.copyWith(
+              myProperties: newMy, 
+              filteredProperties: newFiltered, 
+              blinkItemId: null,
+              myTotalCount: st.myTotalCount > 0 ? st.myTotalCount - 1 : 0,
+              filteredTotalCount: st.filteredTotalCount > 0 ? st.filteredTotalCount - 1 : 0,
+            ));
+          }
+        }
+      });
+    } else if (event.action == 'bulk_transfer') {
+      emit(currentState.copyWith(hasNewUpdates: true));
+    }
+  }
+
+  void applyPendingUpdates() {
+    final currentState = state is PropertiesSuccess ? state as PropertiesSuccess : null;
+    if (currentState == null || currentState.pendingProperties.isEmpty) return;
+
+    final newMy = [...currentState.pendingProperties, ...currentState.myProperties];
+    final newFiltered = [...currentState.pendingProperties, ...currentState.filteredProperties];
+    
+    emit(currentState.copyWith(
+      myProperties: newMy,
+      filteredProperties: newFiltered,
+      pendingProperties: [],
+      hasNewUpdates: false,
+      blinkItemId: currentState.pendingProperties.first.id,
+      myTotalCount: currentState.myTotalCount + currentState.pendingProperties.length,
+      filteredTotalCount: currentState.filteredTotalCount + currentState.pendingProperties.length,
+    ));
+
+    Future.delayed(const Duration(milliseconds: 1600), () {
+      if (!isClosed) {
+        final st = state is PropertiesSuccess ? state as PropertiesSuccess : null;
+        if (st != null && st.blinkItemId == currentState.pendingProperties.first.id) {
+          emit(st.copyWith(blinkItemId: null));
+        }
+      }
+    });
+  }
+
+  @override
+  Future<void> close() {
+    _realtimeSubscription.cancel();
+    return super.close();
+  }
 
   // ─── Filter state — بالـ IDs الجديدة ───
   String? _filterAssignedTo;

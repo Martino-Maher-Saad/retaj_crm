@@ -15,6 +15,8 @@ import '../../../data/models/profile_model.dart';
 import '../../../core/di/injection_container.dart' as di;
 import '../cubit/leads_cubit.dart';
 import '../cubit/leads_state.dart';
+import '../../auth/cubit/auth_states.dart';
+import '../../../../core/widgets/blink_container.dart';
 import '../widgets/lead_card.dart';
 import '../widgets/list/lead_delete_dialog.dart';
 import '../widgets/list/lead_archive_dialog.dart';
@@ -289,6 +291,53 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
               },
             ),
 
+            // شريط التحديثات الجديدة (Realtime)
+            BlocBuilder<LeadCubit, LeadState>(
+              builder: (context, state) {
+                if (state is LeadLoaded && state.hasNewUpdates) {
+                  return GestureDetector(
+                    onTap: () {
+                      if (state.pendingLeads.isNotEmpty) {
+                        _cubit.applyPendingUpdates();
+                      } else {
+                        _cubit.getAllLeads(
+                          role: widget.user.role,
+                          userId: widget.user.id,
+                          isRefresh: true,
+                        );
+                      }
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                      padding: EdgeInsets.symmetric(vertical: 10.h),
+                      decoration: BoxDecoration(
+                        color: AppColors.brandPrimary.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.brandPrimary.withValues(alpha: 0.5)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.refresh, color: AppColors.brandPrimary, size: 20.sp),
+                          SizedBox(width: 8.w),
+                          Text(
+                            'يوجد تحديثات جديدة للعملاء، انقر للتحديث',
+                            style: TextStyle(
+                              color: AppColors.brandPrimary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14.sp,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+
             // ─── قائمة العملاء ───
             Expanded(
               child: BlocConsumer<LeadCubit, LeadState>(
@@ -353,6 +402,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                                     selectedIds: _selectedLeadIds,
                                     scrollController: _scrollController,
                                     isLoadingMore: state.isLoadingMore,
+                                    blinkItemId: state.blinkItemId,
                                     onSelect: (id, isSelected) {
                                       setState(() {
                                         if (isSelected == true) {
@@ -407,27 +457,32 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                           }
 
                           final lead = state.filteredLeads[actualIndex];
-                          final card = LeadCard(
-                            key: ValueKey(lead.id),
-                            lead: lead,
-                            role: widget.user.role,
-                            onTap: () => _openDetails(context, lead),
-                            onEdit: () => _openForm(context, lead: lead),
-                            onDelete: (widget.user.role == 'manager' || widget.user.role == 'admin' || widget.user.role == 'ceo')
-                                ? () => LeadDeleteDialog.show(
+                          final isBlinking = lead.id == state.blinkItemId;
+                          
+                          final card = BlinkContainer(
+                            isBlinking: isBlinking,
+                            child: LeadCard(
+                              key: ValueKey(lead.id),
+                              lead: lead,
+                              role: widget.user.role,
+                              onTap: () => _openDetails(context, lead),
+                              onEdit: () => _openForm(context, lead: lead),
+                              onDelete: (widget.user.role == 'manager' || widget.user.role == 'admin' || widget.user.role == 'ceo')
+                                  ? () => LeadDeleteDialog.show(
+                                        context,
+                                        lead,
+                                        () => _cubit.deleteLead(lead.id!, widget.user.role),
+                                      )
+                                  : null,
+                              onArchive: widget.user.role != 'admin'
+                                ? () => LeadArchiveDialog.show(
                                     context,
                                     lead,
-                                    () => _cubit.deleteLead(lead.id!, widget.user.role),
+                                    () => _cubit.archiveLead(lead.id!, true),
                                   )
                                 : null,
-                            onArchive: widget.user.role != 'admin'
-                              ? () => LeadArchiveDialog.show(
-                                  context,
-                                  lead,
-                                  () => _cubit.archiveLead(lead.id!, true),
-                                )
-                              : null,
-                            onPinToggle: () => _cubit.toggleLeadPin(lead),
+                              onPinToggle: () => _cubit.toggleLeadPin(lead),
+                            ),
                           );
 
                           if (_isBulkSelectMode) {

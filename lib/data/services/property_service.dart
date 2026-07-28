@@ -1,4 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/di/injection_container.dart' as di;
+import 'realtime_service.dart';
+import '../models/crm_event.dart';
 
 class PropertyService {
   final _client = Supabase.instance.client;
@@ -38,6 +41,12 @@ class PropertyService {
       'receiver_id': receiverId,
       'notes': note,
     });
+    
+    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
+      entity: 'property_share',
+      action: 'insert',
+      id: propertyId,
+    ));
   }
 
   // سيلكت كامل للعقار داخل المشاركات — نفس جداول الوزن كالـ inventory
@@ -99,6 +108,12 @@ class PropertyService {
   Future<void> deleteShare(String shareId, bool isSender) async {
     final updateData = isSender ? {'sender_deleted': true} : {'receiver_deleted': true};
     await _client.from('property_shares').update(updateData).eq('id', shareId);
+
+    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
+      entity: 'property_share',
+      action: 'delete',
+      id: shareId,
+    ));
   }
 
   /// يجيب عقارات صفحة المهمات فقط (مش published)
@@ -240,17 +255,38 @@ class PropertyService {
   }
 
   Future<Map<String, dynamic>> insertProperty(Map<String, dynamic> data) async {
-    return await _client.from('properties').insert(data).select().single();
+    final response = await _client.from('properties').insert(data).select().single();
+    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
+      entity: 'property',
+      action: 'insert',
+      id: response['id'].toString(),
+      createdBy: response['created_by'],
+    ));
+    return response;
   }
 
   Future<void> insertImageRecord(String propId, String url) async =>
       await _client.from('property_images').insert({'property_id': propId, 'image_url': url});
 
-  Future<void> deletePropertyRecord(String id) async =>
-      await _client.from('properties').delete().eq('id', id);
+  Future<void> deletePropertyRecord(String id) async {
+    await _client.from('properties').delete().eq('id', id);
+    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
+      entity: 'property',
+      action: 'delete',
+      id: id,
+    ));
+  }
 
-  Future<Map<String, dynamic>> updateProperty(String id, Map<String, dynamic> data) async =>
-      await _client.from('properties').update(data).eq('id', id).select().single();
+  Future<Map<String, dynamic>> updateProperty(String id, Map<String, dynamic> data) async {
+    final response = await _client.from('properties').update(data).eq('id', id).select().single();
+    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
+      entity: 'property',
+      action: 'update',
+      id: id,
+      createdBy: response['created_by'],
+    ));
+    return response;
+  }
 
   Future<void> deleteImageRecordsByIds(List<String> ids) async =>
       await _client.from('property_images').delete().inFilter('id', ids);
@@ -335,14 +371,28 @@ class PropertyService {
         .eq('id', propertyId)
         .select(_select)
         .single();
+    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
+      entity: 'property',
+      action: 'update',
+      id: propertyId,
+      createdBy: response['created_by'],
+    ));
     return response;
   }
 
   Future<void> archiveProperty(String propertyId, bool isArchived) async {
-    await _client
+    final response = await _client
         .from('properties')
         .update({'is_active': !isArchived})
-        .eq('id', propertyId);
+        .eq('id', propertyId)
+        .select('created_by')
+        .single();
+    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
+      entity: 'property',
+      action: 'update',
+      id: propertyId,
+      createdBy: response['created_by'],
+    ));
   }
 
   /// يتحقق من التكرارات للعقار بناءً على آخر 6 أرقام من رقم المالك
