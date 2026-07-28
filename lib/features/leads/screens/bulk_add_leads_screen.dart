@@ -14,8 +14,17 @@ class BulkAddLeadsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final authState = context.read<AuthCubit>().state;
+    String role = '';
+    String userId = '';
+    if (authState is AuthSuccess) {
+      role = authState.user.role;
+      userId = authState.user.id;
+    }
+    
+    final cubit = sl<BulkAddLeadsCubit>()..init(role, userId);
     return BlocProvider.value(
-      value: sl<BulkAddLeadsCubit>(),
+      value: cubit,
       child: const _BulkAddLeadsView(),
     );
   }

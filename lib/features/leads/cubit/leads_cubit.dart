@@ -26,11 +26,36 @@ class LeadCubit extends Cubit<LeadState> {
 
     if (event.action == 'insert') {
       try {
+        bool canView = true;
+        if (_currentUserRole != 'manager' && _currentUserRole != 'admin' && _currentUserRole != 'ceo') {
+          if (event.assignedTo != _currentUserId) canView = false;
+        } else {
+          if (_currentFilterByEmployeeId != null && event.assignedTo != _currentFilterByEmployeeId) canView = false;
+        }
+
+        if (!canView) return;
+
+        if (currentState.allLeads.any((l) => l.id == event.id) ||
+            currentState.pendingLeads.any((l) => l.id == event.id)) {
+          return; // Ignore local echo if already processed
+        }
+
         final newLead = await _repository.getLeadById(event.id);
+
+        bool matchesFilters = true;
+        if (_currentPlatformId != null && newLead.platformId != _currentPlatformId) matchesFilters = false;
+        if (_currentLeadStatusId != null && newLead.statusId != _currentLeadStatusId) matchesFilters = false;
+        if (_currentPropertyTypeId != null && newLead.propertyTypeId != _currentPropertyTypeId) matchesFilters = false;
+        if (_currentListingTypeId != null && newLead.listingTypeId != _currentListingTypeId) matchesFilters = false;
+        if (_currentGovernorateId != null && newLead.governorateId != _currentGovernorateId) matchesFilters = false;
+        if (_currentCityId != null && newLead.cityId != _currentCityId) matchesFilters = false;
+
+        if (!matchesFilters) return;
+
         final newPending = List<LeadModel>.from(currentState.pendingLeads)..insert(0, newLead);
         emit(currentState.copyWith(hasNewUpdates: true, pendingLeads: newPending));
       } catch (e) {
-        emit(currentState.copyWith(hasNewUpdates: true));
+        // Ignore silently, don't show banner if fetch fails
       }
     } else if (event.action == 'update' || event.action == 'transfer') {
       try {

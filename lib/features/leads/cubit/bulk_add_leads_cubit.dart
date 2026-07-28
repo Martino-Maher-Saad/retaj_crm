@@ -13,8 +13,25 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
   final LeadService _leadService = sl<LeadService>();
   final StaticDataManager _dataManager = sl<StaticDataManager>();
 
+  String _role = '';
+  String _userId = '';
+
   BulkAddLeadsCubit() : super(BulkAddLeadsInitial()) {
     emit(BulkAddLeadsLoaded(List.generate(30, (_) => _createEmptyRow())));
+  }
+
+  void init(String role, String userId) {
+    _role = role;
+    _userId = userId;
+    
+    if (_role != 'manager' && _role != 'admin' && _role != 'ceo') {
+      if (state is BulkAddLeadsLoaded) {
+        final st = state as BulkAddLeadsLoaded;
+        final newOrder = List<String>.from(st.columnOrder)..remove('assignedTo');
+        final newRows = st.rows.map((r) => r.copyWith(assignedTo: _userId)).toList();
+        emit(st.copyWith(columnOrder: newOrder, rows: newRows));
+      }
+    }
   }
 
   int _idCounter = 0;
@@ -29,7 +46,9 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
       platformId: pinned?['platformId'] as String?,
       channelId: pinned?['channelId'] as String?,
       statusId: pinned?['statusId'] as String?,
-      assignedTo: pinned?['assignedTo'] as String?,
+      assignedTo: (_role != 'manager' && _role != 'admin' && _role != 'ceo' && _role.isNotEmpty) 
+          ? _userId 
+          : pinned?['assignedTo'] as String?,
     );
   }
 
@@ -313,8 +332,8 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
           statusId: statId,
           unmappedStatus: statId == null && statusName != null ? statusName : null,
 
-          assignedTo: userId,
-          unmappedAssignedTo: userId == null && assignedToName != null ? assignedToName : null,
+          assignedTo: (_role != 'manager' && _role != 'admin' && _role != 'ceo' && _role.isNotEmpty) ? _userId : userId,
+          unmappedAssignedTo: (_role != 'manager' && _role != 'admin' && _role != 'ceo' && _role.isNotEmpty) ? null : (userId == null && assignedToName != null ? assignedToName : null),
         ));
       }
 

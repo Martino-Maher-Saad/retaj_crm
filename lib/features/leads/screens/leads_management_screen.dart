@@ -157,8 +157,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                           );
                         },
                       ),
-                      extraAction: (widget.user.role.toLowerCase() == 'manager' || widget.user.role.toLowerCase() == 'admin' || widget.user.role.toLowerCase() == 'ceo')
-                          ? OutlinedButton.icon(
+                      extraAction: OutlinedButton.icon(
                               onPressed: () {
                                 Navigator.push(
                                   context,
@@ -173,8 +172,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                                 side: const BorderSide(color: Colors.green),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               ),
-                            )
-                          : null,
+                            ),
                     ),
 
                     // شريط بحث ذكي

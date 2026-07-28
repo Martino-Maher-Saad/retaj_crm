@@ -29,6 +29,7 @@ class RealtimeService {
         event: 'crm_event',
         payload: event.toJson(),
       );
+      _eventController.add(event); // Echo locally
     } catch (e) {
       print('Failed to broadcast event: $e');
     }

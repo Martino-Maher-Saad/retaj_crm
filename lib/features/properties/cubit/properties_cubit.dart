@@ -29,11 +29,16 @@ class PropertiesCubit extends Cubit<PropertiesState> {
 
     if (event.action == 'insert') {
       try {
+        if (currentState.myProperties.any((p) => p.id == event.id) ||
+            currentState.pendingProperties.any((p) => p.id == event.id)) {
+          return;
+        }
+
         final newProp = await _repo.getPropertyById(event.id);
         final newPending = List<PropertyModel>.from(currentState.pendingProperties)..insert(0, newProp);
         emit(currentState.copyWith(hasNewUpdates: true, pendingProperties: newPending));
       } catch (e) {
-        emit(currentState.copyWith(hasNewUpdates: true));
+        // Ignore silently, don't show banner if fetch fails
       }
     } else if (event.action == 'update' || event.action == 'transfer') {
       try {
