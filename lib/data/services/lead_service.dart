@@ -323,6 +323,36 @@ class LeadService {
     }
   }
 
+  /// إضافة مجموعة عملاء دفعة واحدة (مقسمة لباتشات لحماية السيرفر)
+  Future<void> bulkInsertLeads(
+    List<LeadModel> leads,
+    Function(int processed, int total) onProgress,
+  ) async {
+    const int batchSize = 5;
+    int processed = 0;
+
+    for (var i = 0; i < leads.length; i += batchSize) {
+      final end = (i + batchSize < leads.length) ? i + batchSize : leads.length;
+      final batch = leads.sublist(i, end);
+
+      await Future.wait(batch.map((lead) {
+        return addLead(
+          lead,
+          lead.phones,
+          notes: lead.notes,
+        );
+      }));
+
+      processed += batch.length;
+      onProgress(processed, leads.length);
+
+      // تأخير بسيط لتجنب الـ Rate Limiting في النسخة المجانية
+      if (end < leads.length) {
+        await Future.delayed(const Duration(milliseconds: 300));
+      }
+    }
+  }
+
   /// تحديث عميل — يستخدم RPC للـ Smart Sync
   Future<LeadModel> updateLead(
     String id,
