@@ -18,6 +18,12 @@ class LeadCubit extends Cubit<LeadState> {
     _realtimeSubscription = _realtimeService.eventStream.listen(_handleRealtimeEvent);
   }
 
+  bool _isManagerOrAdmin() {
+    if (_currentUserRole == null) return false;
+    final r = _currentUserRole!.toLowerCase();
+    return r == 'manager' || r == 'admin' || r == 'ceo';
+  }
+
   void _handleRealtimeEvent(event) async {
     if (event.entity != 'lead') return;
     
@@ -27,7 +33,7 @@ class LeadCubit extends Cubit<LeadState> {
     if (event.action == 'insert') {
       try {
         bool canView = true;
-        if (_currentUserRole != 'manager' && _currentUserRole != 'admin' && _currentUserRole != 'ceo') {
+        if (!_isManagerOrAdmin()) {
           if (event.assignedTo != _currentUserId) canView = false;
         } else {
           if (_currentFilterByEmployeeId != null && event.assignedTo != _currentFilterByEmployeeId) canView = false;
@@ -62,7 +68,7 @@ class LeadCubit extends Cubit<LeadState> {
         final updatedLead = await _repository.getLeadById(event.id);
         
         bool canView = true;
-        if (_currentUserRole != 'manager' && _currentUserRole != 'admin' && _currentUserRole != 'ceo') {
+        if (!_isManagerOrAdmin()) {
           if (updatedLead.assignedTo != _currentUserId) canView = false;
         } else {
           if (_currentFilterByEmployeeId != null && updatedLead.assignedTo != _currentFilterByEmployeeId) canView = false;

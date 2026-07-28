@@ -24,6 +24,12 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     _realtimeSubscription = _realtimeService.eventStream.listen(_handleRealtimeEvent);
   }
 
+  bool _isManagerOrAdmin() {
+    if (_currentUserRole == null) return false;
+    final r = _currentUserRole!.toLowerCase();
+    return r == 'manager' || r == 'admin' || r == 'ceo' || r == 'marketing';
+  }
+
   void _handleRealtimeEvent(event) async {
     if (event.entity != 'property') return;
     
@@ -33,9 +39,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     if (event.action == 'insert') {
       try {
         bool canView = true;
-        final isManagerOrAdmin = _currentUserRole == 'manager' || _currentUserRole == 'admin' || _currentUserRole == 'ceo' || _currentUserRole == 'marketing';
-        
-        if (!isManagerOrAdmin && !_searchAll) {
+        if (!_isManagerOrAdmin() && !_searchAll) {
           if (event.createdBy != _currentUserId) canView = false;
         } else {
           if (_filterAssignedTo != null && event.createdBy != _filterAssignedTo) canView = false;
@@ -58,9 +62,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
         final updatedProperty = await _repo.getPropertyById(event.id); 
 
         bool canView = true;
-        final isManagerOrAdmin = _currentUserRole == 'manager' || _currentUserRole == 'admin' || _currentUserRole == 'ceo' || _currentUserRole == 'marketing';
-        
-        if (!isManagerOrAdmin && !_searchAll) {
+        if (!_isManagerOrAdmin() && !_searchAll) {
           if (updatedProperty.createdBy != _currentUserId) canView = false;
         } else {
           if (_filterAssignedTo != null && updatedProperty.createdBy != _filterAssignedTo) canView = false;
