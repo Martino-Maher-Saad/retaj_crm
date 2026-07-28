@@ -1,3 +1,4 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/location_model.dart';
 import '../../data/models/profile_model.dart';
 import '../../data/repositories/dropdown_repository.dart';
@@ -29,6 +30,7 @@ abstract class StaticDataManager {
 class StaticDataManagerImpl implements StaticDataManager {
   final DropdownRepository _dropdownRepository;
   final LeadService _leadService;
+  bool _isRealtimeInitialized = false;
 
   StaticDataManagerImpl(this._dropdownRepository, this._leadService);
 
@@ -47,7 +49,33 @@ class StaticDataManagerImpl implements StaticDataManager {
   final Map<String, List<City>> _citiesByGovName = {};
 
   @override
-  Future<void> initialize() async => await _loadData();
+  Future<void> initialize() async {
+    await _loadData();
+    _setupRealtimeSubscriptions();
+  }
+
+  void _setupRealtimeSubscriptions() {
+    if (_isRealtimeInitialized) return;
+    _isRealtimeInitialized = true;
+    
+    final supabase = Supabase.instance.client;
+    final tables = [
+      'governorates', 'cities', 'lead_statuses', 'property_types', 'listing_types',
+      'lead_platforms', 'communication_channels', 'property_sources', 'advertising_platforms',
+      'lead_exclusion_reasons', 'property_approval_statuses'
+    ];
+
+    for (final table in tables) {
+      supabase.channel('public:$table').onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: table,
+        callback: (payload) {
+          refresh(); // Reload data when any of these tables change
+        },
+      ).subscribe();
+    }
+  }
 
   @override
   Future<void> refresh() async => await _loadData();
@@ -90,7 +118,11 @@ class StaticDataManagerImpl implements StaticDataManager {
         };
       });
 
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('================ FATAL ERROR IN STATIC DATA MANAGER ================');
+      print(e.toString());
+      print(stackTrace.toString());
+      print('====================================================================');
       rethrow;
     }
   }

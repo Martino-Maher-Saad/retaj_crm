@@ -3,101 +3,114 @@
 
 
 
------------------------
+---------------------------------
 
 
 
 [{"idx":0,"id":"660c8811-10cb-40ab-a66f-95162a8c6033","name_ar":"aqar map","is_active":true,"created_at":"2026-05-06 11:26:29.754626+00"},{"idx":1,"id":"6eec24f2-9469-4ef8-9b51-2fd0545c7c10","name_ar":"bayut","is_active":true,"created_at":"2026-05-06 11:26:29.754626+00"},{"idx":2,"id":"b166658a-8070-4928-8896-388413b5d237","name_ar":"dubbizle","is_active":true,"created_at":"2026-05-06 11:26:29.754626+00"},{"idx":3,"id":"f407e2bc-4222-44aa-856a-2149b2364684","name_ar":"property finder","is_active":true,"created_at":"2026-05-06 11:26:29.754626+00"}]
 
 
----------------------
+-------------------------------
+
+
+
+[{"idx":0,"id":1,"name":"مدينة نصر","governorate_id":1,"is_active":true},{"idx":1,"id":2,"name":"التجمع الخامس","governorate_id":1,"is_active":true},{"idx":2,"id":3,"name":"التجمع الأول","governorate_id":1,"is_active":true},{"idx":3,"id":4,"name":"التجمع الثالث","governorate_id":1,"is_active":true},{"idx":4,"id":17,"name":"السلام","governorate_id":1,"is_active":true},{"idx":5,"id":21,"name":"النزهة","governorate_id":1,"is_active":true},{"idx":6,"id":22,"name":"مصر الجديدة","governorate_id":1,"is_active":true},{"idx":7,"id":39,"name":"الشيخ زايد","governorate_id":2,"is_active":true},{"idx":8,"id":43,"name":"الواحات","governorate_id":2,"is_active":false},{"idx":9,"id":245,"name":"القاهرة الجديدة (التجمع)","governorate_id":1,"is_active":true},{"idx":10,"id":247,"name":"الشروق","governorate_id":1,"is_active":true}]
+
+
+
+-------------------------
 
 
 
 [{"idx":0,"id":"15ddaa92-fdce-4f29-a459-5df7b2dab823","name_ar":"واتساب","created_at":"2026-05-05 08:28:17.024219+00","is_active":true},{"idx":1,"id":"2148b044-3772-4df2-820d-783920e2ef56","name_ar":"مكالمة هاتفية","created_at":"2026-05-05 08:28:17.024219+00","is_active":true}]
 
 
-
---------------------
+-------------------------
 
 
 [{"idx":0,"id":"31c7fcdf-a583-4c7a-874a-2f54d9ceb06a","name_ar":"لم يتم الرد","created_at":"2026-06-21 08:28:33.750067+00","is_active":true},{"idx":1,"id":"3d28a9b7-f045-4f6b-9285-9933686938b1","name_ar":"اشتري من زميل داخل شركتنا","created_at":"2026-06-21 08:28:11.955515+00","is_active":true},{"idx":2,"id":"9501f968-0d8f-4f1d-9ef9-5beca618b454","name_ar":"اجل الشراء لفترة قصيرة","created_at":"2026-06-21 08:28:24.982954+00","is_active":true},{"idx":3,"id":"ba4d647c-53a2-493a-bbc0-5f536fa1b515","name_ar":"اشتري من منافس","created_at":"2026-06-21 08:27:49.408396+00","is_active":true},{"idx":4,"id":"c8b6180f-948b-47fe-9483-75938ee3f1b3","name_ar":"السعر مش مناسب","created_at":"2026-06-07 15:21:49.096544+00","is_active":true}]
 
 
----------------
+
+
+---------------------------
+
 
 
 [{"idx":0,"id":"07c10de8-4f0a-431a-826a-1aa52697c5ac","name_ar":"aqar map","created_at":"2026-05-07 21:50:10.040226+00","is_active":true},{"idx":1,"id":"0f111e40-cebe-4f60-86e0-7b5aada827a1","name_ar":"property finder","created_at":"2026-05-07 21:50:10.040226+00","is_active":true},{"idx":2,"id":"1a218d72-1dec-49c9-a9d4-8a84d99f9ce9","name_ar":"facebook","created_at":"2026-06-07 09:45:49.201872+00","is_active":true},{"idx":3,"id":"1f06bff1-1608-497c-8c83-b91c9ec7f14a","name_ar":"bayut","created_at":"2026-05-07 21:50:10.040226+00","is_active":true},{"idx":4,"id":"4c96f691-57d6-4701-bca1-73792c370da4","name_ar":"other","created_at":"2026-05-09 20:34:57.068578+00","is_active":true},{"idx":5,"id":"d60fe2a8-269c-4aa9-b2ca-e6f96897ec46","name_ar":"dubbizle","created_at":"2026-05-07 21:50:10.040226+00","is_active":true}]
 
 
 
-------------------
+----------------------
 
 
 
-[{"idx":0,"id":"03453446-08ca-4061-ba50-ff915fcdf43a","name_ar":"تم التواصل ثاني مرة","created_at":"2026-05-05 08:28:17.024219+00","is_active":true,"name_en":"second_contact","stage_type_id":"a1b2c3d4-0001-0001-0001-000000000001","delay_value":null,"delay_unit":null,"is_default":false,"is_terminal":false,"requires_schedule":true,"stage_order":2,"color_hex":"#6B7280"},{"idx":1,"id":"34f6f48c-3179-4b83-b34e-edc3fdc2e3d4","name_ar":"مستبعد","created_at":"2026-05-05 08:28:17.024219+00","is_active":true,"name_en":"excluded","stage_type_id":"a1b2c3d4-0003-0003-0003-000000000003","delay_value":null,"delay_unit":null,"is_default":false,"is_terminal":true,"requires_schedule":false,"stage_order":5,"color_hex":"#6B7280"},{"idx":2,"id":"460be748-7685-49ef-abcf-c4dd49511ab7","name_ar":"تم التواصل اول مرة","created_at":"2026-05-05 08:28:17.024219+00","is_active":true,"name_en":"first_contact","stage_type_id":"a1b2c3d4-0005-0005-0005-000000000005","delay_value":null,"delay_unit":null,"is_default":true,"is_terminal":false,"requires_schedule":true,"stage_order":1,"color_hex":"#6B7280"},{"idx":3,"id":"6d5c7b17-9ef7-48ee-a9f6-0575cc390278","name_ar":"تم التعاقد","created_at":"2026-05-05 08:28:17.024219+00","is_active":true,"name_en":"done_deal","stage_type_id":"a1b2c3d4-0004-0004-0004-000000000004","delay_value":null,"delay_unit":null,"is_default":false,"is_terminal":true,"requires_schedule":false,"stage_order":4,"color_hex":"#6B7280"},{"idx":4,"id":"7bd8af5e-fb5b-41d1-955a-e5e5e1751d82","name_ar":"تم التواصل ثالث مرة","created_at":"2026-05-05 08:28:17.024219+00","is_active":true,"name_en":"third_contact","stage_type_id":"a1b2c3d4-0001-0001-0001-000000000001","delay_value":null,"delay_unit":null,"is_default":false,"is_terminal":false,"requires_schedule":true,"stage_order":3,"color_hex":"#6B7280"}]
+[{"idx":0,"id":"8b98f368-9e8d-4d73-a1d6-2d78bad6c1e4","name_ar":"غير جاد","color_hex":"#6B7280","is_active":true,"created_at":"2026-07-19 12:58:44.027371+00"},{"idx":1,"id":"fc9d5c7b-f399-4655-b02c-ed8a626a90ec","name_ar":"vip","color_hex":"#6B7280","is_active":true,"created_at":"2026-07-19 12:58:34.995835+00"}]
 
 
 
------------------
+-------------------------
+
+
+
+[{"idx":0,"id":"03453446-08ca-4061-ba50-ff915fcdf43a","name_ar":"تم التواصل ثاني مرة","created_at":"2026-05-05 08:28:17.024219+00","is_active":true,"name_en":"second_contact","stage_type_id":"a1b2c3d4-0001-0001-0001-000000000001","delay_value":null,"delay_unit":null,"is_default":false,"is_terminal":false,"requires_schedule":true,"stage_order":2,"color_hex":"#6B7280"},{"idx":1,"id":"34f6f48c-3179-4b83-b34e-edc3fdc2e3d4","name_ar":"مستبعد","created_at":"2026-05-05 08:28:17.024219+00","is_active":true,"name_en":"excluded","stage_type_id":"a1b2c3d4-0003-0003-0003-000000000003","delay_value":null,"delay_unit":null,"is_default":false,"is_terminal":true,"requires_schedule":false,"stage_order":5,"color_hex":"#6B7280"},{"idx":2,"id":"460be748-7685-49ef-abcf-c4dd49511ab7","name_ar":"تم التواصل اول مرة","created_at":"2026-05-05 08:28:17.024219+00","is_active":true,"name_en":"first_contact","stage_type_id":"a1b2c3d4-0005-0005-0005-000000000005","delay_value":1,"delay_unit":"minutes","is_default":true,"is_terminal":false,"requires_schedule":true,"stage_order":1,"color_hex":"#6B7280"},{"idx":3,"id":"6d5c7b17-9ef7-48ee-a9f6-0575cc390278","name_ar":"تم التعاقد","created_at":"2026-05-05 08:28:17.024219+00","is_active":true,"name_en":"done_deal","stage_type_id":"a1b2c3d4-0004-0004-0004-000000000004","delay_value":null,"delay_unit":null,"is_default":false,"is_terminal":true,"requires_schedule":false,"stage_order":4,"color_hex":"#6B7280"},{"idx":4,"id":"7bd8af5e-fb5b-41d1-955a-e5e5e1751d82","name_ar":"تم التواصل ثالث مرة","created_at":"2026-05-05 08:28:17.024219+00","is_active":true,"name_en":"third_contact","stage_type_id":"a1b2c3d4-0001-0001-0001-000000000001","delay_value":null,"delay_unit":null,"is_default":false,"is_terminal":false,"requires_schedule":true,"stage_order":3,"color_hex":"#6B7280"}]
+
+
+
+--------------------
 
 
 
 [{"idx":0,"id":"b330d310-1d93-434c-9909-85b2252d6662","name_ar":"بيع","created_at":"2026-05-05 08:28:17.024219+00","is_active":true},{"idx":1,"id":"d5abb923-f821-4bb1-ac9d-ae5384eeacb9","name_ar":"إيجار","created_at":"2026-05-05 08:28:17.024219+00","is_active":true}]
 
 
------------------
-
+-------------------
 
 
 [{"idx":0,"id":"796e4355-ac31-4fcb-bdcf-073660c6d639","name_ar":"توقيع عقود التعاقد","name_en":"contract_signing","is_active":true,"created_at":"2026-07-05 14:08:46.803282+00"},{"idx":1,"id":"9bdae9a5-be40-41f8-a70e-a81ffc4856da","name_ar":"جلسة تفاوض ومناقشة","name_en":"negotiation","is_active":true,"created_at":"2026-07-05 14:08:46.803282+00"},{"idx":2,"id":"d497f3f5-eb17-46d5-89f5-42aa3589ea4b","name_ar":"اجتماع تعريفي واستشارة","name_en":"consultation","is_active":true,"created_at":"2026-07-05 14:08:46.803282+00"},{"idx":3,"id":"f5193e1b-dbaa-4e1b-b267-7f4b2101e6fd","name_ar":"معاينة عقار على الطبيعة","name_en":"site_viewing","is_active":true,"created_at":"2026-07-05 14:08:46.803282+00"}]
 
 
 
-------------
+------------------
 
 
 [{"idx":0,"id":"23c7dd13-dbb3-4ff3-b108-049d2cccbbad","name_ar":"معاينة بموقع المشروع","name_en":"site_visit","is_active":true,"created_at":"2026-07-05 14:08:34.960873+00"},{"idx":1,"id":"8af30bed-d05c-48a1-8655-ab1502c73a78","name_ar":"اجتماع أونلاين","name_en":"online","is_active":true,"created_at":"2026-07-05 14:08:34.960873+00"},{"idx":2,"id":"ccd19214-26e5-42f0-a44d-cc1661f5a64b","name_ar":"اجتماع بمقر الشركة","name_en":"in_office","is_active":true,"created_at":"2026-07-05 14:08:34.960873+00"}]
 
 
----------------
+-------------------
+
 
 
 [{"idx":0,"id":"634f7e69-6161-4535-b409-d1ea1bbbdcd3","name_ar":"قيد المراجعة","created_at":"2026-06-07 11:00:13.958999+00","is_active":true},{"idx":1,"id":"70bb0089-736b-4607-951d-916fbcc1cc07","name_ar":"تم النشر","created_at":"2026-06-07 11:00:13.958999+00","is_active":true},{"idx":2,"id":"7345796d-1fd8-462d-b240-7eec15c87e6f","name_ar":"مرفوض","created_at":"2026-06-07 11:00:13.958999+00","is_active":true},{"idx":3,"id":"74076467-124a-4142-b821-6096d9fa3f4c","name_ar":"تمت الموافقة","created_at":"2026-06-07 11:00:13.958999+00","is_active":true}]
 
 
------------
 
+---------------------
 
-[{"idx":0,"id":"521c44c7-1f61-4d4d-885b-66f1dcadf031","property_id":"3950eb89-e51a-48c4-a490-104ea4d8cdf2","platform_id":"660c8811-10cb-40ab-a66f-95162a8c6033","created_at":"2026-06-03 12:40:35.070273+00","is_published":false},{"idx":1,"id":"69c2291d-f728-4f1f-b2a1-dab713173fd3","property_id":"21410bf0-624b-4639-9e28-bceb9d60f863","platform_id":"b166658a-8070-4928-8896-388413b5d237","created_at":"2026-06-02 12:55:59.794533+00","is_published":false},{"idx":2,"id":"ba84101f-a635-4c52-8b51-34be601a974c","property_id":"42a36744-0893-4c9c-93a0-95f44bcd86e0","platform_id":"b166658a-8070-4928-8896-388413b5d237","created_at":"2026-05-12 07:47:37.718333+00","is_published":false},{"idx":3,"id":"e802dffa-40d4-409f-9cb1-394c474a8c50","property_id":"3950eb89-e51a-48c4-a490-104ea4d8cdf2","platform_id":"6eec24f2-9469-4ef8-9b51-2fd0545c7c10","created_at":"2026-06-03 12:40:35.070273+00","is_published":false},{"idx":4,"id":"ea5eb8fc-180b-4850-a5c8-7c3f0d5f88f8","property_id":"3950eb89-e51a-48c4-a490-104ea4d8cdf2","platform_id":"b166658a-8070-4928-8896-388413b5d237","created_at":"2026-06-03 12:40:35.070273+00","is_published":false},{"idx":5,"id":"f23f23b1-48ca-445c-8b6e-569875de8a72","property_id":"f107f396-01fb-4e3c-98e2-569c46856d6d","platform_id":"b166658a-8070-4928-8896-388413b5d237","created_at":"2026-06-01 12:01:59.741612+00","is_published":false},{"idx":6,"id":"fb53da89-3d84-4ae7-a858-4de99edb0492","property_id":"3950eb89-e51a-48c4-a490-104ea4d8cdf2","platform_id":"f407e2bc-4222-44aa-856a-2149b2364684","created_at":"2026-06-03 12:40:35.070273+00","is_published":false}]
-
-
---------------
 
 
 [{"idx":0,"id":"07b7e029-f2a9-4e3a-adad-aecffa73e7c9","name_ar":"bayut","created_at":"2026-05-08 02:03:30.316601+00","is_active":true},{"idx":1,"id":"3b4396dd-cde0-4d6d-ba39-dd9bda991a05","name_ar":"facebook","created_at":"2026-05-08 02:03:30.316601+00","is_active":true},{"idx":2,"id":"6af85c36-1774-4a9b-a13d-17cb2ea5bca8","name_ar":"aqar map","created_at":"2026-05-08 02:03:30.316601+00","is_active":true},{"idx":3,"id":"7c82fcd3-ffea-49c1-a606-a13ef5818945","name_ar":"property finder","created_at":"2026-05-08 02:03:30.316601+00","is_active":true},{"idx":4,"id":"ab488a83-524e-4260-a84e-c0537c8abd54","name_ar":"مباشر من المالك","created_at":"2026-05-05 08:28:17.024219+00","is_active":true},{"idx":5,"id":"f740bbd1-00cd-4ece-b4ae-f4587d81afca","name_ar":"dubbizle","created_at":"2026-05-08 02:03:30.316601+00","is_active":true}]
 
 
----------------
+
+---------------------
+
 
 
 [{"idx":0,"id":"2185e912-336b-4201-9f62-590e787ca83b","name_ar":"محل تجاري","created_at":"2026-05-05 08:28:17.024219+00","is_active":true},{"idx":1,"id":"32703459-e661-44dd-806e-c1b4e275e102","name_ar":"شقة","created_at":"2026-05-05 08:28:17.024219+00","is_active":true},{"idx":2,"id":"69a43244-d152-408c-bdb1-1b2e76899199","name_ar":"استوديو","created_at":"2026-05-05 08:28:17.024219+00","is_active":true},{"idx":3,"id":"8b13efba-f0bc-40d2-80c4-f743624da0b2","name_ar":"مخزن","created_at":"2026-06-21 07:50:54.159177+00","is_active":true},{"idx":4,"id":"91c4235b-b427-4c1b-8529-6d6504c6b6e4","name_ar":"أخرى","created_at":"2026-05-05 08:28:17.024219+00","is_active":true},{"idx":5,"id":"b3140c27-cdb5-4a24-b8b5-72ce5e970381","name_ar":"دوبليكس","created_at":"2026-05-08 02:03:30.316601+00","is_active":true},{"idx":6,"id":"d3a55e54-2ea9-4c3e-9029-77327e6b769d","name_ar":"مطعم / كافيه","created_at":"2026-05-05 08:28:17.024219+00","is_active":true},{"idx":7,"id":"e643a07d-34c3-42b9-bd58-509c2f448fc1","name_ar":"فيلا مستقلة","created_at":"2026-05-05 08:28:17.024219+00","is_active":true},{"idx":8,"id":"f06327ec-ba75-4e73-9cd9-a3e22f71d70f","name_ar":"بنتهاوس","created_at":"2026-06-02 12:58:57.422202+00","is_active":true},{"idx":9,"id":"f5044fc3-7bff-4162-b551-e1953590304b","name_ar":"روف","created_at":"2026-05-05 08:28:17.024219+00","is_active":true}]
 
 
 
----------------
+
+----------------------
 
 
 [{"idx":0,"id":"a1b2c3d4-0001-0001-0001-000000000001","name_ar":"متابعة","name_en":"following","behavior":"following"},{"idx":1,"id":"a1b2c3d4-0002-0002-0002-000000000002","name_ar":"اجتماع","name_en":"meeting","behavior":"meeting"},{"idx":2,"id":"a1b2c3d4-0003-0003-0003-000000000003","name_ar":"استبعاد","name_en":"exclusion","behavior":"exclusion"},{"idx":3,"id":"a1b2c3d4-0004-0004-0004-000000000004","name_ar":"تعاقد","name_en":"done_deal","behavior":"done_deal"},{"idx":4,"id":"a1b2c3d4-0005-0005-0005-000000000005","name_ar":"جديد","name_en":"fresh","behavior":"fresh"}]
 
 
---------------
+
+-------------------
+
 
 
 [{"idx":0,"id":"2cfd280e-3bf5-4b71-b0db-b27eb5c832fb","name_ar":"ملغاة","name_en":"cancelled","is_active":true,"created_at":"2026-07-06 08:45:08.488481+00"},{"idx":1,"id":"8fc98da7-1e5b-4c54-b52b-2f6385a4a58b","name_ar":"مكتملة","name_en":"completed","is_active":true,"created_at":"2026-07-06 08:45:08.488481+00"},{"idx":2,"id":"d1c4a01c-6d2c-47bb-a94f-5cb4d51b3bb8","name_ar":"قيد الانتظار","name_en":"pending","is_active":true,"created_at":"2026-07-06 08:45:08.488481+00"}]
-
-
---------------
-
-
-[{"idx":0,"id":1,"name":"مدينة نصر","governorate_id":1,"is_active":true},{"idx":1,"id":2,"name":"التجمع الخامس","governorate_id":1,"is_active":true},{"idx":2,"id":3,"name":"التجمع الأول","governorate_id":1,"is_active":true},{"idx":3,"id":4,"name":"التجمع الثالث","governorate_id":1,"is_active":true},{"idx":4,"id":5,"name":"الرحاب","governorate_id":1,"is_active":true},{"idx":5,"id":6,"name":"القطامية","governorate_id":1,"is_active":true},{"idx":6,"id":7,"name":"المعادي","governorate_id":1,"is_active":true},{"idx":7,"id":8,"name":"المقطم","governorate_id":1,"is_active":true},{"idx":8,"id":9,"name":"المنيل","governorate_id":1,"is_active":false},{"idx":9,"id":10,"name":"حلوان","governorate_id":1,"is_active":false},{"idx":10,"id":11,"name":"حلوان الجديدة","governorate_id":1,"is_active":false},{"idx":11,"id":12,"name":"عين شمس","governorate_id":1,"is_active":false},{"idx":12,"id":13,"name":"شبرا","governorate_id":1,"is_active":false},{"idx":13,"id":14,"name":"الزيتون","governorate_id":1,"is_active":false},{"idx":14,"id":15,"name":"المطرية","governorate_id":1,"is_active":false},{"idx":15,"id":16,"name":"الأميرية","governorate_id":1,"is_active":false},{"idx":16,"id":17,"name":"السلام","governorate_id":1,"is_active":true},{"idx":17,"id":18,"name":"الزاوية الحمراء","governorate_id":1,"is_active":false},{"idx":18,"id":19,"name":"روض الفرج","governorate_id":1,"is_active":false},{"idx":19,"id":20,"name":"شبرا الخيمة","governorate_id":1,"is_active":false},{"idx":20,"id":21,"name":"النزهة","governorate_id":1,"is_active":true},{"idx":21,"id":22,"name":"مصر الجديدة","governorate_id":1,"is_active":true},{"idx":22,"id":23,"name":"الدقي","governorate_id":1,"is_active":true},{"idx":23,"id":24,"name":"الزمالك","governorate_id":1,"is_active":true},{"idx":24,"id":25,"name":"وسط البلد","governorate_id":1,"is_active":false},{"idx":25,"id":26,"name":"باب اللوق","governorate_id":1,"is_active":false},{"idx":26,"id":27,"name":"جاردن سيتي","governorate_id":1,"is_active":false},{"idx":27,"id":28,"name":"مصر القديمة","governorate_id":1,"is_active":false},{"idx":28,"id":29,"name":"السيدة زينب","governorate_id":1,"is_active":false},{"idx":29,"id":30,"name":"الخليفة","governorate_id":1,"is_active":false},{"idx":30,"id":31,"name":"المرج","governorate_id":1,"is_active":false},{"idx":31,"id":32,"name":"عزبة النخل","governorate_id":1,"is_active":false},{"idx":32,"id":33,"name":"منشأة ناصر","governorate_id":1,"is_active":false},{"idx":33,"id":34,"name":"الدراسة","governorate_id":1,"is_active":false},{"idx":34,"id":35,"name":"بولاق الدكرور","governorate_id":1,"is_active":false},{"idx":35,"id":36,"name":"فيصل","governorate_id":1,"is_active":false},{"idx":36,"id":37,"name":"الهرم","governorate_id":1,"is_active":false},{"idx":37,"id":38,"name":"الدقي الجديدة","governorate_id":1,"is_active":false},{"idx":38,"id":39,"name":"الشيخ زايد","governorate_id":2,"is_active":true},{"idx":39,"id":40,"name":"أكتوبر","governorate_id":2,"is_active":true},{"idx":40,"id":41,"name":"أكتوبر الجديدة","governorate_id":2,"is_active":true},{"idx":41,"id":42,"name":"حدائق أكتوبر","governorate_id":2,"is_active":true},{"idx":42,"id":43,"name":"الواحات","governorate_id":2,"is_active":false},{"idx":43,"id":44,"name":"الحوامدية","governorate_id":2,"is_active":false},{"idx":44,"id":45,"name":"البدرشين","governorate_id":2,"is_active":false},{"idx":45,"id":46,"name":"الصف","governorate_id":2,"is_active":false},{"idx":46,"id":47,"name":"أطفيح","governorate_id":2,"is_active":false},{"idx":47,"id":48,"name":"العياط","governorate_id":2,"is_active":false},{"idx":48,"id":49,"name":"الجيزة","governorate_id":2,"is_active":false},{"idx":49,"id":50,"name":"بولاق الدكرور","governorate_id":2,"is_active":false},{"idx":50,"id":51,"name":"الدقي","governorate_id":2,"is_active":false},{"idx":51,"id":52,"name":"الشيخ زايد الجديدة","governorate_id":2,"is_active":false},{"idx":52,"id":53,"name":"كفر الشيخ زايد","governorate_id":2,"is_active":false},{"idx":53,"id":54,"name":"بيفرلي هيلز","governorate_id":2,"is_active":false},{"idx":54,"id":55,"name":"ديار","governorate_id":2,"is_active":false},{"idx":55,"id":56,"name":"دريم لاند","governorate_id":2,"is_active":false},{"idx":56,"id":57,"name":"العجمي","governorate_id":3,"is_active":false},{"idx":57,"id":58,"name":"برج العرب","governorate_id":3,"is_active":false},{"idx":58,"id":59,"name":"ابو قير","governorate_id":3,"is_active":false},{"idx":59,"id":60,"name":"المنتزه","governorate_id":3,"is_active":false},{"idx":60,"id":61,"name":"العامرية","governorate_id":3,"is_active":false},{"idx":61,"id":62,"name":"الجمرك","governorate_id":3,"is_active":false},{"idx":62,"id":63,"name":"الرمل","governorate_id":3,"is_active":false},{"idx":63,"id":64,"name":"محرم بك","governorate_id":3,"is_active":false},{"idx":64,"id":65,"name":"كرموز","governorate_id":3,"is_active":false},{"idx":65,"id":66,"name":"اللبان","governorate_id":3,"is_active":false},{"idx":66,"id":67,"name":"سيدي بشر","governorate_id":3,"is_active":false},{"idx":67,"id":68,"name":"سموحة","governorate_id":3,"is_active":false},{"idx":68,"id":69,"name":"الإبراهيمية","governorate_id":3,"is_active":false},{"idx":69,"id":70,"name":"بحري","governorate_id":3,"is_active":false},{"idx":70,"id":71,"name":"سيدي جابر","governorate_id":3,"is_active":false},{"idx":71,"id":72,"name":"المينا","governorate_id":3,"is_active":false},{"idx":72,"id":73,"name":"الدخيلة","governorate_id":3,"is_active":false},{"idx":73,"id":74,"name":"غيط العنب","governorate_id":3,"is_active":false},{"idx":74,"id":75,"name":"مرسى مطروح","governorate_id":23,"is_active":false},{"idx":75,"id":76,"name":"الساحل الشمالي","governorate_id":23,"is_active":false},{"idx":76,"id":77,"name":"سيوة","governorate_id":23,"is_active":false},{"idx":77,"id":78,"name":"الضبعة","governorate_id":23,"is_active":false},{"idx":78,"id":79,"name":"العلمين","governorate_id":23,"is_active":false},{"idx":79,"id":80,"name":"مارينا","governorate_id":23,"is_active":false},{"idx":80,"id":81,"name":"هاسيندا باي","governorate_id":23,"is_active":false},{"idx":81,"id":82,"name":"صفاجا","governorate_id":23,"is_active":false},{"idx":82,"id":83,"name":"الزقازيق","governorate_id":20,"is_active":false},{"idx":83,"id":84,"name":"بلبيس","governorate_id":20,"is_active":false},{"idx":84,"id":85,"name":"منيا القمح","governorate_id":20,"is_active":false},{"idx":85,"id":86,"name":"ههيا","governorate_id":20,"is_active":false},{"idx":86,"id":87,"name":"أبو كبير","governorate_id":20,"is_active":false},{"idx":87,"id":88,"name":"الإبراهيمية","governorate_id":20,"is_active":false},{"idx":88,"id":89,"name":"كفر صقر","governorate_id":20,"is_active":false},{"idx":89,"id":90,"name":"الصالحية الجديدة","governorate_id":20,"is_active":false},{"idx":90,"id":91,"name":"القنايات","governorate_id":20,"is_active":false},{"idx":91,"id":92,"name":"مشتول السوق","governorate_id":20,"is_active":false},{"idx":92,"id":93,"name":"فاقوس","governorate_id":20,"is_active":false},{"idx":93,"id":94,"name":"أبو حماد","governorate_id":20,"is_active":false},{"idx":94,"id":95,"name":"المنصورة","governorate_id":4,"is_active":false},{"idx":95,"id":96,"name":"ميت غمر","governorate_id":4,"is_active":false},{"idx":96,"id":97,"name":"دكرنس","governorate_id":4,"is_active":false},{"idx":97,"id":98,"name":"أجا","governorate_id":4,"is_active":false},{"idx":98,"id":99,"name":"السنبلاوين","governorate_id":4,"is_active":false},{"idx":99,"id":100,"name":"طلخا","governorate_id":4,"is_active":false}]

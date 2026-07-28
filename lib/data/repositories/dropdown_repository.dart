@@ -60,26 +60,32 @@ class DropdownRepository {
   Future<List<LookupOptionModel>> fetchAllForAdmin(String tableName, {bool isLocation = false}) =>
       _service.fetchAllForAdmin(tableName, isLocation: isLocation);
 
-  Future<List<Map<String, dynamic>>> fetchGovernoratesWithCitiesForAdmin() =>
-      _service.fetchGovernoratesWithCitiesForAdmin();
+  Future<List<LookupOptionModel>> fetchCitiesOnly() => _service.fetchCitiesOnly();
 
   Future<LookupOptionModel> addOption(
     String tableName,
     String nameAr, {
+    String nameEn = '',
+    int listOrder = 0,
     bool isLocation = false,
     int? governorateId,
-  }) => _service.addOption(tableName, nameAr, isLocation: isLocation, governorateId: governorateId);
+  }) => _service.addOption(tableName, nameAr, nameEn: nameEn, listOrder: listOrder, isLocation: isLocation, governorateId: governorateId);
 
   Future<LookupOptionModel> updateOption(
     String tableName,
     String id,
     String newName, {
+    String nameEn = '',
+    int listOrder = 0,
     bool isLocation = false,
-  }) => _service.updateOption(tableName, id, newName, isLocation: isLocation);
+  }) => _service.updateOption(tableName, id, newName, nameEn: nameEn, listOrder: listOrder, isLocation: isLocation);
 
   Future<void> deactivateOption(String tableName, String id) =>
       _service.deactivateOption(tableName, id);
 
   Future<void> activateOption(String tableName, String id) =>
       _service.activateOption(tableName, id);
+
+  Future<void> hardDeleteOption(String tableName, String oldId, String newId) =>
+      _service.hardDeleteOption(tableName, oldId, newId);
 }

@@ -109,16 +109,6 @@ class AdminUserService {
 
       // Send Realtime Broadcasts for bulk updates
       final realtime = di.sl<RealtimeService>();
-      realtime.broadcastEvent(CrmEvent(
-        entity: 'lead',
-        action: 'bulk_transfer',
-        id: 'bulk',
-      ));
-      realtime.broadcastEvent(CrmEvent(
-        entity: 'property',
-        action: 'bulk_transfer',
-        id: 'bulk',
-      ));
     } catch (e, stackTrace) {
       print('=== ERROR IN TRANSFER DATA ===');
       print('Error: $e');

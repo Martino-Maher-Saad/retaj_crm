@@ -42,11 +42,6 @@ class PropertyService {
       'notes': note,
     });
     
-    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
-      entity: 'property_share',
-      action: 'insert',
-      id: propertyId,
-    ));
   }
 
   // سيلكت كامل للعقار داخل المشاركات — نفس جداول الوزن كالـ inventory
@@ -109,11 +104,6 @@ class PropertyService {
     final updateData = isSender ? {'sender_deleted': true} : {'receiver_deleted': true};
     await _client.from('property_shares').update(updateData).eq('id', shareId);
 
-    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
-      entity: 'property_share',
-      action: 'delete',
-      id: shareId,
-    ));
   }
 
   /// يجيب عقارات صفحة المهمات فقط (مش published)
@@ -256,12 +246,6 @@ class PropertyService {
 
   Future<Map<String, dynamic>> insertProperty(Map<String, dynamic> data) async {
     final response = await _client.from('properties').insert(data).select().single();
-    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
-      entity: 'property',
-      action: 'insert',
-      id: response['id'].toString(),
-      createdBy: response['created_by'],
-    ));
     return response;
   }
 
@@ -270,21 +254,10 @@ class PropertyService {
 
   Future<void> deletePropertyRecord(String id) async {
     await _client.from('properties').delete().eq('id', id);
-    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
-      entity: 'property',
-      action: 'delete',
-      id: id,
-    ));
   }
 
   Future<Map<String, dynamic>> updateProperty(String id, Map<String, dynamic> data) async {
     final response = await _client.from('properties').update(data).eq('id', id).select().single();
-    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
-      entity: 'property',
-      action: 'update',
-      id: id,
-      createdBy: response['created_by'],
-    ));
     return response;
   }
 
@@ -371,12 +344,6 @@ class PropertyService {
         .eq('id', propertyId)
         .select(_select)
         .single();
-    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
-      entity: 'property',
-      action: 'update',
-      id: propertyId,
-      createdBy: response['created_by'],
-    ));
     return response;
   }
 
@@ -387,12 +354,6 @@ class PropertyService {
         .eq('id', propertyId)
         .select('created_by')
         .single();
-    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
-      entity: 'property',
-      action: 'update',
-      id: propertyId,
-      createdBy: response['created_by'],
-    ));
   }
 
   /// يتحقق من التكرارات للعقار بناءً على آخر 6 أرقام من رقم المالك

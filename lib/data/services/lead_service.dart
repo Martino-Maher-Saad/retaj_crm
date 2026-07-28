@@ -282,13 +282,6 @@ class LeadService {
 
     final newLead = await getLeadById(leadId.toString());
     
-    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
-      entity: 'lead',
-      action: 'insert',
-      id: newLead.id!,
-      assignedTo: newLead.assignedTo,
-      createdBy: newLead.createdBy,
-    ));
     
     return newLead;
   }
@@ -362,13 +355,6 @@ class LeadService {
 
     final updatedLead = await getLeadById(id);
     
-    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
-      entity: 'lead',
-      action: 'update',
-      id: id,
-      assignedTo: updatedLead.assignedTo,
-      createdBy: updatedLead.createdBy,
-    ));
     
     return updatedLead;
   }
@@ -392,13 +378,6 @@ class LeadService {
         .eq('id', leadId);
     final updatedLead = await getLeadById(leadId);
     
-    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
-      entity: 'lead',
-      action: 'update',
-      id: leadId,
-      assignedTo: updatedLead.assignedTo,
-      createdBy: updatedLead.createdBy,
-    ));
     
     return updatedLead;
   }
@@ -417,13 +396,6 @@ class LeadService {
         .eq('id', leadId);
     final updatedLead = await getLeadById(leadId);
 
-    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
-      entity: 'lead',
-      action: 'transfer',
-      id: leadId,
-      assignedTo: updatedLead.assignedTo,
-      createdBy: updatedLead.createdBy,
-    ));
     
     return updatedLead;
   }
@@ -455,13 +427,6 @@ class LeadService {
     
     final updatedLead = await getLeadById(leadId);
 
-    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
-      entity: 'lead',
-      action: 'update',
-      id: leadId,
-      assignedTo: updatedLead.assignedTo,
-      createdBy: updatedLead.createdBy,
-    ));
     
     return updatedLead;
   }
@@ -477,11 +442,6 @@ class LeadService {
 
   Future<void> deleteLead(String id) async {
     await _supabase.from('leads').delete().eq('id', id);
-    di.sl<RealtimeService>().broadcastEvent(CrmEvent(
-      entity: 'lead',
-      action: 'delete',
-      id: id,
-    ));
   }
 
   Future<List<LeadModel>> searchLeadsByAi({

@@ -1,15 +1,26 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/location_model.dart';
 
+bool _parseBool(dynamic val) {
+  if (val == null) return true;
+  if (val is bool) return val;
+  if (val is int) return val != 0;
+  return true;
+}
+
 /// موديل موحد لكل الجداول المرجعية
 class LookupOptionModel {
   final String id;
   final String nameAr;
+  final String nameEn;
+  final int listOrder;
   final bool isActive;
 
   const LookupOptionModel({
     required this.id,
     required this.nameAr,
+    this.nameEn = '',
+    this.listOrder = 0,
     this.isActive = true,
   });
 
@@ -18,7 +29,9 @@ class LookupOptionModel {
       id: json['id']?.toString() ?? '',
       // يدعم name_ar (lookup tables) و name (governorates/cities)
       nameAr: json['name_ar']?.toString() ?? json['name']?.toString() ?? '',
-      isActive: json['is_active'] ?? true,
+      nameEn: json['name_en']?.toString() ?? '',
+      listOrder: json['list_order'] ?? 0,
+      isActive: _parseBool(json['is_active']),
     );
   }
 }
@@ -31,22 +44,35 @@ class DropdownService {
   // ────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> fetchGovernoratesWithCities() async {
+    // Fetch ALL for historical data, UI filters them via getActiveOptions
     final response = await _client
         .from('governorates')
-        .select('id, name, is_active, cities(id, name, governorate_id, is_active)')
+        .select('id, name, name_en, list_order, is_active, cities(id, name, name_en, list_order, governorate_id, is_active)')
+        .order('list_order', ascending: true)
         .order('id', ascending: true);
 
     return (response as List).map((gov) {
       final cities = (gov['cities'] as List? ?? []).toList();
+      cities.sort((a, b) => ((a['list_order'] ?? 0) as int).compareTo((b['list_order'] ?? 0) as int));
       return {...gov as Map<String, dynamic>, 'cities': cities};
     }).toList();
+  }
+
+  Future<List<LookupOptionModel>> fetchCitiesOnly() async {
+    final response = await _client
+        .from('cities')
+        .select('id, name, name_en, list_order, is_active')
+        .order('list_order', ascending: true)
+        .order('id', ascending: true);
+    return (response as List).map((e) => LookupOptionModel.fromJson(e)).toList();
   }
 
   Future<List<LookupOptionModel>> _fetchFromTable(String tableName) async {
     final response = await _client
         .from(tableName)
-        .select('id, name_ar, is_active')
-        .order('created_at', ascending: true);
+        .select('id, name_ar, name_en, list_order, is_active')
+        .order('list_order', ascending: true)
+        .order('id', ascending: true);
     return (response as List).map((e) => LookupOptionModel.fromJson(e)).toList();
   }
 
@@ -68,17 +94,10 @@ class DropdownService {
     final nameCol = isLocation ? 'name' : 'name_ar';
     final response = await _client
         .from(tableName)
-        .select('id, $nameCol, is_active')
-        .order(isLocation ? 'id' : 'created_at', ascending: true);
-    return (response as List).map((e) => LookupOptionModel.fromJson(e)).toList();
-  }
-
-  Future<List<Map<String, dynamic>>> fetchGovernoratesWithCitiesForAdmin() async {
-    final response = await _client
-        .from('governorates')
-        .select('id, name, is_active, cities(id, name, governorate_id, is_active)')
+        .select('id, $nameCol, name_en, list_order, is_active')
+        .order('list_order', ascending: true)
         .order('id', ascending: true);
-    return List<Map<String, dynamic>>.from(response);
+    return (response as List).map((e) => LookupOptionModel.fromJson(e)).toList();
   }
 
   // ────────────────────────────────────────────────
@@ -88,11 +107,18 @@ class DropdownService {
   Future<LookupOptionModel> addOption(
     String tableName,
     String nameAr, {
+    String nameEn = '',
+    int listOrder = 0,
     bool isLocation = false,
     int? governorateId, // للمدن فقط
   }) async {
     final nameCol = isLocation ? 'name' : 'name_ar';
-    final data = <String, dynamic>{nameCol: nameAr, 'is_active': true};
+    final data = <String, dynamic>{
+      nameCol: nameAr,
+      'name_en': nameEn,
+      'list_order': listOrder,
+      'is_active': true
+    };
     if (governorateId != null) data['governorate_id'] = governorateId;
 
     final response = await _client
@@ -107,25 +133,37 @@ class DropdownService {
     String tableName,
     String id,
     String newName, {
+    String nameEn = '',
+    int listOrder = 0,
     bool isLocation = false,
   }) async {
     final nameCol = isLocation ? 'name' : 'name_ar';
     final response = await _client
         .from(tableName)
-        .update({nameCol: newName})
+        .update({
+          nameCol: newName,
+          'name_en': nameEn,
+          'list_order': listOrder,
+        })
         .eq('id', id)
         .select()
         .single();
     return LookupOptionModel.fromJson(response);
   }
 
-  /// Soft Delete — يخفي من القوائم بدون مسح البيانات المرتبطة
   Future<void> deactivateOption(String tableName, String id) async {
     await _client.from(tableName).update({'is_active': false}).eq('id', id);
   }
 
-  /// إعادة تفعيل
   Future<void> activateOption(String tableName, String id) async {
     await _client.from(tableName).update({'is_active': true}).eq('id', id);
+  }
+
+  Future<void> hardDeleteOption(String tableName, String oldId, String newId) async {
+    await _client.rpc('replace_and_delete_lookup', params: {
+      'p_table_name': tableName,
+      'p_old_id': oldId,
+      'p_new_id': newId,
+    });
   }
 }

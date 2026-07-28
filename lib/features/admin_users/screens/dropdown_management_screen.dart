@@ -7,14 +7,6 @@ import '../../../../data/repositories/dropdown_repository.dart';
 import '../../../../data/services/dropdown_service.dart';
 import '../../../../core/di/injection_container.dart' as di;
 
-// ─── Helper: تحويل is_active لـ bool بأمان ───
-bool _parseBool(dynamic val) {
-  if (val == null) return true;
-  if (val is bool) return val;
-  if (val is int) return val != 0;
-  return true;
-}
-
 class DropdownManagementScreen extends StatefulWidget {
   const DropdownManagementScreen({super.key});
 
@@ -45,18 +37,15 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
     'advertising_platforms':  _CategoryConfig(label: 'منصات الإعلان',       icon: Icons.ads_click_outlined,     tableName: 'advertising_platforms',  color: Color(0xFFB91C1C)),
     'lead_exclusion_reasons': _CategoryConfig(label: 'أسباب الاستبعاد',      icon: Icons.block_outlined,         tableName: 'lead_exclusion_reasons', color: Color(0xFFDC2626)),
     'property_approval_statuses': _CategoryConfig(label: 'حالات الموافقة',     icon: Icons.verified_user_outlined, tableName: 'property_approval_statuses', color: Color(0xFF047857)),
-    'locations':              _CategoryConfig(label: 'المحافظات والمدن',    icon: Icons.location_on_outlined,   tableName: '',       isLocation: true, color: Color(0xFF374151)),
+    'cities':                 _CategoryConfig(label: 'المدن',               icon: Icons.location_city_outlined, tableName: 'cities',       isLocation: true, color: Color(0xFF374151)),
   };
 
   String _selectedKey = 'lead_statuses';
   bool _isLoading = true;
-
-  // كل البيانات محمّلة مرة واحدة في الذاكرة
   final Map<String, List<LookupOptionModel>> _cache = {};
-  List<Map<String, dynamic>> _govData = [];
 
-  final _addCtrl = TextEditingController();
-  int? _selectedGovId;
+  final _addArCtrl = TextEditingController();
+  final _addEnCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -66,33 +55,31 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
 
   @override
   void dispose() {
-    _addCtrl.dispose();
+    _addArCtrl.dispose();
+    _addEnCtrl.dispose();
     super.dispose();
   }
 
   _CategoryConfig get _cur => _cats[_selectedKey]!;
   List<LookupOptionModel> get _items => _cache[_selectedKey] ?? [];
 
-  // ─── تحميل كل الجداول دفعة واحدة ───
   Future<void> _loadAll() async {
     setState(() => _isLoading = true);
     try {
       final futures = <Future>[];
       final keys = <String>[];
       for (final e in _cats.entries) {
-        if (!e.value.isLocation) {
-          keys.add(e.key);
+        keys.add(e.key);
+        if (e.key == 'cities') {
+          futures.add(_repository.fetchCitiesOnly());
+        } else {
           futures.add(_repository.fetchAllForAdmin(e.value.tableName));
         }
       }
-      final results = await Future.wait([
-        ...futures,
-        _repository.fetchGovernoratesWithCitiesForAdmin(),
-      ]);
+      final results = await Future.wait(futures);
       for (int i = 0; i < keys.length; i++) {
         _cache[keys[i]] = results[i] as List<LookupOptionModel>;
       }
-      _govData = results.last as List<Map<String, dynamic>>;
     } catch (e) {
       _showErr('فشل التحميل: $e');
     }
@@ -101,8 +88,8 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
 
   Future<void> _reloadCurrent() async {
     try {
-      if (_cur.isLocation) {
-        _govData = await _repository.fetchGovernoratesWithCitiesForAdmin();
+      if (_selectedKey == 'cities') {
+        _cache[_selectedKey] = await _repository.fetchCitiesOnly();
       } else {
         _cache[_selectedKey] = await _repository.fetchAllForAdmin(_cur.tableName);
       }
@@ -113,23 +100,23 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
   }
 
   Future<void> _addItem() async {
-    final text = _addCtrl.text.trim();
-    if (text.isEmpty) return;
+    final textAr = _addArCtrl.text.trim();
+    final textEn = _addEnCtrl.text.trim();
+    if (textAr.isEmpty) return;
     setState(() => _isLoading = true);
     try {
-      if (_cur.isLocation) {
-        if (_selectedGovId == null) {
-          await _repository.addOption('governorates', text, isLocation: true);
-        } else {
-          await _repository.addOption('cities', text, isLocation: true, governorateId: _selectedGovId);
-        }
+      final order = _items.length; // Appending at the end
+      if (_selectedKey == 'cities') {
+        // Just use governorate_id = 1 as dummy since we hide it. We assume 1 exists.
+        await _repository.addOption('cities', textAr, nameEn: textEn, listOrder: order, isLocation: true, governorateId: 1);
       } else {
-        await _repository.addOption(_cur.tableName, text);
+        await _repository.addOption(_cur.tableName, textAr, nameEn: textEn, listOrder: order);
       }
-      _addCtrl.clear();
+      _addArCtrl.clear();
+      _addEnCtrl.clear();
       await _dataManager.refresh();
       await _reloadCurrent();
-      _showOk('تمت الإضافة ✅');
+      _showOk('تمت الإضافة بنجاح ✅');
     } catch (e) {
       _showErr('خطأ: $e');
     }
@@ -137,25 +124,39 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
   }
 
   Future<void> _edit(String table, LookupOptionModel item, {bool isLoc = false}) async {
-    final ctrl = TextEditingController(text: item.nameAr);
-    final res = await showDialog<String>(
+    final arCtrl = TextEditingController(text: item.nameAr);
+    final enCtrl = TextEditingController(text: item.nameEn);
+    final res = await showDialog<Map<String, String>>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('تعديل القيمة', style: AppTextStyles.h3),
-        content: TextField(controller: ctrl, autofocus: true, decoration: const InputDecoration(labelText: 'الاسم الجديد')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: arCtrl, autofocus: true, decoration: const InputDecoration(labelText: 'الاسم بالعربية')),
+            SizedBox(height: 10.h),
+            TextField(controller: enCtrl, decoration: const InputDecoration(labelText: 'الاسم بالإنجليزية (اختياري)')),
+          ],
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, ctrl.text.trim()), style: ElevatedButton.styleFrom(backgroundColor: AppColors.brandPrimary), child: const Text('حفظ', style: TextStyle(color: Colors.white))),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, {'ar': arCtrl.text.trim(), 'en': enCtrl.text.trim()}),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.brandPrimary),
+            child: const Text('حفظ', style: TextStyle(color: Colors.white)),
+          ),
         ],
       ),
     );
-    if (res == null || res.isEmpty || res == item.nameAr) return;
+    if (res == null || res['ar']!.isEmpty) return;
+    if (res['ar'] == item.nameAr && res['en'] == item.nameEn) return;
+
     setState(() => _isLoading = true);
     try {
-      await _repository.updateOption(table, item.id, res, isLocation: isLoc);
+      await _repository.updateOption(table, item.id, res['ar']!, nameEn: res['en']!, listOrder: item.listOrder, isLocation: isLoc);
       await _dataManager.refresh();
       await _reloadCurrent();
-      _showOk('تم التعديل — بيتعدل في كل بيانات النظام تلقائياً ✅');
+      _showOk('تم التعديل — يتحدث تلقائياً في كل الصفحات ✅');
     } catch (e) {
       _showErr('خطأ: $e');
     }
@@ -164,27 +165,6 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
 
   Future<void> _toggle(String table, LookupOptionModel item) async {
     final deactivate = item.isActive;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(deactivate ? 'تعطيل "${item.nameAr}"' : 'تفعيل "${item.nameAr}"', style: AppTextStyles.h3),
-        content: Text(
-          deactivate
-              ? 'هتختفي من القوائم المنسدلة.\nالبيانات القديمة المرتبطة بيها مش هتتأثر.'
-              : 'هتظهر في القوائم تاني.',
-          style: const TextStyle(height: 1.7),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: deactivate ? Colors.red : AppColors.success),
-            child: Text(deactivate ? 'تعطيل' : 'تفعيل', style: const TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
     setState(() => _isLoading = true);
     try {
       if (deactivate) {
@@ -201,6 +181,88 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
     setState(() => _isLoading = false);
   }
 
+  Future<void> _hardDelete(String table, LookupOptionModel item) async {
+    final activeOthers = _items.where((e) => e.isActive && e.id != item.id).toList();
+    if (activeOthers.isEmpty) {
+      _showErr('لا يوجد عناصر أخرى نشطة لنقل البيانات إليها!');
+      return;
+    }
+
+    String? selectedNewId;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(builder: (context, setDialogState) {
+          return AlertDialog(
+            title: Text('حذف نهائي ونقل بيانات', style: AppTextStyles.h3.copyWith(color: Colors.red)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('هذا الإجراء سيحذف "${item.nameAr}" نهائياً من النظام.', style: const TextStyle(fontWeight: FontWeight.bold)),
+                SizedBox(height: 10.h),
+                const Text('لتجنب فقدان البيانات، يرجى اختيار القيمة البديلة التي سيتم نقل جميع السجلات المرتبطة (عملاء، عقارات.. الخ) إليها:'),
+                SizedBox(height: 20.h),
+                DropdownButtonFormField<String>(
+                  value: selectedNewId,
+                  hint: const Text('اختر القيمة البديلة...'),
+                  items: activeOthers.map((e) => DropdownMenuItem(value: e.id, child: Text(e.nameAr))).toList(),
+                  onChanged: (v) => setDialogState(() => selectedNewId = v),
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.r)),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+              ElevatedButton(
+                onPressed: selectedNewId == null ? null : () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('تأكيد الحذف والنقل', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        });
+      },
+    );
+
+    if (confirmed != true || selectedNewId == null) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await _repository.hardDeleteOption(table, item.id, selectedNewId!);
+      await _dataManager.refresh();
+      await _reloadCurrent();
+      _showOk('تم الحذف ونقل البيانات بنجاح ✅');
+    } catch (e) {
+      _showErr('حدث خطأ أثناء النقل: $e');
+    }
+    setState(() => _isLoading = false);
+  }
+
+  Future<void> _reorder(int oldIndex, int newIndex) async {
+    if (oldIndex < newIndex) newIndex -= 1;
+    final item = _items.removeAt(oldIndex);
+    _items.insert(newIndex, item);
+    setState(() {}); // Optimistic UI update
+
+    // API update in background
+    try {
+      for (int i = 0; i < _items.length; i++) {
+        if (_items[i].listOrder != i) {
+          await _repository.updateOption(_cur.tableName, _items[i].id, _items[i].nameAr, nameEn: _items[i].nameEn, listOrder: i, isLocation: _cur.isLocation);
+        }
+      }
+      await _dataManager.refresh();
+      await _reloadCurrent();
+    } catch (e) {
+      _showErr('خطأ أثناء إعادة الترتيب');
+      _reloadCurrent(); // Revert
+    }
+  }
+
   void _showOk(String m) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m), backgroundColor: AppColors.success, duration: const Duration(seconds: 2)));
   void _showErr(String m) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m), backgroundColor: Colors.red, duration: const Duration(seconds: 3)));
 
@@ -208,15 +270,13 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5FB),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.brandPrimary))
-          : Row(children: [_buildSidebar(), Expanded(child: _buildContent())]),
+      body: Row(children: [_buildSidebar(), Expanded(child: _buildContent())]),
     );
   }
 
   Widget _buildSidebar() {
     return Container(
-      width: 250.w,
+      width: 260.w,
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(right: BorderSide(color: Color(0xFFEAEAF0), width: 1.5)),
@@ -227,7 +287,7 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('إدارة القوائم', style: TextStyle(fontSize: 22.sp, fontWeight: FontWeight.w800, color: const Color(0xFF1A1A2E))),
             SizedBox(height: 4.h),
-            Text('أضف، عدّل، أو عطّل أي قيمة', style: TextStyle(fontSize: 13.sp, color: Colors.grey[600])),
+            Text('أضف، عدّل، رتب، أو عطّل', style: TextStyle(fontSize: 13.sp, color: Colors.grey[600])),
           ]),
         ),
         const Divider(),
@@ -238,7 +298,7 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
             children: _cats.entries.map((e) {
               final sel = _selectedKey == e.key;
               return GestureDetector(
-                onTap: () => setState(() { _selectedKey = e.key; _selectedGovId = null; }),
+                onTap: () => setState(() => _selectedKey = e.key),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 150),
                   margin: EdgeInsets.only(bottom: 4.h),
@@ -252,15 +312,14 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
                     Icon(e.value.icon, size: 22.sp, color: sel ? e.value.color : Colors.grey[500]),
                     SizedBox(width: 12.w),
                     Expanded(child: Text(e.value.label, style: TextStyle(fontSize: 15.sp, fontWeight: sel ? FontWeight.w700 : FontWeight.normal, color: sel ? e.value.color : Colors.grey[700]))),
-                    if (!e.value.isLocation)
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 2.h),
-                        decoration: BoxDecoration(color: e.value.color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(20.r)),
-                        child: Text(
-                          '${_cache[e.key]?.where((x) => x.isActive).length ?? 0}',
-                          style: TextStyle(fontSize: 12.sp, color: e.value.color, fontWeight: FontWeight.bold),
-                        ),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 2.h),
+                      decoration: BoxDecoration(color: e.value.color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(20.r)),
+                      child: Text(
+                        '${_cache[e.key]?.where((x) => x.isActive).length ?? 0}',
+                        style: TextStyle(fontSize: 12.sp, color: e.value.color, fontWeight: FontWeight.bold),
                       ),
+                    ),
                   ]),
                 ),
               );
@@ -282,18 +341,16 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
           SizedBox(width: 14.w),
           Text(_cur.label, style: TextStyle(fontSize: 26.sp, fontWeight: FontWeight.w800, color: const Color(0xFF1A1A2E))),
           const Spacer(),
-          if (!_cur.isLocation)
-            Text('${_items.where((i) => i.isActive).length} نشط  /  ${_items.length} إجمالي', style: TextStyle(fontSize: 14.sp, color: Colors.grey[600])),
+          Text('${_items.where((i) => i.isActive).length} نشط  /  ${_items.length} إجمالي', style: TextStyle(fontSize: 14.sp, color: Colors.grey[600])),
         ]),
       ),
       const Divider(height: 1),
       Expanded(
-        child: _cur.isLocation ? _buildLocationsView() : _buildStandardView(),
+        child: _isLoading ? const Center(child: CircularProgressIndicator(color: AppColors.brandPrimary)) : _buildStandardView(),
       ),
     ]);
   }
 
-  // ─── Standard ───
   Widget _buildStandardView() {
     return Padding(
       padding: EdgeInsets.all(28.w),
@@ -303,30 +360,14 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
         Expanded(
           child: _items.isEmpty
               ? _emptyState()
-              : ListView.separated(
+              : ReorderableListView.builder(
                   itemCount: _items.length,
-                  separatorBuilder: (_, __) => SizedBox(height: 8.h),
-                  itemBuilder: (_, i) => _itemTile(_cur.tableName, _items[i]),
-                ),
-        ),
-      ]),
-    );
-  }
-
-  // ─── Locations ───
-  Widget _buildLocationsView() {
-    return Padding(
-      padding: EdgeInsets.all(28.w),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _buildLocationAddField(),
-        SizedBox(height: 20.h),
-        Expanded(
-          child: _govData.isEmpty
-              ? _emptyState()
-              : ListView.separated(
-                  itemCount: _govData.length,
-                  separatorBuilder: (_, __) => SizedBox(height: 10.h),
-                  itemBuilder: (_, i) => _govCard(_govData[i]),
+                  onReorder: _reorder,
+                  buildDefaultDragHandles: false, // We'll add custom handle
+                  itemBuilder: (context, i) {
+                    final item = _items[i];
+                    return _itemTile(_cur.tableName, item, i, key: ValueKey(item.id));
+                  },
                 ),
         ),
       ]),
@@ -335,16 +376,31 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
 
   Widget _buildAddField() {
     return Container(
-      padding: EdgeInsets.all(20.w),
+      padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14.r), border: Border.all(color: const Color(0xFFEAEAF0))),
       child: Row(children: [
         Expanded(
+          flex: 2,
           child: TextField(
-            controller: _addCtrl,
-            onSubmitted: (_) => _addItem(),
-            style: TextStyle(fontSize: 16.sp),
+            controller: _addArCtrl,
+            style: TextStyle(fontSize: 15.sp),
             decoration: InputDecoration(
-              hintText: 'اكتب قيمة جديدة ثم اضغط إضافة...',
+              hintText: 'الاسم بالعربية...',
+              filled: true, fillColor: const Color(0xFFF8F8FC),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10.r), borderSide: BorderSide.none),
+              contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+            ),
+          ),
+        ),
+        SizedBox(width: 12.w),
+        Expanded(
+          flex: 2,
+          child: TextField(
+            controller: _addEnCtrl,
+            onSubmitted: (_) => _addItem(),
+            style: TextStyle(fontSize: 15.sp),
+            decoration: InputDecoration(
+              hintText: 'الاسم بالإنجليزية...',
               filled: true, fillColor: const Color(0xFFF8F8FC),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10.r), borderSide: BorderSide.none),
               contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
@@ -366,154 +422,42 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
     );
   }
 
-  Widget _buildLocationAddField() {
+  Widget _itemTile(String table, LookupOptionModel item, int index, {required Key key}) {
     return Container(
-      padding: EdgeInsets.all(20.w),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14.r), border: Border.all(color: const Color(0xFFEAEAF0))),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('نوع الإضافة', style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w600, color: Colors.grey[600])),
-        SizedBox(height: 12.h),
-        Wrap(spacing: 8.w, children: [
-          _typeChip('إضافة محافظة', null),
-          ..._govData.map((g) => _typeChip('مدينة في ${g['name']}', g['id'] is int ? g['id'] as int : int.tryParse(g['id'].toString()))),
-        ]),
-        SizedBox(height: 14.h),
-        Row(children: [
-          Expanded(
-            child: TextField(
-              controller: _addCtrl,
-              style: TextStyle(fontSize: 16.sp),
-              decoration: InputDecoration(
-                hintText: _selectedGovId == null ? 'اسم المحافظة...' : 'اسم المدينة الجديدة...',
-                filled: true, fillColor: const Color(0xFFF8F8FC),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10.r), borderSide: BorderSide.none),
-                contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
-              ),
-            ),
-          ),
-          SizedBox(width: 14.w),
-          ElevatedButton.icon(
-            onPressed: _addItem,
-            icon: const Icon(Icons.add, color: Colors.white),
-            label: Text('إضافة', style: TextStyle(fontSize: 16.sp, color: Colors.white, fontWeight: FontWeight.bold)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _cur.color,
-              padding: EdgeInsets.symmetric(horizontal: 28.w, vertical: 16.h),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
-            ),
-          ),
-        ]),
-      ]),
-    );
-  }
-
-  Widget _typeChip(String label, int? govId) {
-    final sel = _selectedGovId == govId;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedGovId = govId),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 7.h),
-        margin: EdgeInsets.only(bottom: 6.h),
-        decoration: BoxDecoration(
-          color: sel ? _cur.color : const Color(0xFFF0F0F8),
-          borderRadius: BorderRadius.circular(20.r),
-          border: Border.all(color: sel ? _cur.color : const Color(0xFFDDDDEE)),
-        ),
-        child: Text(label, style: TextStyle(fontSize: 13.sp, color: sel ? Colors.white : Colors.grey[700], fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
-      ),
-    );
-  }
-
-  Widget _govCard(Map<String, dynamic> gov) {
-    final isActive = _parseBool(gov['is_active']);
-    final govId = gov['id'].toString();
-    final govName = gov['name']?.toString() ?? '';
-    final govModel = LookupOptionModel(id: govId, nameAr: govName, isActive: isActive);
-    final rawCities = gov['cities'] as List? ?? [];
-    final cities = rawCities.map((c) {
-      final m = c as Map<String, dynamic>;
-      return LookupOptionModel(
-        id: m['id'].toString(),
-        nameAr: m['name']?.toString() ?? '',
-        isActive: _parseBool(m['is_active']),
-      );
-    }).toList();
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14.r),
-        border: Border.all(color: isActive ? const Color(0xFFDDDDEE) : Colors.grey.withValues(alpha: 0.2), width: 1.5),
-      ),
-      child: ExpansionTile(
-        // ─── key فريد يمنع تعارض PageStorage ───
-        key: PageStorageKey('gov_$govId'),
-        tilePadding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 6.h),
-        title: Row(children: [
-          Icon(Icons.location_city_outlined, size: 20.sp, color: isActive ? _cur.color : Colors.grey),
-          SizedBox(width: 10.w),
-          Text(govName, style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w700, color: isActive ? const Color(0xFF1A1A2E) : Colors.grey)),
-          SizedBox(width: 10.w),
-          if (!isActive)
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
-              decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6.r)),
-              child: Text('معطّل', style: TextStyle(fontSize: 12.sp, color: Colors.red)),
-            ),
-          const Spacer(),
-          Text('${cities.length} مدينة', style: TextStyle(fontSize: 13.sp, color: Colors.grey[500])),
-          SizedBox(width: 6.w),
-        ]),
-        trailing: _actions('governorates', govModel, isLoc: true),
-        children: [
-          if (cities.isEmpty)
-            Padding(
-              padding: EdgeInsets.all(16.w),
-              child: Text('لا توجد مدن مسجلة', style: TextStyle(color: Colors.grey, fontSize: 14.sp)),
-            )
-          else
-            Padding(
-              padding: EdgeInsets.only(right: 24.w, left: 12.w, bottom: 10.h),
-              child: Column(
-                children: cities.map((city) => Padding(
-                  padding: EdgeInsets.only(bottom: 6.h),
-                  child: _itemTile('cities', city, isLoc: true),
-                )).toList(),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _itemTile(String table, LookupOptionModel item, {bool isLoc = false}) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
+      key: key,
+      margin: EdgeInsets.only(bottom: 8.h),
       decoration: BoxDecoration(
         color: item.isActive ? Colors.white : const Color(0xFFFAFAFA),
         borderRadius: BorderRadius.circular(12.r),
         border: Border.all(color: item.isActive ? const Color(0xFFEAEAF0) : Colors.grey.withValues(alpha: 0.15)),
+        boxShadow: item.isActive ? [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 2))] : null,
       ),
       child: ListTile(
-        contentPadding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 2.h),
-        leading: Container(
-          width: 11.r, height: 11.r,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: item.isActive ? _cur.color : Colors.grey[400]),
+        contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
+        leading: ReorderableDragStartListener(
+          index: index,
+          child: Icon(Icons.drag_indicator, color: Colors.grey[400], size: 26.sp),
         ),
         title: Text(
           item.nameAr,
           style: TextStyle(
-            fontSize: 17.sp,
-            fontWeight: FontWeight.w600,
+            fontSize: 16.sp,
+            fontWeight: FontWeight.w700,
             color: item.isActive ? const Color(0xFF1A1A2E) : Colors.grey,
             decoration: item.isActive ? null : TextDecoration.lineThrough,
           ),
         ),
-        subtitle: !item.isActive
-            ? Text('معطّل — لن يظهر في القوائم الجديدة', style: TextStyle(fontSize: 12.sp, color: Colors.red[300]))
-            : null,
-        trailing: _actions(table, item, isLoc: isLoc),
+        subtitle: Row(
+          children: [
+            if (item.nameEn.isNotEmpty) ...[
+              Text(item.nameEn, style: TextStyle(fontSize: 13.sp, color: Colors.grey[500])),
+              SizedBox(width: 8.w),
+            ],
+            if (!item.isActive)
+              Text('• معطّل', style: TextStyle(fontSize: 12.sp, color: Colors.red[300])),
+          ],
+        ),
+        trailing: _actions(table, item, isLoc: _cur.isLocation),
       ),
     );
   }
@@ -534,6 +478,12 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
         tooltip: item.isActive ? 'تعطيل' : 'تفعيل',
         onPressed: () => _toggle(table, item),
       ),
+      Container(width: 1, height: 24, color: Colors.grey[300], margin: EdgeInsets.symmetric(horizontal: 8.w)),
+      IconButton(
+        icon: Icon(Icons.delete_outline, size: 22.sp, color: Colors.red[400]),
+        tooltip: 'حذف نهائي ونقل',
+        onPressed: () => _hardDelete(table, item),
+      ),
     ]);
   }
 
@@ -545,3 +495,4 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
     ]));
   }
 }
+
