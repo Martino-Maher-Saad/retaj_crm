@@ -64,7 +64,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
   @override
   void initState() {
     super.initState();
-    _cubit = di.sl<LeadCubit>()
+    _cubit = context.read<LeadCubit>()
       ..getAllLeads(role: widget.user.role, userId: widget.user.id);
     _scrollController.addListener(_onScroll);
   }
@@ -104,12 +104,10 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return BlocProvider.value(
-      value: _cubit,
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF5F5FB),
-        body: Column(
-          children: [
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F5FB),
+      body: Column(
+        children: [
             // ─── Header bar ───
             BlocBuilder<LeadCubit, LeadState>(
               builder: (context, state) {
@@ -521,8 +519,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 
   void _openForm(BuildContext context, {LeadModel? lead}) {

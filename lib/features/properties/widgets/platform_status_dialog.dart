@@ -10,11 +10,15 @@ enum PlatformState { waiting, target, suspended }
 class PlatformStatusDialog extends StatefulWidget {
   final PropertyModel property;
   final ValueChanged<PropertyModel> onSaved;
+  final bool isAdsManagement;
+  final bool canChangeState;
 
   const PlatformStatusDialog({
     Key? key,
     required this.property,
     required this.onSaved,
+    this.isAdsManagement = false,
+    this.canChangeState = true,
   }) : super(key: key);
 
   @override
@@ -89,18 +93,9 @@ class _PlatformStatusDialogState extends State<PlatformStatusDialog> {
 
   @override
   Widget build(BuildContext context) {
-    if (_platformStates.isEmpty) {
-      return AlertDialog(
-        title: Text('إدارة المنصات', style: TextStyle(fontSize: 24.sp, fontWeight: FontWeight.bold)),
-        content: const Text('لا توجد منصات إعلانية لهذا العقار.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إغلاق'),
-          )
-        ],
-      );
-    }
+    final dataManager = di.sl<StaticDataManager>();
+    final allPlatforms = dataManager.getActiveOptions('advertising_platform');
+    final availableToAdd = allPlatforms.where((p) => !_platformStates.containsKey(p)).toList();
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -113,7 +108,9 @@ class _PlatformStatusDialogState extends State<PlatformStatusDialog> {
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: _platformStates.entries.map((entry) {
+              children: [
+
+                ..._platformStates.entries.map((entry) {
                 final platform = entry.key;
                 final state = entry.value;
                 return Padding(
@@ -138,14 +135,47 @@ class _PlatformStatusDialogState extends State<PlatformStatusDialog> {
                           ],
                         ),
                       ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () {
+                          setState(() => _platformStates.remove(platform));
+                        },
+                      ),
                     ],
                   ),
                 );
               }).toList(),
-            ),
+              if (availableToAdd.isNotEmpty)
+                Padding(
+                  padding: EdgeInsets.only(top: 20.h),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String?>(
+                          value: null,
+                          decoration: const InputDecoration(
+                            labelText: 'إضافة منصة جديدة',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: [
+                            const DropdownMenuItem<String?>(value: null, child: Text('اختر منصة لإضافتها')),
+                            ...availableToAdd.map((p) => DropdownMenuItem<String?>(value: p, child: Text(p))),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() => _platformStates[val] = PlatformState.waiting);
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
           ),
         ),
-        actions: [
+      ),
+      actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text('إلغاء', style: TextStyle(color: Colors.grey.shade600, fontSize: 20.sp)),
@@ -168,13 +198,15 @@ class _PlatformStatusDialogState extends State<PlatformStatusDialog> {
   Widget _buildOptionBtn(String platform, PlatformState targetState, PlatformState currentState, Color activeColor, String label) {
     final isSelected = targetState == currentState;
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
+      cursor: widget.canChangeState ? SystemMouseCursors.click : SystemMouseCursors.basic,
       child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _platformStates[platform] = targetState;
-          });
-        },
+        onTap: widget.canChangeState
+            ? () {
+                setState(() {
+                  _platformStates[platform] = targetState;
+                });
+              }
+            : null,
         child: Container(
           padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
           decoration: BoxDecoration(

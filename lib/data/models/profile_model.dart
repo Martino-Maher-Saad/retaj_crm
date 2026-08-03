@@ -100,9 +100,11 @@ class ProfileModel {
   bool get isCeo => role == 'ceo';
   bool get isMarketing => role == 'marketing';
 
-  /// يقدر يعدل حالة المنصات وحالة العقار (للادمن والمدير والـ CEO والتسويق وأي موظف canMakeAds)
-  bool get canManagePlatforms =>
+  bool get canChangePlatformStatus =>
       isAdmin || isManager || isCeo || isMarketing || canMakeAds;
+
+  /// يحدد ما إذا كان الموظف قادراً على إضافة/حذف المنصات (يشمل موظفي المبيعات)
+  bool get canManagePlatforms => canChangePlatformStatus || role == 'sales';
 
   /// يقدر يشوف كل بيانات العقار بما فيها رقم المالك
   bool get canViewOwnerDetails => !isMarketing;

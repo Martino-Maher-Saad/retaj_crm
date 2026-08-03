@@ -61,7 +61,7 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
   @override
   void initState() {
     super.initState();
-    _cubit = di.sl<PropertiesCubit>()..fetchMyProperties(
+    _cubit = context.read<PropertiesCubit>()..fetchMyProperties(
         userId: widget.userId, 
         role: widget.role, 
         isRefresh: true,
@@ -149,12 +149,10 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return BlocProvider.value(
-      value: _cubit,
-      child: ResponsiveDebouncerWrapper(
-        child: Scaffold(
-          backgroundColor: const Color(0xFFF8FAFC),
-          body: BlocConsumer<PropertiesCubit, PropertiesState>(
+    return ResponsiveDebouncerWrapper(
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        body: BlocConsumer<PropertiesCubit, PropertiesState>(
             listener: (context, state) {
               if (state is PropertiesError) {
                 print('==================================================================');
@@ -308,8 +306,7 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
             },
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildBody(PropertiesState state) {
