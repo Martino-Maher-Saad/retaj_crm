@@ -270,7 +270,7 @@ class _MatchedPropertyCardState extends State<MatchedPropertyCard> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isSales = widget.role == 'sales';
+    final bool isSales = (widget.role == 'sales' || widget.role == 'marketing');
     final bool isOwnProperty = widget.property.createdBy == widget.currentUserId;
     final bool canSeeOwnerPhone = !isSales || isOwnProperty;
 

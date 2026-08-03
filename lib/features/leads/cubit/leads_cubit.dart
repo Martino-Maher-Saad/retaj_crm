@@ -726,12 +726,15 @@ class LeadCubit extends Cubit<LeadState> {
       // لو مفيش أي تغيير → مرجعش للـ DB خالص
       if (!leadChanged && !phonesChanged && !hasNewNote) return;
 
+      final bool updateEmbeddings = currentLead.descLeadNeed != updatedLead.descLeadNeed;
+
       try {
         final newLead = await _repository.updateLeadData(
           updatedLead.id!,
           updatedLead,
           phones,
           newNote: newNote,
+          updateEmbeddings: updateEmbeddings,
         );
         final updatedAll = currentState.allLeads.map((l) {
           return l.id == updatedLead.id ? newLead : l;

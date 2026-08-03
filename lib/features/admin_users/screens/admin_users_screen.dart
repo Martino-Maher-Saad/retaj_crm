@@ -20,10 +20,24 @@ class AdminUsersScreen extends StatefulWidget {
 }
 
 class _AdminUsersScreenState extends State<AdminUsersScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
   @override
   void initState() {
     super.initState();
     context.read<AdminUsersCubit>().fetchAllUsers();
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text.trim().toLowerCase();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   void _showAddUserBottomSheet() {
@@ -132,22 +146,44 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           }
           final cubitState = context.read<AdminUsersCubit>().state;
           if (cubitState is AdminUsersLoaded) {
-            final users = cubitState.users;
-            return RefreshIndicator(
-              onRefresh: () => context.read<AdminUsersCubit>().fetchAllUsers(),
-              child: ListView.separated(
-                padding: EdgeInsets.all(
-                  AppConstants.p16,
-                ).copyWith(bottom: 80.h),
-                itemCount: users.length,
-                separatorBuilder: (_, __) => SizedBox(height: AppConstants.p16),
-                itemBuilder: (context, index) {
-                  final user = users[index];
-                  return Container(
-                    padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16.r),
+            final users = cubitState.users.where((user) {
+              final fullName = '${user.firstName ?? ''} ${user.lastName ?? ''}'.toLowerCase();
+              return fullName.contains(_searchQuery);
+            }).toList();
+
+            return Column(
+              children: [
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'ابحث عن موظف بالاسم...',
+                      prefixIcon: const Icon(Icons.search),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: EdgeInsets.symmetric(vertical: 0.h),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: () => context.read<AdminUsersCubit>().fetchAllUsers(),
+                    child: ListView.separated(
+                      padding: EdgeInsets.all(AppConstants.p16).copyWith(bottom: 80.h),
+                      itemCount: users.length,
+                      separatorBuilder: (_, __) => SizedBox(height: AppConstants.p16),
+                      itemBuilder: (context, index) {
+                        final user = users[index];
+                        return Container(
+                          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+                          decoration: BoxDecoration(
+                            color: user.isActive ? Colors.white : Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(16.r),
                       border: Border.all(color: AppColors.borderSubtle, width: 1.w),
                       boxShadow: [
                         BoxShadow(
@@ -208,6 +244,13 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                             ),
                           ),
                         ),
+                        Switch(
+                          value: user.isActive,
+                          onChanged: (val) {
+                            context.read<AdminUsersCubit>().toggleUserActiveStatus(user.id, val);
+                          },
+                          activeColor: AppColors.brandPrimary,
+                        ),
                         IconButton(
                           icon: const Icon(
                             Icons.edit_outlined,
@@ -220,6 +263,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   ).animate().fade(duration: 300.ms).slideY(begin: 0.1, end: 0, duration: 300.ms, curve: Curves.easeOut);
                 },
               ),
+            ),
+            ),
+            ],
             );
           }
           return const SizedBox();
@@ -242,7 +288,9 @@ class _AddUserFormState extends State<_AddUserForm> {
   final _passCtrl = TextEditingController();
   final _firstCtrl = TextEditingController();
   final _lastCtrl = TextEditingController();
+  final _prefixCtrl = TextEditingController();
   String _selectedRole = 'sales';
+  bool _canMakeAds = false;
 
   @override
   Widget build(BuildContext context) {
@@ -334,6 +382,24 @@ class _AddUserFormState extends State<_AddUserForm> {
                 ],
                 onChanged: (v) => setState(() => _selectedRole = v!),
               ),
+              SizedBox(height: 12.h),
+              TextFormField(
+                controller: _prefixCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'كود الموظف للعقارات (مثال: MA)',
+                  hintText: 'يُفضل حرفين بالإنجليزية',
+                  filled: true,
+                ),
+              ),
+              SizedBox(height: 12.h),
+              SwitchListTile(
+                title: const Text('السماح للموظف بنشر الإعلانات لنفسه؟'),
+                subtitle: const Text('إذا تم تفعيله، يمكن لموظف المبيعات تعديل حالة منصات الإعلان.'),
+                value: _canMakeAds,
+                onChanged: (v) => setState(() => _canMakeAds = v),
+                activeColor: AppColors.brandPrimary,
+                contentPadding: EdgeInsets.zero,
+              ),
               SizedBox(height: 24.h),
               SizedBox(
                 width: double.infinity,
@@ -354,6 +420,8 @@ class _AddUserFormState extends State<_AddUserForm> {
                                       role: _selectedRole,
                                       firstName: _firstCtrl.text,
                                       lastName: _lastCtrl.text,
+                                      canMakeAds: _canMakeAds,
+                                      propertyPrefix: _prefixCtrl.text.trim().isNotEmpty ? _prefixCtrl.text.trim().toUpperCase() : null,
                                     )
                                     .then((_) {
                                       if (mounted &&
@@ -392,13 +460,17 @@ class _EditUserDialog extends StatefulWidget {
 class _EditUserDialogState extends State<_EditUserDialog> {
   late TextEditingController _emailCtrl;
   late TextEditingController _passCtrl;
+  late TextEditingController _prefixCtrl;
   late String _selectedRole;
+  late bool _canMakeAds;
 
   @override
   void initState() {
     super.initState();
     _emailCtrl = TextEditingController(text: widget.user.email);
     _passCtrl = TextEditingController();
+    _prefixCtrl = TextEditingController(text: widget.user.propertyPrefix ?? '');
+    _canMakeAds = widget.user.canMakeAds;
     
     const validRoles = ['user', 'sales', 'marketing', 'manager', 'admin'];
     _selectedRole = validRoles.contains(widget.user.role.toLowerCase())
@@ -456,6 +528,22 @@ class _EditUserDialogState extends State<_EditUserDialog> {
               ],
               onChanged: (v) => setState(() => _selectedRole = v!),
             ),
+            SizedBox(height: 10.h),
+            TextFormField(
+              controller: _prefixCtrl,
+              decoration: const InputDecoration(
+                labelText: 'كود الموظف للعقارات (مثال: MA)',
+                hintText: 'يُفضل حرفين بالإنجليزية',
+              ),
+            ),
+            SizedBox(height: 10.h),
+            SwitchListTile(
+              title: const Text('السماح بنشر الإعلانات؟'),
+              value: _canMakeAds,
+              onChanged: (v) => setState(() => _canMakeAds = v),
+              activeColor: AppColors.brandPrimary,
+              contentPadding: EdgeInsets.zero,
+            ),
           ],
         ),
       ),
@@ -503,6 +591,12 @@ class _EditUserDialogState extends State<_EditUserDialog> {
                                         : null,
                                     role: _selectedRole != widget.user.role
                                         ? _selectedRole
+                                        : null,
+                                    canMakeAds: _canMakeAds != widget.user.canMakeAds
+                                        ? _canMakeAds
+                                        : null,
+                                    propertyPrefix: _prefixCtrl.text.trim() != (widget.user.propertyPrefix ?? '')
+                                        ? (_prefixCtrl.text.trim().isNotEmpty ? _prefixCtrl.text.trim().toUpperCase() : null)
                                         : null,
                                   )
                                   .then((_) {

@@ -27,7 +27,16 @@ class PropertiesCubit extends Cubit<PropertiesState> {
   bool _isManagerOrAdmin() {
     if (_currentUserRole == null) return false;
     final r = _currentUserRole!.toLowerCase();
-    return r == 'manager' || r == 'admin' || r == 'ceo' || r == 'marketing';
+    return r == 'manager' || r == 'admin' || r == 'ceo';
+  }
+
+  final Set<String> _myRecentActions = {};
+  
+  void _markActionByMe(String id) {
+    _myRecentActions.add(id);
+    Future.delayed(const Duration(seconds: 10), () {
+      _myRecentActions.remove(id);
+    });
   }
 
   final Set<String> _myRecentActions = {};
@@ -331,7 +340,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
       if (isRefresh) emit(PropertiesLoading());
 
       final isManagerOrAdmin =
-          role == 'manager' || role == 'admin' || role == 'ceo' || role == 'marketing';
+          role == 'manager' || role == 'admin' || role == 'ceo';
       final count = isManagerOrAdmin
           ? await _repo.fetchFilterCount()
           : await _repo.fetchMyCount(userId);
@@ -385,7 +394,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     emit(PropertiesLoading());
     try {
       String? filterUserId;
-      if (role == 'manager' || role == 'admin' || role == 'ceo' || role == 'marketing') {
+      if (role == 'manager' || role == 'admin' || role == 'ceo') {
         filterUserId = selectedEmployee;
       } else if (!searchAll) {
         filterUserId = currentUserId;
@@ -452,6 +461,22 @@ class PropertiesCubit extends Cubit<PropertiesState> {
   Future<List<PropertyModel>> checkDuplicates(String ownerPhone) async {
     try {
       return await _repo.checkDuplicatePropertyPhone(ownerPhone);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<bool> checkPropertyCodeExists(String code) async {
+    try {
+      return await _repo.checkPropertyCodeExists(code);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchAllEmployees() async {
+    try {
+      return await _repo.fetchAllEmployees();
     } catch (e) {
       return [];
     }
@@ -775,6 +800,8 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     required List<Uint8List> newImages,
     List<PropertyImageModel>? imagesToDelete,
     List<String> platformIds = const [],
+    Map<String, dynamic>? partialUpdates,
+    bool updateEmbeddings = false,
   }) async {
     _markActionByMe(property.id!);
     final current = state is PropertiesSuccess
@@ -792,6 +819,8 @@ class PropertiesCubit extends Cubit<PropertiesState> {
         delImgsIds: delIds,
         delImgsUrls: delUrls,
         platformIds: platformIds,
+        partialUpdates: partialUpdates,
+        updateEmbeddings: updateEmbeddings,
       );
       final updatedList = current.myProperties.map((p) {
         return p.id == updatedProp.id ? updatedProp : p;

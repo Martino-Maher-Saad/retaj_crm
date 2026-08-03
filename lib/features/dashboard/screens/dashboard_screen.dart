@@ -29,7 +29,7 @@ class _DashboardScreenState extends State<DashboardScreen> with AutomaticKeepAli
   void initState() {
     super.initState();
     _cubit = di.sl<DashboardCubit>();
-    if (widget.user.role == 'sales') {
+    if (widget.user.role == 'sales' || widget.user.role == 'marketing') {
       _cubit.loadEmployeeDashboard(userId: widget.user.id);
     } else {
       _cubit.loadManagerDashboard();
@@ -41,7 +41,7 @@ class _DashboardScreenState extends State<DashboardScreen> with AutomaticKeepAli
     super.build(context);
     return BlocProvider.value(
       value: _cubit,
-      child: widget.user.role == 'sales'
+      child: (widget.user.role == 'sales' || widget.user.role == 'marketing')
           ? EmployeeDashboardView(user: widget.user)
           : ManagerDashboardView(user: widget.user),
     );

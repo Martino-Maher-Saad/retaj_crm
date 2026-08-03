@@ -13,44 +13,44 @@ class DropdownRepository {
     Map<String, List<LookupOptionModel>> lookupOptions,
   })> fetchAllStaticData() async {
     final results = await Future.wait([
-      _service.fetchGovernoratesWithCities(),   // 0
-      _service.fetchLeadStatuses(),              // 1
-      _service.fetchPropertyTypes(),             // 2
-      _service.fetchListingTypes(),              // 3
-      _service.fetchLeadPlatforms(),             // 4
-      _service.fetchCommunicationChannels(),     // 5
-      _service.fetchPropertySources(),           // 6
-      _service.fetchAdvertisingPlatforms(),      // 7
-      _service.fetchLeadExclusionReasons(),      // 8
-      _service.fetchPropertyApprovalStatuses(),  // 9
+      _service.fetchGovernoratesOnly(),          // 0
+      _service.fetchCitiesAll(),                 // 1
+      _service.fetchLeadStatuses(),              // 2
+      _service.fetchPropertyTypes(),             // 3
+      _service.fetchListingTypes(),              // 4
+      _service.fetchLeadPlatforms(),             // 5
+      _service.fetchCommunicationChannels(),     // 6
+      _service.fetchPropertySources(),           // 7
+      _service.fetchAdvertisingPlatforms(),      // 8
+      _service.fetchLeadExclusionReasons(),      // 9
+      _service.fetchPropertyApprovalStatuses(),  // 10
     ]);
 
     final govRaw = results[0] as List<Map<String, dynamic>>;
+    final citiesRaw = results[1] as List<Map<String, dynamic>>;
     final governorates = <Governorate>[];
     final cities = <City>[];
 
     for (final govMap in govRaw) {
-      final gov = Governorate.fromJson(govMap);
-      governorates.add(gov);
-      final citiesRaw = govMap['cities'] as List? ?? [];
-      for (final cityMap in citiesRaw) {
-        cities.add(City.fromJson(cityMap as Map<String, dynamic>));
-      }
+      governorates.add(Governorate.fromJson(govMap));
+    }
+    for (final cityMap in citiesRaw) {
+      cities.add(City.fromJson(cityMap));
     }
 
     return (
       governorates: governorates,
       cities: cities,
       lookupOptions: {
-        'lead_status':           results[1] as List<LookupOptionModel>,
-        'property_type':         results[2] as List<LookupOptionModel>,
-        'listing_type':          results[3] as List<LookupOptionModel>,
-        'platform':              results[4] as List<LookupOptionModel>,
-        'communication_channel': results[5] as List<LookupOptionModel>,
-        'property_source':       results[6] as List<LookupOptionModel>,
-        'advertising_platform':  results[7] as List<LookupOptionModel>,
-        'lead_exclusion_reasons': results[8] as List<LookupOptionModel>,
-        'property_approval_statuses': results[9] as List<LookupOptionModel>,
+        'lead_status':           results[2] as List<LookupOptionModel>,
+        'property_type':         results[3] as List<LookupOptionModel>,
+        'listing_type':          results[4] as List<LookupOptionModel>,
+        'platform':              results[5] as List<LookupOptionModel>,
+        'communication_channel': results[6] as List<LookupOptionModel>,
+        'property_source':       results[7] as List<LookupOptionModel>,
+        'advertising_platform':  results[8] as List<LookupOptionModel>,
+        'lead_exclusion_reasons': results[9] as List<LookupOptionModel>,
+        'property_approval_statuses': results[10] as List<LookupOptionModel>,
       },
     );
   }

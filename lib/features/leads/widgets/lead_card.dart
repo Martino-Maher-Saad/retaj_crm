@@ -189,7 +189,7 @@ class _LeadCardState extends State<LeadCard> {
         widget.role == 'manager' ||
         widget.role == 'admin' ||
         widget.role == 'ceo' ||
-        widget.role == 'sales';
+        (widget.role == 'sales' || widget.role == 'marketing');
     if (!isAllowed || widget.lead.phones.isEmpty) return;
 
     if (mounted) setState(() => _isLoadingDuplicates = true);

@@ -21,7 +21,7 @@ class PropertyDetailsScreen extends StatelessWidget {
 
   bool get isOwner => property.createdBy == currentUserId;
   bool get isManagerOrAdmin => role == 'manager' || role == 'admin' || role == 'ceo';
-  bool get shouldMask => role == 'sales' && !isOwner;
+  bool get shouldMask => (role == 'sales' || role == 'marketing') && !isOwner;
 
   @override
   Widget build(BuildContext context) {

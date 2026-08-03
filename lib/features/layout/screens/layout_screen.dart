@@ -26,6 +26,8 @@ import '../../tasks/screens/manager_approvals_screen.dart';
 import '../../archive/screens/archive_screen.dart';
 import '../../duplicates/screens/duplicates_screen.dart';
 import '../../properties/screens/property_shares_screen.dart';
+import '../../marketing/screens/marketing_screen.dart';
+import '../../marketing/cubit/marketing_cubit.dart';
 
 class LayoutScreen extends StatefulWidget {
   final ProfileModel user;
@@ -58,14 +60,18 @@ class _LayoutScreenState extends State<LayoutScreen> {
     final accounts = _NavItemData("إدارة الحسابات", Icons.manage_accounts_outlined, BlocProvider(key: const PageStorageKey('accounts_page'), create: (_) => di.sl<AdminUsersCubit>(), child: const AdminUsersScreen()));
     final dropdowns = _NavItemData("إدارة القوائم", Icons.list_alt_rounded, const DropdownManagementScreen(key: PageStorageKey('dropdown_page')));
 
+    final marketing = _NavItemData("إدارة الإعلانات", Icons.campaign_rounded, BlocProvider(key: const PageStorageKey('marketing_page'), create: (_) => di.sl<MarketingCubit>(), child: MarketingScreen(user: user)));
+
     if (user.role == 'sales') {
       return [dashboard, properties, leads, tasks, archive, shares];
     } else if (user.role == 'manager') {
-      return [dashboard, properties, leads, tasks, archive, shares, duplicates];
+      return [dashboard, properties, leads, tasks, archive, shares, duplicates, marketing];
     } else if (user.role == 'ceo') {
-      return [dashboard, approvals, properties, leads, tasks, archive, shares, duplicates, designs];
+      return [dashboard, approvals, properties, leads, tasks, archive, shares, duplicates, designs, marketing];
+    } else if (user.role == 'marketing') {
+      return [dashboard, properties, leads, tasks, archive, shares, marketing];
     } else { // admin
-      return [dashboard, tasks, properties, shares, leads, designs, archive, duplicates, approvals, accounts, dropdowns];
+      return [dashboard, tasks, properties, shares, leads, designs, archive, duplicates, approvals, accounts, dropdowns, marketing];
     }
   }
 
@@ -137,6 +143,8 @@ class _LayoutScreenState extends State<LayoutScreen> {
         return 'مدير';
       case 'sales':
         return 'موظف مبيعات';
+      case 'marketing':
+        return 'تسويق';
       default:
         return role;
     }

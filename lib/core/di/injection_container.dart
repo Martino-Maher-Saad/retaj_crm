@@ -33,6 +33,7 @@ import '../../features/dashboard/cubit/dashboard_cubit.dart';
 import '../../features/leads/cubit/bulk_add_leads_cubit.dart';
 import '../../features/tasks/cubit/property_tasks_cubit.dart';
 import '../../features/tasks/cubit/lead_tasks_cubit.dart';
+import '../../features/marketing/cubit/marketing_cubit.dart';
 import '../../core/utils/property_sync_notifier.dart';
 import '../../core/utils/lead_sync_notifier.dart';
 
@@ -50,6 +51,7 @@ Future<void> init() async {
   sl.registerFactory(() => ProfileCubit(sl()));
   sl.registerFactory(() => LayoutCubit());
   sl.registerFactory(() => DashboardCubit(sl()));
+  sl.registerFactory(() => MarketingCubit(sl(), sl()));
   sl.registerLazySingleton(() => BulkAddLeadsCubit());
   sl.registerLazySingleton(() => PropertySyncNotifier());
   sl.registerLazySingleton(() => LeadSyncNotifier());
