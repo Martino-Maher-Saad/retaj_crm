@@ -24,12 +24,27 @@ class AdminUsersCubit extends Cubit<AdminUsersState> {
     }
   }
 
+  Future<void> toggleUserActiveStatus(String userId, bool isActive) async {
+    final currentState = state;
+    emit(AdminUsersLoading());
+    try {
+      await _adminUserService.toggleUserActiveStatus(userId, isActive);
+      emit(AdminActionSuccess(isActive ? "تم تفعيل الحساب بنجاح!" : "تم تعطيل الحساب بنجاح!"));
+      await fetchAllUsers();
+    } catch (e) {
+      emit(AdminUsersError(e.toString()));
+      if (currentState is AdminUsersLoaded) emit(currentState);
+    }
+  }
+
   Future<void> createNewUser({
     required String email, 
     required String password, 
     required String role, 
     required String firstName, 
     required String lastName,
+    bool canMakeAds = false,
+    String? propertyPrefix,
   }) async {
     final currentState = state;
     emit(AdminUsersLoading());
@@ -40,7 +55,9 @@ class AdminUsersCubit extends Cubit<AdminUsersState> {
         password: password, 
         role: role, 
         firstName: firstName, 
-        lastName: lastName
+        lastName: lastName,
+        canMakeAds: canMakeAds,
+        propertyPrefix: propertyPrefix,
       );
       emit(const AdminActionSuccess("تم إنشاء الحساب بنجاح وتمت إضافته للقاعدة البيانات!"));
       // Refresh list
@@ -55,7 +72,7 @@ class AdminUsersCubit extends Cubit<AdminUsersState> {
     }
   }
 
-  Future<void> updateUserAdmin(String targetUserId, {String? email, String? password, String? role}) async {
+  Future<void> updateUserAdmin(String targetUserId, {String? email, String? password, String? role, bool? canMakeAds, String? propertyPrefix}) async {
     final currentState = state;
     emit(AdminUsersLoading());
     try {
@@ -64,7 +81,9 @@ class AdminUsersCubit extends Cubit<AdminUsersState> {
         targetUserId, 
         email: email, 
         password: password, 
-        role: role
+        role: role,
+        canMakeAds: canMakeAds,
+        propertyPrefix: propertyPrefix,
       );
       emit(const AdminActionSuccess("تم تحديث الحساب للإدارة بنجاح!"));
       // Refresh list

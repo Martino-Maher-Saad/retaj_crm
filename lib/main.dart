@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'core/theme/app_theme.dart';
+import 'core/constants/app_colors.dart';
 import 'core/utils/static_data_manager.dart';
 import 'core/di/injection_container.dart' as di;
 import 'data/services/realtime_service.dart';
@@ -22,9 +23,6 @@ void main() async {
     url: 'https://owzahfesxoyqfkilvyck.supabase.co',
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im93emFoZmVzeG95cWZraWx2eWNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5NDE3MjksImV4cCI6MjA4MTUxNzcyOX0.WMPd6r4Ih4Bg-KyLoJ5daLz0SckwQAUSE_w1mZTajjs',
   );
-
-  await di.sl<StaticDataManager>().initialize();
-  di.sl<RealtimeService>().init();
 
   runApp(
     BlocProvider(
@@ -58,8 +56,76 @@ class MyApp extends StatelessWidget {
         );
       },
       // هذا الجزء هو الذي سيتم بناؤه داخل الـ builder
-      child: const RootAuthWrapper(),
+      child: const SplashWrapper(),
     );
+  }
+}
+
+class SplashWrapper extends StatefulWidget {
+  const SplashWrapper({super.key});
+
+  @override
+  State<SplashWrapper> createState() => _SplashWrapperState();
+}
+
+class _SplashWrapperState extends State<SplashWrapper> {
+  bool _isInitialized = false;
+  String _loadingMessage = 'جاري الاتصال بالخادم وتحميل البيانات...';
+
+  @override
+  void initState() {
+    super.initState();
+    _initApp();
+  }
+
+  Future<void> _initApp() async {
+    while (!_isInitialized) {
+      try {
+        await di.sl<StaticDataManager>().initialize();
+        di.sl<RealtimeService>().init();
+        if (mounted) {
+          setState(() {
+            _isInitialized = true;
+          });
+        }
+        break; 
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _loadingMessage = 'حدث خطأ في الاتصال، جاري إعادة المحاولة...';
+          });
+        }
+        await Future.delayed(const Duration(seconds: 3));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_isInitialized) {
+      return Scaffold(
+        backgroundColor: AppColors.bgMain,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(color: AppColors.brandPrimary),
+              SizedBox(height: 24.h),
+              Text(
+                _loadingMessage,
+                style: TextStyle(
+                  fontSize: 20.sp,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    return const RootAuthWrapper();
   }
 }
 

@@ -264,7 +264,7 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
                 ],
               ),
               
-              if (widget.role == 'sales') ...[
+              if (widget.role == 'sales' || widget.role == 'marketing') ...[
                 SizedBox(height: 20.h),
                 Material(
                   color: Colors.transparent,

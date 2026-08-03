@@ -202,6 +202,80 @@ class PropertyService {
     return List<Map<String, dynamic>>.from(response);
   }
 
+  /// يجيب كل عقارات الشركة ما عدا عقارات المستخدم نفسه (لصفحة إدارة الإعلانات)
+  Future<List<Map<String, dynamic>>> fetchAdsManagementProperties({
+    required String excludeUserId,
+    required int from,
+    required int to,
+    String? assignedToFilter,
+    String? approvalStatusId,
+    DateTime? fromDate,
+    DateTime? toDate,
+    String? propertyCode,
+  }) async {
+    dynamic query = _client
+        .from('properties')
+        .select(_select)
+        .eq('is_active', true)
+        .neq('created_by', excludeUserId);
+
+    if (assignedToFilter != null && assignedToFilter.isNotEmpty) {
+      query = query.eq('created_by', assignedToFilter);
+    }
+    if (approvalStatusId != null && approvalStatusId.isNotEmpty) {
+      query = query.eq('approval_status_id', approvalStatusId);
+    }
+    if (fromDate != null) query = query.gte('created_at', fromDate.toIso8601String());
+    if (toDate != null) query = query.lte('created_at', toDate.toIso8601String());
+    if (propertyCode != null && propertyCode.isNotEmpty) {
+      query = query.ilike('property_code', '%$propertyCode%');
+    }
+
+    query = query.order('created_at', ascending: false);
+
+    final response = await query.range(from, to);
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  Future<int> fetchAdsManagementCount({
+    required String excludeUserId,
+    String? assignedToFilter,
+    String? approvalStatusId,
+    DateTime? fromDate,
+    DateTime? toDate,
+    String? propertyCode,
+  }) async {
+    dynamic query = _client
+        .from('properties')
+        .select('*')
+        .eq('is_active', true)
+        .neq('created_by', excludeUserId);
+
+    if (assignedToFilter != null && assignedToFilter.isNotEmpty) {
+      query = query.eq('created_by', assignedToFilter);
+    }
+    if (approvalStatusId != null && approvalStatusId.isNotEmpty) {
+      query = query.eq('approval_status_id', approvalStatusId);
+    }
+    if (fromDate != null) query = query.gte('created_at', fromDate.toIso8601String());
+    if (toDate != null) query = query.lte('created_at', toDate.toIso8601String());
+    if (propertyCode != null && propertyCode.isNotEmpty) {
+      query = query.ilike('property_code', '%$propertyCode%');
+    }
+
+    final res = await query.limit(0).count(CountOption.exact);
+    return res.count ?? 0;
+  }
+
+  Future<bool> checkPropertyCodeExists(String code) async {
+    final response = await _client
+        .from('properties')
+        .select('id')
+        .eq('property_code', code)
+        .limit(1);
+    return (response as List).isNotEmpty;
+  }
+
   Future<int> getMyCount(String userId) async {
     final res = await _client
         .from('properties')

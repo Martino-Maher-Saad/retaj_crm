@@ -175,22 +175,23 @@ class LeadRepository {
     LeadModel lead,
     List<LeadPhoneModel> phones, {
     String? newNote,
+    bool updateEmbeddings = false,
   }) async {
     try {
       List<double>? vector;
-      final bool hasNewNeed = lead.descLeadNeed != null && lead.descLeadNeed!.trim().isNotEmpty;
-      if (hasNewNeed) {
+      if (updateEmbeddings && lead.descLeadNeed != null && lead.descLeadNeed!.trim().isNotEmpty) {
         final aiService = di.sl<AiService>();
         vector = await aiService.generateEmbedding(lead.descLeadNeed!.trim(), useGemini: true);
         if (vector == null || vector.isEmpty) {
-          throw 'فشل في حساب دلالات البحث من سيرفر الذكاء الاصطناعي لوصف طلب العميل';
+          throw 'خطأ في توليد الكلمات المفتاحية الذكية، يرجى المحاولة مرة أخرى';
         }
       }
 
       final updatedLead = await _leadService.updateLead(id, lead, phones, newNote: newNote);
 
-      // تحديث المتجه دائمًا في السيرفر (حتى لو كان فارغًا نقوم بتصفيره)
-      await _leadService.updateLeadEmbedding(id, vector);
+      if (updateEmbeddings && vector != null) {
+        await _leadService.updateLeadEmbedding(id, vector);
+      }
 
       return updatedLead;
     } on PostgrestException catch (e) {

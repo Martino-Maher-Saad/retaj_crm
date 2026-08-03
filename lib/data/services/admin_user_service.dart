@@ -21,6 +21,14 @@ class AdminUserService {
     }
   }
 
+  Future<void> toggleUserActiveStatus(String userId, bool isActive) async {
+    try {
+      await _supabase.from('profiles').update({'is_active': isActive}).eq('id', userId);
+    } catch (e) {
+      throw ServerException('فشل تحديث حالة الحساب: $e');
+    }
+  }
+
   // إنشاء مستخدم جديد عبر Edge Function
   Future<void> createUser({
     required String email, 
@@ -28,6 +36,8 @@ class AdminUserService {
     required String role, 
     required String firstName, 
     required String lastName,
+    bool canMakeAds = false,
+    String? propertyPrefix,
   }) async {
     try {
       await _supabase.functions.invoke(
@@ -41,6 +51,12 @@ class AdminUserService {
           'last_name': lastName,
         },
       );
+      
+      // Update custom fields in profiles table directly
+      await _supabase.from('profiles').update({
+        'can_make_ads': canMakeAds,
+        'property_prefix': propertyPrefix,
+      }).eq('email', email);
     } catch (e, stackTrace) {
       print('=== ERROR CREATING USER (SERVICE) ===');
       print(e.toString());
@@ -51,7 +67,7 @@ class AdminUserService {
   }
   
   // تغيير إيميل أو باسورد حساب موجود
-  Future<void> updateUserAdmin(String targetUserId, {String? email, String? password, String? role}) async {
+  Future<void> updateUserAdmin(String targetUserId, {String? email, String? password, String? role, bool? canMakeAds, String? propertyPrefix}) async {
     try {
       await _supabase.functions.invoke(
         'admin_actions',
@@ -63,6 +79,15 @@ class AdminUserService {
           'role': role,
         },
       );
+
+      // Update custom fields if provided
+      final Map<String, dynamic> profileUpdates = {};
+      if (canMakeAds != null) profileUpdates['can_make_ads'] = canMakeAds;
+      if (propertyPrefix != null) profileUpdates['property_prefix'] = propertyPrefix;
+      
+      if (profileUpdates.isNotEmpty) {
+        await _supabase.from('profiles').update(profileUpdates).eq('id', targetUserId);
+      }
     } catch (e) {
       throw ServerException('فشل تحديث الحساب للإدارة: $e');
     }

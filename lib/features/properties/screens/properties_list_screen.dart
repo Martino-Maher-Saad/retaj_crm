@@ -208,7 +208,7 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
                         : null,
                     onFilter: () => _openAdvancedFilter(context),
                     filterBar: PropertySearchBar(
-                      showToggle: widget.role == 'sales',
+                      showToggle: widget.role == 'sales' || widget.role == 'marketing',
                       searchAll: _cubit.searchAll,
                       onToggleSearchAll: (val) {
                         _cubit.toggleSearchAll(val);
@@ -218,13 +218,13 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
                         setState(() {});
                       },
                       onSearch: (val, type) {
-                        final assignedToFilter = widget.role == 'sales'
+                        final assignedToFilter = (widget.role == 'sales' || widget.role == 'marketing')
                             ? (_cubit.searchAll ? null : widget.userId)
                             : null;
                         if (type == 'general') {
                           _cubit.smartSearch(val, assignedTo: assignedToFilter);
                         } else {
-                          final actualAssignedTo = (type == 'phone' && widget.role == 'sales') ? widget.userId : assignedToFilter;
+                          final actualAssignedTo = (type == 'phone' && (widget.role == 'sales' || widget.role == 'marketing')) ? widget.userId : assignedToFilter;
                           _cubit.search(val, type: type, assignedTo: actualAssignedTo);
                         }
                       },
@@ -423,6 +423,9 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
                 }
                 final property = properties[actualIndex];
                 final isBlinking = property.id == successState.blinkItemId;
+                
+                final isManagerOrAdmin = widget.role.toLowerCase() == 'manager' || widget.role.toLowerCase() == 'admin' || widget.role.toLowerCase() == 'ceo';
+                final canEdit = isManagerOrAdmin || property.createdBy == widget.userId;
 
                 return BlinkContainer(
                   isBlinking: isBlinking,
@@ -432,24 +435,26 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
                     currentUserId: widget.userId,
                     role: widget.role,
                     onTap: () {},
-                    onEdit: () {},
-                    onArchive: () => PropertyArchiveDialog.show(
+                    onEdit: canEdit ? () {} : null,
+                    onArchive: canEdit ? () => PropertyArchiveDialog.show(
                       context,
                       property,
                       () => _cubit.archiveProperty(property.id, true),
-                    ),
-                    onDelete: () => PropertyDeleteDialog.show(
+                    ) : null,
+                    onDelete: canEdit ? () => PropertyDeleteDialog.show(
                       context,
                       property,
                       () => _cubit.deleteFullProperty(property.id),
-                    ),
-                    onShareInternal: () => import_helper.InternalShareDialog.show(
+                    ) : null,
+                    onShareInternal: canEdit ? () => import_helper.InternalShareDialog.show(
                       context,
                       property,
                       widget.userId,
                       _cubit,
-                    ),
-                    onPinToggle: () => _cubit.togglePropertyPin(property),
+                    ) : null,
+                    onPinToggle: canEdit ? () {
+                      _cubit.togglePropertyPin(property);
+                    } : null,
                   ),
                 );
               },

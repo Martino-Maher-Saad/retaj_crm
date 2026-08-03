@@ -124,9 +124,54 @@ class PropertyRepository {
     return data.map((e) => PropertyModel.fromJson(e)).toList();
   }
 
+  Future<List<PropertyModel>> fetchAdsManagementProperties({
+    required String excludeUserId,
+    required int from,
+    required int to,
+    String? assignedToFilter,
+    String? approvalStatusId,
+    DateTime? fromDate,
+    DateTime? toDate,
+    String? propertyCode,
+  }) async {
+    final data = await _pService.fetchAdsManagementProperties(
+      excludeUserId: excludeUserId,
+      from: from,
+      to: to,
+      assignedToFilter: assignedToFilter,
+      approvalStatusId: approvalStatusId,
+      fromDate: fromDate,
+      toDate: toDate,
+      propertyCode: propertyCode,
+    );
+    return data.map((e) => PropertyModel.fromJson(e)).toList();
+  }
+
+  Future<int> fetchAdsManagementCount({
+    required String excludeUserId,
+    String? assignedToFilter,
+    String? approvalStatusId,
+    DateTime? fromDate,
+    DateTime? toDate,
+    String? propertyCode,
+  }) async {
+    return await _pService.fetchAdsManagementCount(
+      excludeUserId: excludeUserId,
+      assignedToFilter: assignedToFilter,
+      approvalStatusId: approvalStatusId,
+      fromDate: fromDate,
+      toDate: toDate,
+      propertyCode: propertyCode,
+    );
+  }
+
   Future<List<PropertyModel>> checkDuplicatePropertyPhone(String ownerPhone) async {
     final data = await _pService.checkDuplicatePropertyPhone(ownerPhone);
     return data.map((e) => PropertyModel.fromJson(e)).toList();
+  }
+
+  Future<bool> checkPropertyCodeExists(String code) async {
+    return await _pService.checkPropertyCodeExists(code);
   }
 
   Future<int> fetchMyCount(String uid) => _pService.getMyCount(uid);
@@ -169,19 +214,23 @@ class PropertyRepository {
     List<String>? delImgsIds,
     List<String>? delImgsUrls,
     List<String> platformIds = const [],
+    Map<String, dynamic>? partialUpdates,
+    bool updateEmbeddings = false,
   }) async {
     try {
-      final text = p.descAr;
+      Map<String, dynamic> dataToUpdate = partialUpdates ?? p.toJson();
 
-      // توليد الـ Vector الجديد من Gemini (768 بعداً) - تم إيقاف Hugging Face بالكامل لتسريع التعديل
-      final vectorV2 = await _aiService.generateEmbedding(text, isSearch: false, useGemini: true);
+      if (updateEmbeddings) {
+        final text = p.descAr;
+        final vectorV2 = await _aiService.generateEmbedding(text, isSearch: false, useGemini: true);
+        p = p.copyWith(embedding: null, embeddingV2: vectorV2);
+        dataToUpdate['embedding_v2'] = vectorV2;
+      }
 
-      p = p.copyWith(
-        embedding: null, // إيقاف الحقل القديم
-        embeddingV2: vectorV2,
-      );
-
-      await _pService.updateProperty(p.id, p.toJson());
+      final updatedData = await _pService.updateProperty(p.id, dataToUpdate);
+      
+      // Update the local model with the returned data from DB (in case of partial updates)
+      p = PropertyModel.fromJson(updatedData);
 
       // تحديث المنصات: حذف القديمة ثم إضافة الجديدة
       await _pService.deletePlatforms(p.id);

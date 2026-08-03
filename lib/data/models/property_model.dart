@@ -54,6 +54,9 @@ class PropertyModel {
   final List<double>? embeddingV2;
   final String? source;
   final List<PropertyPlatformEntry> advertisingPlatforms;
+  final List<String> targetPlatforms;
+  final List<String> suspendedPlatforms;
+  final List<String> waitingPlatforms;
 
   // حقول الـ IDs الجديدة (للحفظ)
   final String? propertyTypeId;
@@ -90,6 +93,9 @@ class PropertyModel {
     this.images = const [],
     this.source,
     this.advertisingPlatforms = const [],
+    this.targetPlatforms = const [],
+    this.suspendedPlatforms = const [],
+    this.waitingPlatforms = const [],
     this.propertyTypeId,
     this.listingTypeId,
     this.sourceId,
@@ -127,6 +133,10 @@ class PropertyModel {
             .toList()
         : <PropertyPlatformEntry>[];
 
+    final targetPlatforms = (json['target_platforms'] as List?)?.map((e) => e.toString()).toList() ?? [];
+    final suspendedPlatforms = (json['suspended_platforms'] as List?)?.map((e) => e.toString()).toList() ?? [];
+    final waitingPlatforms = (json['waiting_platforms'] as List?)?.map((e) => e.toString()).toList() ?? [];
+
     return PropertyModel(
       id: json['id']?.toString() ?? '',
       propertyCode: json['property_code'],
@@ -153,6 +163,9 @@ class PropertyModel {
       ownerPhone: json['owner_phone'],
       images: imagesList,
       advertisingPlatforms: advertisingPlatforms,
+      targetPlatforms: targetPlatforms,
+      suspendedPlatforms: suspendedPlatforms,
+      waitingPlatforms: waitingPlatforms,
       embedding: json['embedding'] != null
           ? (json['embedding'] is String
               ? (json['embedding'] as String)
@@ -189,6 +202,9 @@ class PropertyModel {
   /// toJson: يرسل الـ IDs للأعمدة المرتبطة — المنصات تُدار بشكل منفصل عبر property_platforms
   Map<String, dynamic> toJson() {
     return {
+      'target_platforms': targetPlatforms,
+      'suspended_platforms': suspendedPlatforms,
+      'waiting_platforms': waitingPlatforms,
       'embedding': embedding,
       'embedding_v2': embeddingV2,
       'property_code': propertyCode,
@@ -240,6 +256,9 @@ class PropertyModel {
     List<PropertyImageModel>? images,
     String? source,
     List<PropertyPlatformEntry>? advertisingPlatforms,
+    List<String>? targetPlatforms,
+    List<String>? suspendedPlatforms,
+    List<String>? waitingPlatforms,
     String? propertyTypeId,
     String? listingTypeId,
     String? sourceId,
@@ -274,6 +293,9 @@ class PropertyModel {
       images: images ?? this.images,
       source: source ?? this.source,
       advertisingPlatforms: advertisingPlatforms ?? this.advertisingPlatforms,
+      targetPlatforms: targetPlatforms ?? this.targetPlatforms,
+      suspendedPlatforms: suspendedPlatforms ?? this.suspendedPlatforms,
+      waitingPlatforms: waitingPlatforms ?? this.waitingPlatforms,
       propertyTypeId: propertyTypeId ?? this.propertyTypeId,
       listingTypeId: listingTypeId ?? this.listingTypeId,
       sourceId: sourceId ?? this.sourceId,

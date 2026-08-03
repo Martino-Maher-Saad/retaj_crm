@@ -14,6 +14,8 @@ import '../../../data/models/property_model.dart';
 import '../../../data/models/property_image_model.dart';
 import '../cubit/properties_cubit.dart';
 import '../cubit/properties_state.dart';
+import '../../auth/cubit/auth_cubit.dart';
+import '../../auth/cubit/auth_states.dart';
 
 import '../widgets/property_form_card.dart';
 import '../widgets/form_sections/image_section.dart';
@@ -53,18 +55,31 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
   late Map<String, TextEditingController> _controllers;
   bool status = true;
   bool _isLoading = false;
+  String? _userPrefix;
+  bool _canMakeAds = false;
 
   @override
   void initState() {
     super.initState();
+    final authState = context.read<AuthCubit>().state;
+    if (authState is AuthSuccess) {
+      _userPrefix = authState.user.propertyPrefix;
+      _canMakeAds = authState.user.canMakeAds;
+    }
     _initData();
   }
 
   void _initData() {
     final p = widget.property;
     final priceStr = p?.price != null ? p!.price.toCurrency() : '';
+    
+    String codeValue = p?.propertyCode ?? '';
+    if (_userPrefix != null && _userPrefix!.isNotEmpty && codeValue.startsWith('$_userPrefix-')) {
+      codeValue = codeValue.substring(_userPrefix!.length + 1);
+    }
+
     _controllers = {
-      'propertyCode': TextEditingController(text: p?.propertyCode),
+      'propertyCode': TextEditingController(text: codeValue),
       'titleAr': TextEditingController(text: p?.titleAr),
       'descAr': TextEditingController(text: p?.descAr),
       'regionAr': TextEditingController(text: p?.regionAr),
@@ -82,10 +97,18 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
       selectedListingType = p.listingTypeAr;
       selectedPropertyType = p.propertyTypeAr;
       selectedSource = p.source;
-      selectedPlatforms = widget.property!.advertisingPlatforms
-          .map((p) => p.nameAr)
-          .where((name) => name.isNotEmpty)
-          .toList();
+      selectedPlatforms = [
+        ...p.targetPlatforms,
+        ...p.suspendedPlatforms,
+        ...p.waitingPlatforms,
+      ];
+      // Backward compatibility fallback
+      if (selectedPlatforms.isEmpty) {
+        selectedPlatforms = p.advertisingPlatforms
+            .map((plt) => plt.nameAr)
+            .where((name) => name.isNotEmpty)
+            .toList();
+      }
 
       // أولاً: جرب من الـ governorateId الجديد مباشرة
       if (p.governorateId != null) {
@@ -100,6 +123,18 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
         } catch (_) {}
       }
     }
+
+    _controllers['propertyCode']!.addListener(() {
+      final text = _controllers['propertyCode']!.text;
+      if (text == '0') {
+        if (!selectedPlatforms.contains('بدون إعلان')) {
+          setState(() {
+            selectedPlatforms.clear();
+            selectedPlatforms.add('بدون إعلان');
+          });
+        }
+      }
+    });
   }
 
   @override
@@ -183,10 +218,81 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                     ),
                   ),
 
+                  if (widget.userRole == 'admin' || widget.userRole == 'ceo' || _canMakeAds || widget.userRole == 'marketing' || widget.property == null)
+                    PropertyFormCard(
+                      title: "منصات الإعلان",
+                      icon: Icons.campaign_outlined,
+                      stepNumber: 2,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "اختر المنصات (أو بدون إعلان)",
+                            style: TextStyle(
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF555566),
+                            ),
+                          ),
+                          SizedBox(height: 10.h),
+                          Wrap(
+                            spacing: 10.w,
+                            runSpacing: 8.h,
+                            children: [
+                              ...dataManager.getActiveOptions('advertising_platforms'),
+                              'بدون إعلان',
+                            ].map((platform) {
+                              final isSelected = selectedPlatforms.contains(platform);
+                              return FilterChip(
+                                label: Text(
+                                  platform,
+                                  style: TextStyle(
+                                    fontSize: 13.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: isSelected ? Colors.white : const Color(0xFF555566),
+                                  ),
+                                ),
+                                selected: isSelected,
+                                onSelected: (selected) {
+                                  setState(() {
+                                    if (platform == 'بدون إعلان') {
+                                      if (selected) {
+                                        selectedPlatforms.clear();
+                                        selectedPlatforms.add(platform);
+                                        _controllers['propertyCode']!.text = '0';
+                                      } else {
+                                        selectedPlatforms.remove(platform);
+                                      }
+                                    } else {
+                                      if (selected) {
+                                        selectedPlatforms.remove('بدون إعلان');
+                                        selectedPlatforms.add(platform);
+                                      } else {
+                                        selectedPlatforms.remove(platform);
+                                      }
+                                    }
+                                  });
+                                },
+                                selectedColor: platform == 'بدون إعلان' ? Colors.red : AppColors.brandPrimary,
+                                backgroundColor: const Color(0xFFF0F0F8),
+                                checkmarkColor: Colors.white,
+                                side: BorderSide(
+                                  color: isSelected ? (platform == 'بدون إعلان' ? Colors.red : AppColors.brandPrimary) : const Color(0xFFDDDDEE),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20.r),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                      ),
+                    ),
+
                   PropertyFormCard(
                     title: "البيانات الأساسية",
                     icon: Icons.info_outline,
-                    stepNumber: 2,
+                    stepNumber: 3,
                     child: Column(
                       children: [
                         RetajTextField(
@@ -207,10 +313,20 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                           },
                         ),
                         SizedBox(height: 24.h),
-                        RetajTextField(
+                        TextFormField(
                           controller: _controllers['propertyCode']!,
-                          label: "كود العقار (اختياري)",
-                          hint: "مثال: PR-1234",
+                          decoration: InputDecoration(
+                            labelText: "كود العقار (مطلوب)",
+                            hintText: "اكتب رقم العقار أو 0",
+                            prefixText: (_userPrefix != null && _userPrefix!.isNotEmpty) ? '$_userPrefix-' : null,
+                            filled: true,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.r)),
+                          ),
+                          keyboardType: TextInputType.number,
+                          validator: (val) {
+                            if (val == null || val.trim().isEmpty) return 'يرجى إدخال كود العقار';
+                            return null;
+                          },
                         ),
                         SizedBox(height: 24.h),
                         RetajTextField(
@@ -256,7 +372,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                   PropertyFormCard(
                     title: "الموقع",
                     icon: Icons.location_on_outlined,
-                    stepNumber: 3,
+                    stepNumber: 4,
                     child: Column(
                       children: [
                         Row(
@@ -338,7 +454,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                   PropertyFormCard(
                     title: "بيانات المالك والإدارة",
                     icon: Icons.admin_panel_settings_outlined,
-                    stepNumber: 4,
+                    stepNumber: 5,
                     child: Column(
                       children: [
                         RetajTextField(
@@ -379,9 +495,9 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                   ),
 
                   PropertyFormCard(
-                    title: "مصدر العقار ومنصات الإعلان",
+                    title: "مصدر العقار",
                     icon: Icons.campaign_outlined,
-                    stepNumber: 5,
+                    stepNumber: 6,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -392,54 +508,6 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                           (v) => setState(() => selectedSource = v),
                           required: false,
                         ),
-                        if (widget.userRole == 'admin' || widget.userRole == 'ceo') ...[
-                          SizedBox(height: 24.h),
-                          Text(
-                            "منصات الإعلان (اختياري)",
-                            style: TextStyle(
-                              fontSize: 14.sp,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF555566),
-                            ),
-                          ),
-                          SizedBox(height: 10.h),
-                          Wrap(
-                            spacing: 10.w,
-                            runSpacing: 8.h,
-                            children: dataManager.getActiveOptions('advertising_platforms').map((platform) {
-                              final isSelected = selectedPlatforms.contains(platform);
-                              return FilterChip(
-                                label: Text(
-                                  platform,
-                                  style: TextStyle(
-                                    fontSize: 13.sp,
-                                    fontWeight: FontWeight.w600,
-                                    color: isSelected ? Colors.white : const Color(0xFF555566),
-                                  ),
-                                ),
-                                selected: isSelected,
-                                onSelected: (selected) {
-                                  setState(() {
-                                    if (selected) {
-                                      selectedPlatforms.add(platform);
-                                    } else {
-                                      selectedPlatforms.remove(platform);
-                                    }
-                                  });
-                                },
-                                selectedColor: AppColors.brandPrimary,
-                                backgroundColor: const Color(0xFFF0F0F8),
-                                checkmarkColor: Colors.white,
-                                side: BorderSide(
-                                  color: isSelected ? AppColors.brandPrimary : const Color(0xFFDDDDEE),
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20.r),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ],
                       ],
                     ),
                   ),
@@ -619,11 +687,59 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
     }
 
     setState(() => _isLoading = true);
-    try {
-      String finalCode = _controllers['propertyCode']!.text;
-      if (finalCode.isEmpty) {
-        finalCode = "PROP-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}";
+    
+    // Validation for Property Code and Platforms
+    String typedCode = _controllers['propertyCode']!.text.trim();
+    if (typedCode.isEmpty && selectedPlatforms.isEmpty) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('الحقول اجبارية: يرجى إدخال كود العقار واختيار منصة')),
+      );
+      return;
+    }
+
+    if (selectedPlatforms.contains('بدون إعلان')) {
+      typedCode = '0';
+    } else if (typedCode == '0') {
+      if (!selectedPlatforms.contains('بدون إعلان')) {
+        selectedPlatforms.clear();
+        selectedPlatforms.add('بدون إعلان');
       }
+    } else {
+      if (selectedPlatforms.isEmpty) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('يرجى اختيار منصة إعلانية واحدة على الأقل طالما الكود ليس 0')),
+        );
+        return;
+      }
+      if (typedCode.isEmpty) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('يجب إدخال كود للعقار عند اختيار منصة إعلانية')),
+        );
+        return;
+      }
+    }
+
+    String finalCode = typedCode;
+    if (typedCode != '0' && _userPrefix != null && _userPrefix!.isNotEmpty) {
+      finalCode = '$_userPrefix-$typedCode';
+    }
+
+    // Check if propertyCode is unique
+    if (finalCode != '0' && (widget.property == null || widget.property!.propertyCode != finalCode)) {
+      final isCodeExist = await context.read<PropertiesCubit>().checkPropertyCodeExists(finalCode);
+      if (isCodeExist) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('كود العقار مستخدم مسبقاً، يرجى إدخال كود آخر')),
+        );
+        return;
+      }
+    }
+
+    try {
 
       // تحويل الاختيارات النصية إلى IDs
       final propertyTypeId = selectedPropertyType != null
@@ -684,6 +800,9 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
         internalNotes: _controllers['internalNotes']!.text,
         images: _existingImages,
         advertisingPlatforms: const [],
+        waitingPlatforms: selectedPlatforms.contains('بدون إعلان') ? [] : selectedPlatforms.toList(),
+        targetPlatforms: [],
+        suspendedPlatforms: [],
         // تعيين حالة الاعتماد عند الإضافة
         approvalStatusId: widget.property == null 
             ? '634f7e69-6161-4535-b409-d1ea1bbbdcd3'

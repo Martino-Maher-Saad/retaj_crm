@@ -43,19 +43,22 @@ class DropdownService {
   //  للـ Dropdowns العادية: Active فقط
   // ────────────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> fetchGovernoratesWithCities() async {
-    // Fetch ALL for historical data, UI filters them via getActiveOptions
+  Future<List<Map<String, dynamic>>> fetchGovernoratesOnly() async {
     final response = await _client
         .from('governorates')
-        .select('id, name, name_en, list_order, is_active, cities(id, name, name_en, list_order, governorate_id, is_active)')
+        .select('id, name, name_en, list_order, is_active')
         .order('list_order', ascending: true)
         .order('id', ascending: true);
+    return List<Map<String, dynamic>>.from(response);
+  }
 
-    return (response as List).map((gov) {
-      final cities = (gov['cities'] as List? ?? []).toList();
-      cities.sort((a, b) => ((a['list_order'] ?? 0) as int).compareTo((b['list_order'] ?? 0) as int));
-      return {...gov as Map<String, dynamic>, 'cities': cities};
-    }).toList();
+  Future<List<Map<String, dynamic>>> fetchCitiesAll() async {
+    final response = await _client
+        .from('cities')
+        .select('id, name, name_en, list_order, governorate_id, is_active')
+        .order('list_order', ascending: true)
+        .order('id', ascending: true);
+    return List<Map<String, dynamic>>.from(response);
   }
 
   Future<List<LookupOptionModel>> fetchCitiesOnly() async {

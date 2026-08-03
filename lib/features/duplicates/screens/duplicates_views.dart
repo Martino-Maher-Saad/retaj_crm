@@ -42,7 +42,7 @@ class _PropertyDuplicatesViewState extends State<PropertyDuplicatesView> with Au
       final allProps = await repo.filterProperties(
         0,
         500,
-        assignedTo: widget.user.role == 'sales' ? widget.user.id : null,
+        assignedTo: (widget.user.role == 'sales' || widget.user.role == 'marketing') ? widget.user.id : null,
       );
 
       final Map<String, List<PropertyModel>> grouped = {};

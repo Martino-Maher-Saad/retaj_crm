@@ -165,7 +165,7 @@ class DashboardRepository {
       final propsResponse = await _service.getRawPropertiesForPeriod(startDate: startIso, endDate: endIso);
       
       Iterable<Map<String, dynamic>> filteredProps = propsResponse;
-      if (role == 'sales') {
+      if (role == 'sales' || role == 'marketing') {
         filteredProps = propsResponse.where((p) => p['created_by'] == userId);
       } else if (employeeId != null && employeeId.isNotEmpty) {
         filteredProps = propsResponse.where((p) => p['created_by'] == employeeId);

@@ -63,7 +63,16 @@ class RealtimeService {
       data: record,
     );
 
-    _eventController.add(event);
+    if (action == 'insert') {
+      // Delay insert events by 4 seconds to allow time for images to upload and other related records to finish.
+      Future.delayed(const Duration(seconds: 4), () {
+        if (!_eventController.isClosed) {
+          _eventController.add(event);
+        }
+      });
+    } else {
+      _eventController.add(event);
+    }
   }
 
   void broadcastEvent(CrmEvent event) {
