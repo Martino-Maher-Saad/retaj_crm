@@ -459,19 +459,15 @@ class _PropertyCardState extends State<PropertyCard> {
         }
         if (model.listingTypeId != widget.property.listingTypeId) {
           partialUpdates['listing_type_id'] = model.listingTypeId;
-          partialUpdates['listing_type_ar'] = model.listingTypeAr;
         }
         if (model.propertyTypeId != widget.property.propertyTypeId) {
           partialUpdates['property_type_id'] = model.propertyTypeId;
-          partialUpdates['property_type_ar'] = model.propertyTypeAr;
         }
         if (model.cityId != widget.property.cityId) {
           partialUpdates['city_id'] = model.cityId;
-          partialUpdates['city_ar'] = model.cityAr;
         }
         if (model.approvalStatusId != widget.property.approvalStatusId) {
           partialUpdates['approval_status_id'] = model.approvalStatusId;
-          partialUpdates['approval_status_name'] = model.approvalStatusName;
         }
 
         final selectedSorted = _selectedPlatforms.toList()..sort();
@@ -730,9 +726,9 @@ class _PropertyCardState extends State<PropertyCard> {
                             Builder(
                               builder: (context) {
                                 final allBadges = [
-                                  ...widget.property.waitingPlatforms.map((p) => _buildMiniBadge(p, Colors.amber)),
-                                  ...widget.property.targetPlatforms.map((p) => _buildMiniBadge(p, Colors.green)),
-                                  ...widget.property.suspendedPlatforms.map((p) => _buildMiniBadge(p, Colors.red)),
+                                  ...widget.property.waitingPlatforms.map((p) => GestureDetector(onTap: _openPlatformStatusDialog, child: _buildMiniBadge(p, Colors.amber))),
+                                  ...widget.property.targetPlatforms.map((p) => GestureDetector(onTap: _openPlatformStatusDialog, child: _buildMiniBadge(p, Colors.green))),
+                                  ...widget.property.suspendedPlatforms.map((p) => GestureDetector(onTap: _openPlatformStatusDialog, child: _buildMiniBadge(p, Colors.red))),
                                 ];
                                 
                                 List<Widget> displayBadges = allBadges;
@@ -752,6 +748,12 @@ class _PropertyCardState extends State<PropertyCard> {
                                   children: displayBadges,
                                 );
                               },
+                            ),
+                          ] else if (widget.platformOnlyMode) ...[
+                            SizedBox(height: 8.h),
+                            GestureDetector(
+                              onTap: _openPlatformStatusDialog,
+                              child: _buildMiniBadge('+ إضافة منصة', Colors.grey.shade700),
                             ),
                           ],
                         ],
@@ -1390,6 +1392,7 @@ class _PropertyCardState extends State<PropertyCard> {
                         widget.role == 'ceo' ||
                         _canMakeAds ||
                         widget.role == 'marketing' ||
+                        widget.role == 'sales' ||
                         widget.isAddingMode) ...[
                       SizedBox(height: 16.h),
                       Text(
@@ -2028,6 +2031,8 @@ class _PropertyCardState extends State<PropertyCard> {
             context: context,
             builder: (dialogContext) => PlatformStatusDialog(
               property: widget.property,
+              isAdsManagement: widget.platformOnlyMode,
+              canChangeState: user.canChangePlatformStatus,
               onSaved: (updatedProperty) {
                 // حفظ في الداتابيز عن طريق PropertiesCubit
                 try {
@@ -2047,6 +2052,7 @@ class _PropertyCardState extends State<PropertyCard> {
               value: cubit,
               child: PlatformStatusDialog(
                 property: widget.property,
+                canChangeState: user.canChangePlatformStatus,
                 onSaved: (updatedProperty) {
                   cubit.updateProperty(property: updatedProperty, newImages: []);
                 },

@@ -45,7 +45,7 @@ class _MarketingScreenState extends State<MarketingScreen>
   @override
   void initState() {
     super.initState();
-    _cubit = di.sl<MarketingCubit>()
+    _cubit = context.read<MarketingCubit>()
       ..fetchProperties(excludeUserId: widget.user.id, isRefresh: true);
     _scrollController.addListener(_onScroll);
     _loadEmployees();
@@ -140,12 +140,10 @@ class _MarketingScreenState extends State<MarketingScreen>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return BlocProvider.value(
-      value: _cubit,
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
-        body: Column(
-          children: [
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: Column(
+        children: [
             _buildCombinedHeaderAndFilters(),
             Expanded(
               child: BlocBuilder<MarketingCubit, MarketingState>(
@@ -163,8 +161,7 @@ class _MarketingScreenState extends State<MarketingScreen>
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildCombinedHeaderAndFilters() {
@@ -459,7 +456,7 @@ class _MarketingScreenState extends State<MarketingScreen>
                     currentUserId: widget.user.id,
                     role: widget.user.role,
                     hideOwnerPhone: widget.user.isMarketing,
-                    platformOnlyMode: widget.user.isMarketing,
+                    platformOnlyMode: true,
                     onTap: () {},
                     onEdit: widget.user.isMarketing ? null : () {},
                     onPlatformSaved: (updated) => _cubit.patchProperty(updated),

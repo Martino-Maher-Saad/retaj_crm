@@ -28,6 +28,8 @@ import '../../duplicates/screens/duplicates_screen.dart';
 import '../../properties/screens/property_shares_screen.dart';
 import '../../marketing/screens/marketing_screen.dart';
 import '../../marketing/cubit/marketing_cubit.dart';
+import '../../properties/cubit/properties_cubit.dart';
+import '../../leads/cubit/leads_cubit.dart';
 
 class LayoutScreen extends StatefulWidget {
   final ProfileModel user;
@@ -46,13 +48,16 @@ class _NavItemData {
 
 class _LayoutScreenState extends State<LayoutScreen> {
   late PageController _pageController;
+  late final PropertiesCubit _propertiesCubit;
+  late final LeadCubit _leadsCubit;
+  late final MarketingCubit _marketingCubit;
 
   List<_NavItemData> _getNavItems(ProfileModel user) {
     final dashboard = _NavItemData("لوحة القيادة", Icons.dashboard_outlined, DashboardScreen(key: const PageStorageKey('dashboard_page'), user: user));
     final tasks = _NavItemData("المهام", Icons.assignment_late_rounded, TasksScreen(user: user, key: const PageStorageKey('tasks_page')));
-    final properties = _NavItemData("مخزون العقارات", Icons.home_work_outlined, PropertiesListScreen(userId: user.id, role: user.role, key: const PageStorageKey('properties_page')));
+    final properties = _NavItemData("مخزون العقارات", Icons.home_work_outlined, BlocProvider.value(value: _propertiesCubit, child: PropertiesListScreen(userId: user.id, role: user.role, key: const PageStorageKey('properties_page'))));
     final shares = _NavItemData("مشاركات العقارات", Icons.share_rounded, PropertySharesScreen(user: user, key: const PageStorageKey('shares_page')));
-    final leads = _NavItemData("مخزون العملاء", Icons.people_outline_rounded, LeadsManagementScreen(user: user, key: const PageStorageKey('leads_page')));
+    final leads = _NavItemData("مخزون العملاء", Icons.people_outline_rounded, BlocProvider.value(value: _leadsCubit, child: LeadsManagementScreen(user: user, key: const PageStorageKey('leads_page'))));
     final designs = _NavItemData("مكتبة التصاميم", Icons.format_paint_outlined, const DesignsListScreen(key: PageStorageKey('designs_page')));
     final archive = _NavItemData("الأرشيف", Icons.archive_outlined, ArchiveScreen(user: user, key: const PageStorageKey('archive_page')));
     final duplicates = _NavItemData("سجل التكرارات", Icons.control_point_duplicate, DuplicatesScreen(user: user, key: const PageStorageKey('duplicates_page')));
@@ -60,7 +65,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
     final accounts = _NavItemData("إدارة الحسابات", Icons.manage_accounts_outlined, BlocProvider(key: const PageStorageKey('accounts_page'), create: (_) => di.sl<AdminUsersCubit>(), child: const AdminUsersScreen()));
     final dropdowns = _NavItemData("إدارة القوائم", Icons.list_alt_rounded, const DropdownManagementScreen(key: PageStorageKey('dropdown_page')));
 
-    final marketing = _NavItemData("إدارة الإعلانات", Icons.campaign_rounded, BlocProvider(key: const PageStorageKey('marketing_page'), create: (_) => di.sl<MarketingCubit>(), child: MarketingScreen(user: user)));
+    final marketing = _NavItemData("إدارة الإعلانات", Icons.campaign_rounded, BlocProvider.value(value: _marketingCubit, child: MarketingScreen(user: user, key: const PageStorageKey('marketing_page'))));
 
     if (user.role == 'sales') {
       return [dashboard, properties, leads, tasks, archive, shares];
@@ -79,11 +84,17 @@ class _LayoutScreenState extends State<LayoutScreen> {
   void initState() {
     super.initState();
     _pageController = PageController();
+    _propertiesCubit = di.sl<PropertiesCubit>();
+    _leadsCubit = di.sl<LeadCubit>();
+    _marketingCubit = di.sl<MarketingCubit>();
   }
 
   @override
   void dispose() {
     _pageController.dispose();
+    _propertiesCubit.close();
+    _leadsCubit.close();
+    _marketingCubit.close();
     super.dispose();
   }
 
