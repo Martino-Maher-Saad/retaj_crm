@@ -45,6 +45,7 @@ class AdminUsersCubit extends Cubit<AdminUsersState> {
     required String lastName,
     bool canMakeAds = false,
     String? propertyPrefix,
+    String? phone,
   }) async {
     final currentState = state;
     emit(AdminUsersLoading());
@@ -58,6 +59,7 @@ class AdminUsersCubit extends Cubit<AdminUsersState> {
         lastName: lastName,
         canMakeAds: canMakeAds,
         propertyPrefix: propertyPrefix,
+        phone: phone,
       );
       emit(const AdminActionSuccess("تم إنشاء الحساب بنجاح وتمت إضافته للقاعدة البيانات!"));
       // Refresh list
@@ -72,7 +74,7 @@ class AdminUsersCubit extends Cubit<AdminUsersState> {
     }
   }
 
-  Future<void> updateUserAdmin(String targetUserId, {String? email, String? password, String? role, bool? canMakeAds, String? propertyPrefix}) async {
+  Future<void> updateUserAdmin(String targetUserId, {String? email, String? password, String? role, bool? canMakeAds, String? propertyPrefix, String? phone}) async {
     final currentState = state;
     emit(AdminUsersLoading());
     try {
@@ -84,6 +86,7 @@ class AdminUsersCubit extends Cubit<AdminUsersState> {
         role: role,
         canMakeAds: canMakeAds,
         propertyPrefix: propertyPrefix,
+        phone: phone,
       );
       emit(const AdminActionSuccess("تم تحديث الحساب للإدارة بنجاح!"));
       // Refresh list
