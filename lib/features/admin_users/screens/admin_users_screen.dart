@@ -289,6 +289,7 @@ class _AddUserFormState extends State<_AddUserForm> {
   final _firstCtrl = TextEditingController();
   final _lastCtrl = TextEditingController();
   final _prefixCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
   String _selectedRole = 'sales';
   bool _canMakeAds = false;
 
@@ -351,6 +352,15 @@ class _AddUserFormState extends State<_AddUserForm> {
               ),
               SizedBox(height: 12.h),
               TextFormField(
+                controller: _phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'رقم التليفون (اختياري)',
+                  filled: true,
+                ),
+              ),
+              SizedBox(height: 12.h),
+              TextFormField(
                 controller: _passCtrl,
                 decoration: const InputDecoration(
                   labelText: 'كلمة المرور الابتدائية',
@@ -392,13 +402,16 @@ class _AddUserFormState extends State<_AddUserForm> {
                 ),
               ),
               SizedBox(height: 12.h),
-              SwitchListTile(
-                title: const Text('السماح للموظف بنشر الإعلانات لنفسه؟'),
-                subtitle: const Text('إذا تم تفعيله، يمكن لموظف المبيعات تعديل حالة منصات الإعلان.'),
-                value: _canMakeAds,
-                onChanged: (v) => setState(() => _canMakeAds = v),
-                activeColor: AppColors.brandPrimary,
-                contentPadding: EdgeInsets.zero,
+              Material(
+                color: Colors.transparent,
+                child: SwitchListTile(
+                  title: const Text('السماح للموظف بنشر الإعلانات لنفسه؟'),
+                  subtitle: const Text('إذا تم تفعيله، يمكن لموظف المبيعات تعديل حالة منصات الإعلان.'),
+                  value: _canMakeAds,
+                  onChanged: (v) => setState(() => _canMakeAds = v),
+                  activeColor: AppColors.brandPrimary,
+                  contentPadding: EdgeInsets.zero,
+                ),
               ),
               SizedBox(height: 24.h),
               SizedBox(
@@ -422,6 +435,7 @@ class _AddUserFormState extends State<_AddUserForm> {
                                       lastName: _lastCtrl.text,
                                       canMakeAds: _canMakeAds,
                                       propertyPrefix: _prefixCtrl.text.trim().isNotEmpty ? _prefixCtrl.text.trim().toUpperCase() : null,
+                                      phone: _phoneCtrl.text.trim().isNotEmpty ? _phoneCtrl.text.trim() : null,
                                     )
                                     .then((_) {
                                       if (mounted &&
@@ -461,6 +475,7 @@ class _EditUserDialogState extends State<_EditUserDialog> {
   late TextEditingController _emailCtrl;
   late TextEditingController _passCtrl;
   late TextEditingController _prefixCtrl;
+  late TextEditingController _phoneCtrl;
   late String _selectedRole;
   late bool _canMakeAds;
 
@@ -470,6 +485,7 @@ class _EditUserDialogState extends State<_EditUserDialog> {
     _emailCtrl = TextEditingController(text: widget.user.email);
     _passCtrl = TextEditingController();
     _prefixCtrl = TextEditingController(text: widget.user.propertyPrefix ?? '');
+    _phoneCtrl = TextEditingController(text: widget.user.phone ?? '');
     _canMakeAds = widget.user.canMakeAds;
     
     const validRoles = ['user', 'sales', 'marketing', 'manager', 'admin'];
@@ -490,6 +506,14 @@ class _EditUserDialogState extends State<_EditUserDialog> {
               controller: _emailCtrl,
               decoration: const InputDecoration(
                 labelText: 'البريد الإلكتروني الجديد',
+              ),
+            ),
+            SizedBox(height: 10.h),
+            TextFormField(
+              controller: _phoneCtrl,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'رقم التليفون (اختياري)',
               ),
             ),
             SizedBox(height: 10.h),
@@ -537,12 +561,15 @@ class _EditUserDialogState extends State<_EditUserDialog> {
               ),
             ),
             SizedBox(height: 10.h),
-            SwitchListTile(
-              title: const Text('السماح بنشر الإعلانات؟'),
-              value: _canMakeAds,
-              onChanged: (v) => setState(() => _canMakeAds = v),
-              activeColor: AppColors.brandPrimary,
-              contentPadding: EdgeInsets.zero,
+            Material(
+              color: Colors.transparent,
+              child: SwitchListTile(
+                title: const Text('السماح بنشر الإعلانات؟'),
+                value: _canMakeAds,
+                onChanged: (v) => setState(() => _canMakeAds = v),
+                activeColor: AppColors.brandPrimary,
+                contentPadding: EdgeInsets.zero,
+              ),
             ),
           ],
         ),
@@ -597,6 +624,9 @@ class _EditUserDialogState extends State<_EditUserDialog> {
                                         : null,
                                     propertyPrefix: _prefixCtrl.text.trim() != (widget.user.propertyPrefix ?? '')
                                         ? (_prefixCtrl.text.trim().isNotEmpty ? _prefixCtrl.text.trim().toUpperCase() : null)
+                                        : null,
+                                    phone: _phoneCtrl.text.trim() != (widget.user.phone ?? '')
+                                        ? (_phoneCtrl.text.trim().isNotEmpty ? _phoneCtrl.text.trim() : null)
                                         : null,
                                   )
                                   .then((_) {

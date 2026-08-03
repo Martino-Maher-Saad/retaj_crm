@@ -38,6 +38,7 @@ class AdminUserService {
     required String lastName,
     bool canMakeAds = false,
     String? propertyPrefix,
+    String? phone,
   }) async {
     try {
       await _supabase.functions.invoke(
@@ -56,6 +57,7 @@ class AdminUserService {
       await _supabase.from('profiles').update({
         'can_make_ads': canMakeAds,
         'property_prefix': propertyPrefix,
+        if (phone != null) 'phone': phone,
       }).eq('email', email);
     } catch (e, stackTrace) {
       print('=== ERROR CREATING USER (SERVICE) ===');
@@ -67,7 +69,7 @@ class AdminUserService {
   }
   
   // تغيير إيميل أو باسورد حساب موجود
-  Future<void> updateUserAdmin(String targetUserId, {String? email, String? password, String? role, bool? canMakeAds, String? propertyPrefix}) async {
+  Future<void> updateUserAdmin(String targetUserId, {String? email, String? password, String? role, bool? canMakeAds, String? propertyPrefix, String? phone}) async {
     try {
       await _supabase.functions.invoke(
         'admin_actions',
@@ -82,8 +84,11 @@ class AdminUserService {
 
       // Update custom fields if provided
       final Map<String, dynamic> profileUpdates = {};
+      if (email != null) profileUpdates['email'] = email;
+      if (role != null) profileUpdates['role'] = role;
       if (canMakeAds != null) profileUpdates['can_make_ads'] = canMakeAds;
       if (propertyPrefix != null) profileUpdates['property_prefix'] = propertyPrefix;
+      if (phone != null) profileUpdates['phone'] = phone;
       
       if (profileUpdates.isNotEmpty) {
         await _supabase.from('profiles').update(profileUpdates).eq('id', targetUserId);
