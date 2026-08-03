@@ -39,14 +39,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     });
   }
 
-  final Set<String> _myRecentActions = {};
-  
-  void _markActionByMe(String id) {
-    _myRecentActions.add(id);
-    Future.delayed(const Duration(seconds: 10), () {
-      _myRecentActions.remove(id);
-    });
-  }
+
 
   void _handleRealtimeEvent(event) async {
     if (event.entity != 'property') return;
