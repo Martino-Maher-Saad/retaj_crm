@@ -28,6 +28,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     if (_currentUserRole == null) return false;
     final r = _currentUserRole!.toLowerCase();
     return r == 'manager' || r == 'admin' || r == 'ceo';
+
   }
 
   final Set<String> _myRecentActions = {};
@@ -38,6 +39,8 @@ class PropertiesCubit extends Cubit<PropertiesState> {
       _myRecentActions.remove(id);
     });
   }
+
+
 
   void _handleRealtimeEvent(event) async {
     if (event.entity != 'property') return;
