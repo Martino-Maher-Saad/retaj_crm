@@ -102,7 +102,7 @@ class LeadCubit extends Cubit<LeadState> {
 
         if (!matchesFilters) return;
 
-        final isMine = newLead.createdBy == _currentUserId || _myRecentActions.contains(event.id);
+        final isMine = _myRecentActions.contains(event.id);
 
         if (isMine) {
             final newAll = List<LeadModel>.from(freshState.allLeads)..insert(0, newLead);
@@ -618,6 +618,7 @@ class LeadCubit extends Cubit<LeadState> {
             : <LeadNoteModel>[];
 
         final addedLead = await _repository.addNewLead(newLead, phones, notes: notes);
+        _markActionByMe(addedLead.id!);
         
         final freshState = state is LeadLoaded ? state as LeadLoaded : null;
         if (freshState != null) {

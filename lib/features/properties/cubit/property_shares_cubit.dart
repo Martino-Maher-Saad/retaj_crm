@@ -69,7 +69,15 @@ class PropertySharesCubit extends Cubit<PropertySharesState> {
         final newSent = currentState.sent.where((s) => s.id != shareId).toList();
         emit(currentState.copyWith(inbox: newInbox, sent: newSent));
       } else if (event.action == 'insert' || event.action == 'update') {
-        emit(currentState.copyWith(hasNewUpdates: true));
+        final senderId = event.data?['sender_id'];
+        
+        if (event.action == 'update' || senderId == userId) {
+          // Updates or actions performed by me (sender) should be silent
+          fetchShares();
+        } else {
+          // Incoming new share (insert by someone else)
+          emit(currentState.copyWith(hasNewUpdates: true));
+        }
       }
     }
   }

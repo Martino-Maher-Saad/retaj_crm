@@ -74,7 +74,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
           return;
         }
 
-        final isMine = newProp.createdBy == _currentUserId || _myRecentActions.contains(event.id);
+        final isMine = _myRecentActions.contains(event.id);
 
         if (isMine) {
            final newMy = List<PropertyModel>.from(freshState.myProperties)..insert(0, newProp);
@@ -721,6 +721,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
         imgs,
         platformIds: platformIds,
       );
+      _markActionByMe(newProp.id!);
       di.sl<PropertyTasksCubit>()
         ..invalidateTasks()
         ..invalidateApprovals();

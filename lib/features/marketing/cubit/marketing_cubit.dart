@@ -40,20 +40,12 @@ class MarketingCubit extends Cubit<MarketingState> {
         if (_excludeUserId != null && updatedProp.createdBy == _excludeUserId) return;
 
         if (event.action == 'insert') {
-          // Add silently to properties list
+          // Add to pending to show the refresh button
+          final idxPending = freshState.pendingProperties.indexWhere((p) => p.id == event.id);
           final idxProps = freshState.properties.indexWhere((p) => p.id == event.id);
-          if (idxProps == -1) {
-            final newList = List<PropertyModel>.from(freshState.properties)..insert(0, updatedProp);
-            final newOriginalList = List<PropertyModel>.from(freshState.originalProperties)..insert(0, updatedProp);
-            
-            // Remove from pending if it somehow got there
-            final newPending = freshState.pendingProperties.where((p) => p.id != event.id).toList();
-            
-            emit(freshState.copyWith(
-              properties: newList, 
-              originalProperties: newOriginalList,
-              pendingProperties: newPending,
-            ));
+          if (idxPending == -1 && idxProps == -1) {
+            final newPending = List<PropertyModel>.from(freshState.pendingProperties)..insert(0, updatedProp);
+            emit(freshState.copyWith(hasNewUpdates: true, pendingProperties: newPending));
           }
         } else {
           // If updating or transferring
