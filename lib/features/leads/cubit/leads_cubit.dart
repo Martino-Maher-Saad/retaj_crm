@@ -100,8 +100,6 @@ class LeadCubit extends Cubit<LeadState> {
 
         if (!matchesFilters) return;
 
-        if (!matchesFilters) return;
-
         final isMine = _myRecentActions.contains(event.id);
 
         if (isMine) {
@@ -166,23 +164,20 @@ class LeadCubit extends Cubit<LeadState> {
 
           final isMine = _myRecentActions.contains(event.id);
 
-          if (isMine || event.action == 'update') {
+          if (isMine) {
              final newAll = List<LeadModel>.from(freshState.allLeads)..insert(0, updatedLead);
              final newFiltered = List<LeadModel>.from(freshState.filteredLeads)..insert(0, updatedLead);
              final newPending = freshState.pendingLeads.where((l) => l.id != event.id).toList();
              emit(freshState.copyWith(
                allLeads: newAll, 
-               filteredLeads: newFiltered,
+               filteredLeads: newFiltered, 
                pendingLeads: newPending,
                totalCount: freshState.totalCount + 1,
              ));
           } else {
-             // Transfer to me by someone else
              final newPending = List<LeadModel>.from(freshState.pendingLeads);
-             if (indexPending != -1) {
-                newPending[indexPending] = updatedLead;
-             } else {
-                newPending.insert(0, updatedLead);
+             if (!newPending.any((l) => l.id == event.id)) {
+                 newPending.insert(0, updatedLead);
              }
              emit(freshState.copyWith(hasNewUpdates: true, pendingLeads: newPending));
           }

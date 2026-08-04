@@ -852,6 +852,25 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
         finalStatusName = 'قيد المراجعة';
       }
 
+      List<String> newWaiting = [];
+      List<String> newTargeted = [];
+      List<String> newSuspended = [];
+
+      if (!selectedPlatforms.contains('بدون إعلان') && selectedPlatforms.isNotEmpty) {
+        final oldTargeted = widget.property?.targetPlatforms ?? [];
+        final oldSuspended = widget.property?.suspendedPlatforms ?? [];
+
+        for (String p in selectedPlatforms) {
+          if (oldTargeted.contains(p)) {
+            newTargeted.add(p);
+          } else if (oldSuspended.contains(p)) {
+            newSuspended.add(p);
+          } else {
+            newWaiting.add(p);
+          }
+        }
+      }
+
       final model = PropertyModel(
         id: widget.property?.id ?? '',
         propertyCode: finalCode,
@@ -881,9 +900,9 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
         internalNotes: _controllers['internalNotes']!.text,
         images: _existingImages,
         advertisingPlatforms: const [],
-        waitingPlatforms: selectedPlatforms.contains('بدون إعلان') ? [] : selectedPlatforms.toList(),
-        targetPlatforms: [],
-        suspendedPlatforms: [],
+        waitingPlatforms: newWaiting,
+        targetPlatforms: newTargeted,
+        suspendedPlatforms: newSuspended,
         // تعيين حالة الاعتماد بناءً على المنصات
         approvalStatusId: finalStatusId,
         approvalStatusName: finalStatusName,

@@ -127,7 +127,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
            
            final isMine = _myRecentActions.contains(event.id);
 
-           if (isMine || event.action == 'update') {
+           if (isMine) {
               final newMy = List<PropertyModel>.from(freshState.myProperties)..insert(0, updatedProperty);
               final newFiltered = List<PropertyModel>.from(freshState.filteredProperties)..insert(0, updatedProperty);
               final newPending = freshState.pendingProperties.where((p) => p.id != event.id).toList();
