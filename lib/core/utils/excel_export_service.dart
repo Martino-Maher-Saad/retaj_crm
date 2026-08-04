@@ -135,7 +135,7 @@ class ExcelExportService {
         sheet.appendRow(rowData);
       }
 
-      final bytes = excel.save();
+      final bytes = excel.encode();
       Navigator.pop(context); // إغلاق نافذة التحميل
 
       if (bytes != null) {

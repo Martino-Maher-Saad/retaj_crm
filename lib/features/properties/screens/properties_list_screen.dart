@@ -42,6 +42,8 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
   final ScrollController _scrollController = ScrollController();
   bool _searchAll = false;
   bool _isAddingNewProperty = false;
+  bool _isSelectionMode = false;
+  Set<String> _selectedProperties = {};
 
   @override
   bool get wantKeepAlive => true;
@@ -99,11 +101,61 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
     }
   }
 
+  
+  Future<void> _bulkDelete(List<String> ids) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تأكيد الحذف'),
+        content: Text('هل أنت متأكد من حذف ${ids.length} عقار نهائياً؟ هذا الإجراء لا يمكن التراجع عنه.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('حذف نهائي', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await _cubit.deleteProperties(ids);
+      setState(() {
+        _isSelectionMode = false;
+        _selectedProperties.clear();
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم حذف العقارات المحددة بنجاح')),
+        );
+      }
+    }
+  }
+
   Future<void> _exportProperties() async {
     final isManagerOrAdmin = widget.role == 'manager' || widget.role == 'admin' || widget.role == 'ceo';
     if (!isManagerOrAdmin) return;
 
-    final properties = await _cubit.fetchAllForExport(role: widget.role, userId: widget.userId);
+    String? searchQuery;
+    String? searchType;
+    bool isSmartSearch = false;
+    if (_cubit.state is PropertiesSuccess && (_cubit.state as PropertiesSuccess).isSearching) {
+      searchQuery = _cubit.activeSearchQuery;
+      searchType = _cubit.activeSearchType;
+      isSmartSearch = _cubit.isSmartSearchActive;
+    }
+
+    final properties = await _cubit.fetchAllForExport(
+      role: widget.role, 
+      userId: widget.userId,
+      searchQuery: searchQuery,
+      searchType: searchType,
+      isSmartSearch: isSmartSearch,
+    );
     if (properties.isEmpty) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا توجد بيانات للتصدير')));
       return;
@@ -169,17 +221,64 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
             },
             builder: (context, state) {
               int total = 0;
+              List<PropertyModel> properties = [];
               if (state is PropertiesSuccess) {
                 total = state.isSearching 
                   ? state.searchedProperties.length 
                   : state.isFiltering 
                       ? state.filteredTotalCount 
                       : state.myTotalCount;
+                properties = state.isSearching 
+                    ? state.searchedProperties 
+                    : state.isFiltering 
+                        ? state.filteredProperties 
+                        : state.myProperties;
               }
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  PropertyListHeader(
+                  if (_isSelectionMode)
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        color: AppColors.brandPrimary.withValues(alpha: 0.1),
+                        child: Row(
+                          children: [
+                            Text("تم تحديد ${_selectedProperties.length} عقار", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.brandPrimary)),
+                            const Spacer(),
+                            TextButton.icon(
+                              onPressed: () {
+                                setState(() {
+                                  if (_selectedProperties.length == properties.length) {
+                                    _selectedProperties.clear();
+                                  } else {
+                                    _selectedProperties = properties.map((p) => p.id).toSet();
+                                  }
+                                });
+                              },
+                              icon: Icon(_selectedProperties.length == properties.length ? Icons.deselect : Icons.select_all),
+                              label: Text(_selectedProperties.length == properties.length ? "إلغاء تحديد الكل" : "تحديد الكل"),
+                            ),
+                            SizedBox(width: 16),
+                            ElevatedButton.icon(
+                              onPressed: _selectedProperties.isEmpty ? null : () => _bulkDelete(_selectedProperties.toList()),
+                              icon: const Icon(Icons.delete_outline, color: Colors.white),
+                              label: const Text("حذف", style: TextStyle(color: Colors.white)),
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                            ),
+                            SizedBox(width: 16),
+                            IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  _isSelectionMode = false;
+                                  _selectedProperties.clear();
+                                });
+                              },
+                              icon: const Icon(Icons.close),
+                            ),
+                          ],
+                        ),
+                      ),
+                    PropertyListHeader(
                     totalCount: total,
                     onAdd: () {
                       setState(() {
@@ -192,16 +291,38 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
                       );
                     },
                     extraAction: (widget.role == 'manager' || widget.role == 'admin' || widget.role == 'ceo')
-                        ? OutlinedButton.icon(
-                            onPressed: _exportProperties,
-                            icon: const Icon(Icons.file_download, size: 18),
-                            label: const Text('تصدير'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.brandPrimary,
-                              side: BorderSide(color: AppColors.brandPrimary, width: 1.5),
-                              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
-                            ),
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  setState(() {
+                                    _isSelectionMode = !_isSelectionMode;
+                                    if (!_isSelectionMode) _selectedProperties.clear();
+                                  });
+                                },
+                                icon: Icon(_isSelectionMode ? Icons.close : Icons.checklist, size: 18),
+                                label: Text(_isSelectionMode ? 'إلغاء التحديد' : 'تحديد متعدد'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.brandPrimary,
+                                  side: BorderSide(color: AppColors.brandPrimary, width: 1.5),
+                                  padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                                ),
+                              ),
+                              SizedBox(width: 8.w),
+                              OutlinedButton.icon(
+                                onPressed: _exportProperties,
+                                icon: const Icon(Icons.file_download, size: 18),
+                                label: const Text('تصدير'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.brandPrimary,
+                                  side: BorderSide(color: AppColors.brandPrimary, width: 1.5),
+                                  padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                                ),
+                              ),
+                            ],
                           )
                         : null,
                     onFilter: () => _openAdvancedFilter(context),
@@ -424,35 +545,53 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
                 final isManagerOrAdmin = widget.role.toLowerCase() == 'manager' || widget.role.toLowerCase() == 'admin' || widget.role.toLowerCase() == 'ceo';
                 final canEdit = isManagerOrAdmin || property.createdBy == widget.userId;
 
-                return BlinkContainer(
-                  isBlinking: isBlinking,
-                  child: PropertyCard(
-                    key: ValueKey(property.id),
-                    property: property,
-                    currentUserId: widget.userId,
-                    role: widget.role,
-                    onTap: () {},
-                    onEdit: canEdit ? () {} : null,
-                    onArchive: canEdit ? () => PropertyArchiveDialog.show(
-                      context,
-                      property,
-                      () => _cubit.archiveProperty(property.id, true),
-                    ) : null,
-                    onDelete: canEdit ? () => PropertyDeleteDialog.show(
-                      context,
-                      property,
-                      () => _cubit.deleteFullProperty(property.id),
-                    ) : null,
-                    onShareInternal: canEdit ? () => import_helper.InternalShareDialog.show(
-                      context,
-                      property,
-                      widget.userId,
-                      _cubit,
-                    ) : null,
-                    onPinToggle: canEdit ? () {
-                      _cubit.togglePropertyPin(property);
-                    } : null,
-                  ),
+                return Row(
+                  children: [
+                    if (_isSelectionMode)
+                      Checkbox(
+                        value: _selectedProperties.contains(property.id),
+                        activeColor: AppColors.brandPrimary,
+                        onChanged: (val) {
+                          setState(() {
+                            if (val == true) {
+                              _selectedProperties.add(property.id);
+                            } else {
+                              _selectedProperties.remove(property.id);
+                            }
+                          });
+                        },
+                      ),
+                    Expanded(
+                      child: BlinkContainer(
+                        isBlinking: isBlinking,
+                        child: PropertyCard(
+
+                          key: ValueKey(property.id),
+                          property: property,
+                          currentUserId: widget.userId,
+                          role: widget.role,
+                          onTap: () {},
+                          onEdit: canEdit ? () {} : null,
+                          onArchive: canEdit ? () => PropertyArchiveDialog.show(
+                            context,
+                            property,
+                            () => _cubit.archiveProperty(property.id, true),
+                          ) : null,
+                          onDelete: canEdit ? () => PropertyDeleteDialog.show(
+                            context,
+                            property,
+                            () => _cubit.deleteFullProperty(property.id),
+                          ) : null,
+                          onShareInternal: canEdit ? () => import_helper.InternalShareDialog.show(
+                            context,
+                            property,
+                            widget.userId,
+                            _cubit,
+                          ) : null,
+                        ),
+                      ),
+                    ),
+                  ],
                 );
               },
             ),

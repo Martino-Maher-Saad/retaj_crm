@@ -9,6 +9,7 @@ import '../../../../core/utils/number_formatter.dart';
 import '../../../../core/di/injection_container.dart' as di;
 import '../../cubit/properties_cubit.dart';
 
+
 class AdvancedFilterDialog extends StatefulWidget {
   final String role;
   final String currentUserId;
@@ -189,20 +190,11 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
               SizedBox(height: 14.h),
               
               // قائمة المدن المنسدلة
-              RetajDropdown<String>(
-                label: "المدينة",
-                value: _selectedCityName,
-                items: dataManager.allCities
-                        .map((c) => c.name)
-                        .toSet()
-                        .map(
-                          (name) => DropdownMenuItem<String>(
-                            value: name,
-                            child: Text(name),
-                          ),
-                        )
-                        .toList(),
-                onChanged: (v) => setState(() => _selectedCityName = v),
+              _buildDropdown(
+                "المدينة",
+                dataManager.allCities.map((c) => c.name).toSet().toList(),
+                _selectedCityName,
+                (v) => setState(() => _selectedCityName = v),
               ),
 
               SizedBox(height: 24.h),
@@ -386,18 +378,62 @@ class _AdvancedFilterDialogState extends State<AdvancedFilterDialog> {
     String? value,
     ValueChanged<String?> onChanged,
   ) {
-    return RetajDropdown<String>(
-      label: hint,
-      value: value,
-      items: items
-          .map(
-            (e) => DropdownMenuItem<String>(
-              value: e,
-              child: Text(e),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return DropdownMenu<String>(
+          width: constraints.maxWidth,
+          initialSelection: value,
+          onSelected: onChanged,
+          enableSearch: true,
+          enableFilter: true,
+          menuHeight: 220.h,
+          label: Text(
+            hint,
+            style: TextStyle(
+              fontFamily: 'Cairo',
+              fontSize: 18.sp,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w700,
             ),
-          )
-          .toList(),
-      onChanged: onChanged,
+          ),
+          textStyle: TextStyle(
+            fontFamily: 'Cairo',
+            fontSize: 18.sp,
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+          inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: AppColors.bgSurface,
+            contentPadding: EdgeInsets.symmetric(horizontal: 22.w, vertical: 20.h),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12.r),
+              borderSide: BorderSide(color: Colors.black45, width: 1.5.w),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12.r),
+              borderSide: BorderSide(color: Colors.black45, width: 1.5.w),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12.r),
+              borderSide: BorderSide(color: AppColors.brandPrimary, width: 2.0.w),
+            ),
+          ),
+          dropdownMenuEntries: items.map<DropdownMenuEntry<String>>((String item) {
+            return DropdownMenuEntry<String>(
+              value: item,
+              label: item,
+              style: MenuItemButton.styleFrom(
+                textStyle: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            );
+          }).toList(),
+        );
+      },
     );
   }
 }

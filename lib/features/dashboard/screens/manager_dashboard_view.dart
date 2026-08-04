@@ -251,6 +251,14 @@ class _ManagerDashboardViewState extends State<ManagerDashboardView> {
           ),
           SizedBox(height: 32.h),
 
+          // ─── Leaderboard الإعلانات ───
+          _buildSection(
+            title: 'أداء الموظفين في نشر الإعلانات للمنصات',
+            icon: Icons.ads_click_rounded,
+            child: _buildAdsPublishedLeaderboard(context, state.adsPublishedStats.byEmployee, state),
+          ),
+          SizedBox(height: 32.h),
+
           // ─── [ GROUP 2: PROPERTY REPORTS & CHARTS ] ───
           _buildSectionHeader('تحليلات وتقارير العقارات المضافة 🏢', Icons.analytics_rounded),
           SizedBox(height: 16.h),
@@ -840,6 +848,89 @@ class _ManagerDashboardViewState extends State<ManagerDashboardView> {
           textAlign: TextAlign.center,
           style: AppTextStyles.bodySmall.copyWith(color: AppColors.brandPrimary, fontSize: 14.sp, fontFamily: 'Cairo'),
         ),
+      ],
+    );
+  }
+
+  Widget _buildAdsPublishedLeaderboard(BuildContext context, List<EmployeeAdsStats> employees, ManagerDashboardLoaded state) {
+    if (employees.isEmpty) {
+      return _buildNoDataWidget('لا توجد بيانات لنشر الإعلانات في هذه الفترة');
+    }
+
+    // التحكم في عدد الموظفين المعروضين
+    final displayedEmployees = _isLeaderboardExpanded
+        ? employees
+        : employees.take(5).toList();
+
+    return Column(
+      children: [
+        Padding(
+          padding: EdgeInsets.only(bottom: 12.h),
+          child: Row(children: [
+            Expanded(
+                flex: 2,
+                child: Text('عقارات', textAlign: TextAlign.center, style: AppTextStyles.tableHeader.copyWith(fontSize: 19.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'))),
+            Expanded(
+                flex: 2,
+                child: Text('منصات', textAlign: TextAlign.center, style: AppTextStyles.tableHeader.copyWith(fontSize: 19.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'))),
+            Expanded(
+                flex: 4,
+                child: Text('الموظف', textAlign: TextAlign.right, style: AppTextStyles.tableHeader.copyWith(fontSize: 19.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'))),
+          ]),
+        ),
+        Padding(
+          padding: EdgeInsets.only(bottom: 8.h),
+          child: const Divider(color: AppColors.borderSubtle),
+        ),
+        ...displayedEmployees.map((emp) {
+          return Column(
+            children: [
+              InkWell(
+                onTap: () => context.read<DashboardCubit>().changeManagerFilters(
+                      startDate: state.startDate,
+                      endDate: state.endDate,
+                      employeeId: emp.employeeId,
+                      employeeName: emp.employeeName,
+                    ),
+                borderRadius: BorderRadius.circular(12.r),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 10.h, horizontal: 8.w),
+                  child: Row(children: [
+                    Expanded(
+                        flex: 2,
+                        child: Text('${emp.propertiesCount}',
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.tableCellMain.copyWith(fontSize: 18.sp, fontWeight: FontWeight.bold, fontFamily: 'Cairo'))),
+                    Expanded(
+                        flex: 2,
+                        child: Text('${emp.adsCount}',
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.tableCellMain.copyWith(color: AppColors.brandPrimary, fontSize: 18.sp, fontWeight: FontWeight.w900, fontFamily: 'Cairo'))),
+                    Expanded(
+                      flex: 4,
+                      child: Text(
+                        emp.employeeName,
+                        textAlign: TextAlign.right,
+                        style: AppTextStyles.tableCellMain.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                          fontSize: 17.sp,
+                          fontFamily: 'Cairo',
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ]),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: 4.h),
+                child: const Divider(color: AppColors.borderSubtle, height: 1),
+              ),
+            ],
+          );
+        }),
       ],
     );
   }

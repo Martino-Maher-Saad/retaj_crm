@@ -45,8 +45,16 @@ class _MarketingScreenState extends State<MarketingScreen>
   @override
   void initState() {
     super.initState();
+    // موظف الماركيتينج يشوف بس عقارات الموظفين المخصصين له
+    final assignedIds = widget.user.isMarketing && widget.user.assignedEmployees.isNotEmpty
+        ? widget.user.assignedEmployees
+        : null;
     _cubit = context.read<MarketingCubit>()
-      ..fetchProperties(excludeUserId: widget.user.id, isRefresh: true);
+      ..fetchProperties(
+        excludeUserId: widget.user.id,
+        isRefresh: true,
+        assignedEmployeeIds: assignedIds,
+      );
     _scrollController.addListener(_onScroll);
     _loadEmployees();
   }
@@ -54,9 +62,18 @@ class _MarketingScreenState extends State<MarketingScreen>
   Future<void> _loadEmployees() async {
     try {
       final dataManager = di.sl<StaticDataManager>();
-      final emps = dataManager.employees;
+      List<ProfileModel> emps;
+      // لو موظف ماركيتينج وعنده موظفين مخصصين، يعرض بس هما
+      if (widget.user.isMarketing && widget.user.assignedEmployees.isNotEmpty) {
+        emps = dataManager.employees
+            .where((e) => widget.user.assignedEmployees.contains(e.id))
+            .toList();
+      } else {
+        emps = dataManager.employees
+            .where((e) => e.id != widget.user.id)
+            .toList();
+      }
       final data = emps
-          .where((e) => e.id != widget.user.id)
           .map((e) => <String, dynamic>{
                 'id': e.id,
                 'first_name': e.firstName,
@@ -75,6 +92,9 @@ class _MarketingScreenState extends State<MarketingScreen>
   }
 
   void _applyFilters() {
+    final assignedIds = widget.user.isMarketing && widget.user.assignedEmployees.isNotEmpty
+        ? widget.user.assignedEmployees
+        : null;
     _cubit.fetchProperties(
       excludeUserId: widget.user.id,
       isRefresh: true,
@@ -84,6 +104,7 @@ class _MarketingScreenState extends State<MarketingScreen>
       filterToDate: _toDate,
       filterPropertyCode: _codeController.text.trim().isEmpty ? null : _codeController.text.trim(),
       overwriteFilters: true,
+      assignedEmployeeIds: assignedIds,
     );
   }
 

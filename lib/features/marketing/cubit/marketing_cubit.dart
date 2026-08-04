@@ -40,12 +40,20 @@ class MarketingCubit extends Cubit<MarketingState> {
         if (_excludeUserId != null && updatedProp.createdBy == _excludeUserId) return;
 
         if (event.action == 'insert') {
-          // If inserting, check if it already exists anywhere to be safe
-          final idxPending = freshState.pendingProperties.indexWhere((p) => p.id == event.id);
+          // Add silently to properties list
           final idxProps = freshState.properties.indexWhere((p) => p.id == event.id);
-          if (idxPending == -1 && idxProps == -1) {
-            final newPending = List<PropertyModel>.from(freshState.pendingProperties)..insert(0, updatedProp);
-            emit(freshState.copyWith(hasNewUpdates: true, pendingProperties: newPending));
+          if (idxProps == -1) {
+            final newList = List<PropertyModel>.from(freshState.properties)..insert(0, updatedProp);
+            final newOriginalList = List<PropertyModel>.from(freshState.originalProperties)..insert(0, updatedProp);
+            
+            // Remove from pending if it somehow got there
+            final newPending = freshState.pendingProperties.where((p) => p.id != event.id).toList();
+            
+            emit(freshState.copyWith(
+              properties: newList, 
+              originalProperties: newOriginalList,
+              pendingProperties: newPending,
+            ));
           }
         } else {
           // If updating or transferring
@@ -55,31 +63,26 @@ class MarketingCubit extends Cubit<MarketingState> {
           List<PropertyModel> newList = List.from(freshState.properties);
           List<PropertyModel> newOriginalList = List.from(freshState.originalProperties);
           
-          bool updated = false;
           if (existingIndex != -1) {
             newList[existingIndex] = updatedProp;
-            updated = true;
+          } else {
+            newList.insert(0, updatedProp);
           }
+          
           if (originalIndex != -1) {
             newOriginalList[originalIndex] = updatedProp;
-            updated = true;
+          } else {
+            newOriginalList.insert(0, updatedProp);
           }
           
-          if (!updated) {
-            // Update made it visible to this screen but wasn't here, put in pending
-            final idxPending = freshState.pendingProperties.indexWhere((p) => p.id == event.id);
-            if (idxPending == -1) {
-              final newPending = List<PropertyModel>.from(freshState.pendingProperties)..insert(0, updatedProp);
-              emit(freshState.copyWith(hasNewUpdates: true, pendingProperties: newPending));
-            } else {
-              final newPending = List<PropertyModel>.from(freshState.pendingProperties);
-              newPending[idxPending] = updatedProp;
-              emit(freshState.copyWith(pendingProperties: newPending));
-            }
-            return;
-          }
+          // Remove from pending if it somehow got there
+          final newPending = freshState.pendingProperties.where((p) => p.id != event.id).toList();
           
-          emit(freshState.copyWith(properties: newList, originalProperties: newOriginalList));
+          emit(freshState.copyWith(
+            properties: newList, 
+            originalProperties: newOriginalList,
+            pendingProperties: newPending,
+          ));
         }
       } catch (_) {}
     } else if (event.action == 'delete') {
@@ -138,6 +141,7 @@ class MarketingCubit extends Cubit<MarketingState> {
     DateTime? filterToDate,
     String? filterPropertyCode,
     bool overwriteFilters = false,
+    List<String>? assignedEmployeeIds,
   }) async {
     _excludeUserId = excludeUserId;
     final currentSuccess = state is MarketingSuccess ? state as MarketingSuccess : null;
@@ -162,6 +166,7 @@ class MarketingCubit extends Cubit<MarketingState> {
         fromDate: appliedFromDate,
         toDate: appliedToDate,
         propertyCode: appliedCode,
+        assignedEmployeeIds: assignedEmployeeIds,
       );
 
       final results = await _repo.fetchAdsManagementProperties(
@@ -173,6 +178,7 @@ class MarketingCubit extends Cubit<MarketingState> {
         fromDate: appliedFromDate,
         toDate: appliedToDate,
         propertyCode: appliedCode,
+        assignedEmployeeIds: assignedEmployeeIds,
       );
 
       List<PropertyModel> merged;

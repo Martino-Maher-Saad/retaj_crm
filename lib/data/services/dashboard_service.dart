@@ -39,4 +39,18 @@ class DashboardService {
         .lt('created_at', endDate);
     return List<Map<String, dynamic>>.from(response);
   }
+
+  /// جلب العقارات التي تم نشرها في فترة زمنية معينة
+  Future<List<Map<String, dynamic>>> getRawPublishedPropertiesForPeriod({
+    required String startDate,
+    required String endDate,
+  }) async {
+    final response = await _client
+        .from('properties')
+        .select('published_by, target_platforms')
+        .not('published_by', 'is', null)
+        .gte('published_at', startDate)
+        .lt('published_at', endDate);
+    return List<Map<String, dynamic>>.from(response);
+  }
 }

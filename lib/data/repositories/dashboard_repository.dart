@@ -259,4 +259,69 @@ class DashboardRepository {
       return PropertyAddedStats.empty();
     }
   }
+
+  /// جلب إحصائيات الإعلانات المنشورة
+  Future<AdsPublishedStats> getAdsPublishedStats({
+    required DateTime startDate,
+    required DateTime endDate,
+    String? employeeId,
+  }) async {
+    try {
+      final response = await _service.getRawPublishedPropertiesForPeriod(
+        startDate: startDate.toIso8601String(),
+        endDate: endDate.toIso8601String(),
+      );
+
+      final dataManager = di.sl<StaticDataManager>();
+
+      final Map<String, EmployeeAdsStats> statsMap = {};
+
+      for (final row in response) {
+        final publishedBy = row['published_by'] as String?;
+        final targetPlatformsRaw = row['target_platforms'] as List<dynamic>?;
+        
+        if (publishedBy == null) continue;
+
+        // إذا كان مفلتر على موظف
+        if (employeeId != null && publishedBy != employeeId) continue;
+
+        final emp = dataManager.employees.where((e) => e.id == publishedBy).firstOrNull;
+        if (emp == null) continue;
+
+        // نحسب فقط لو الموظف ماركيتينج أو مبيعات بـ canMakeAds
+        if (!emp.isMarketing && !emp.canMakeAds) continue;
+
+        final targetPlatformsCount = targetPlatformsRaw?.length ?? 0;
+
+        if (statsMap.containsKey(publishedBy)) {
+          final current = statsMap[publishedBy]!;
+          statsMap[publishedBy] = EmployeeAdsStats(
+            employeeId: publishedBy,
+            employeeName: emp.fullName,
+            adsCount: current.adsCount + targetPlatformsCount,
+            propertiesCount: current.propertiesCount + 1,
+          );
+        } else {
+          statsMap[publishedBy] = EmployeeAdsStats(
+            employeeId: publishedBy,
+            employeeName: emp.fullName,
+            adsCount: targetPlatformsCount,
+            propertiesCount: 1,
+          );
+        }
+      }
+
+      final byEmployee = statsMap.values.toList()
+        ..sort((a, b) => b.adsCount.compareTo(a.adsCount));
+
+      return AdsPublishedStats(
+        byEmployee: byEmployee,
+        startDate: startDate,
+        endDate: endDate,
+      );
+    } catch (e) {
+      debugPrint("Error calculating ads published stats: $e");
+      return AdsPublishedStats.empty(startDate, endDate);
+    }
+  }
 }

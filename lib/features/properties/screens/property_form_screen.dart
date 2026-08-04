@@ -47,6 +47,8 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
   String? selectedCityName;
   String? selectedSource;
   List<String> selectedPlatforms = [];
+  String? selectedEmployee;
+  bool isManagerOrAdmin = false;
 
   final List<Uint8List> _newImagesBytes = [];
   List<PropertyImageModel> _existingImages = [];
@@ -74,8 +76,8 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
     final priceStr = p?.price != null ? p!.price.toCurrency() : '';
     
     String codeValue = p?.propertyCode ?? '';
-    if (_userPrefix != null && _userPrefix!.isNotEmpty && codeValue.startsWith('$_userPrefix-')) {
-      codeValue = codeValue.substring(_userPrefix!.length + 1);
+    if (p == null && _userPrefix != null && _userPrefix!.isNotEmpty) {
+      codeValue = '${_userPrefix}-';
     }
 
     _controllers = {
@@ -135,6 +137,11 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
         }
       }
     });
+
+    isManagerOrAdmin = widget.userRole == 'admin' || widget.userRole == 'manager' || widget.userRole == 'ceo';
+    if (isManagerOrAdmin) {
+      selectedEmployee = p?.createdBy ?? widget.userId;
+    }
   }
 
   @override
@@ -256,11 +263,10 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                                 onSelected: (selected) {
                                   setState(() {
                                     if (platform == 'بدون إعلان') {
-                                      if (selected) {
-                                        selectedPlatforms.clear();
-                                        selectedPlatforms.add(platform);
-                                        _controllers['propertyCode']!.text = '0';
-                                      } else {
+                                        if (selected) {
+                                          selectedPlatforms.clear();
+                                          selectedPlatforms.add(platform);
+                                        } else {
                                         selectedPlatforms.remove(platform);
                                       }
                                     } else {
@@ -295,6 +301,34 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                     stepNumber: 3,
                     child: Column(
                       children: [
+                        if (isManagerOrAdmin) ...[
+                          DropdownButtonFormField<String>(
+                            value: selectedEmployee,
+                            decoration: InputDecoration(
+                              labelText: "الموظف المسؤول (للمديرين فقط)",
+                              labelStyle: TextStyle(
+                                fontFamily: 'Cairo',
+                                fontSize: 16.sp,
+                                color: AppColors.brandPrimary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r)),
+                              contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+                            ),
+                            items: dataManager.employees.map((e) {
+                              return DropdownMenuItem<String>(
+                                value: e.id,
+                                child: Text('${e.firstName ?? ''} ${e.lastName ?? ''}'.trim()),
+                              );
+                            }).toList(),
+                            onChanged: (v) {
+                              setState(() {
+                                selectedEmployee = v;
+                              });
+                            },
+                          ),
+                          SizedBox(height: 20.h),
+                        ],
                         RetajTextField(
                           controller: _controllers['titleAr']!,
                           label: "عنوان الإعلان بالعربي",
@@ -313,20 +347,31 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                           },
                         ),
                         SizedBox(height: 24.h),
-                        TextFormField(
-                          controller: _controllers['propertyCode']!,
-                          decoration: InputDecoration(
-                            labelText: "كود العقار (مطلوب)",
-                            hintText: "اكتب رقم العقار أو 0",
-                            prefixText: (_userPrefix != null && _userPrefix!.isNotEmpty) ? '$_userPrefix-' : null,
-                            filled: true,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.r)),
+                                                Directionality(
+                          textDirection: TextDirection.ltr,
+                          child: TextFormField(
+                            controller: _controllers['propertyCode']!,
+                            textAlign: TextAlign.left,
+                            keyboardType: TextInputType.text,
+                            inputFormatters: [
+                              if (_userPrefix != null && _userPrefix!.isNotEmpty && (widget.property == null || widget.property!.propertyCode!.startsWith('${_userPrefix}-')))
+                                PrefixTextInputFormatter('${_userPrefix}-')
+                              else ...[
+                                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9-]')),
+                                UpperCaseTextFormatter(),
+                              ],
+                            ],
+                            decoration: InputDecoration(
+                              labelText: "كود العقار (مطلوب)",
+                              hintText: "مثال: APT-123 أو APT-0",
+                              filled: true,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.r)),
+                            ),
+                            validator: (val) {
+                              if (val == null || val.trim().isEmpty) return 'يرجى إدخال كود العقار';
+                              return null;
+                            },
                           ),
-                          keyboardType: TextInputType.number,
-                          validator: (val) {
-                            if (val == null || val.trim().isEmpty) return 'يرجى إدخال كود العقار';
-                            return null;
-                          },
                         ),
                         SizedBox(height: 24.h),
                         RetajTextField(
@@ -490,6 +535,31 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                             onChanged: (v) => setState(() => status = v),
                           ),
                         ),
+                        if (isManagerOrAdmin && dataManager.employees.isNotEmpty) ...[
+                          SizedBox(height: 24.h),
+                          _buildDropdown(
+                            "الموظف المسؤول (المنشئ)",
+                            dataManager.employees.map((e) => '${e.firstName ?? ''} ${e.lastName ?? ''}'.trim()).toList(),
+                            selectedEmployee == null ? null : (() {
+                              try {
+                                final emp = dataManager.employees.firstWhere((e) => e.id == selectedEmployee);
+                                return '${emp.firstName ?? ''} ${emp.lastName ?? ''}'.trim();
+                              } catch (_) { return null; }
+                            })(),
+                            (displayName) {
+                              if (displayName == null) {
+                                setState(() => selectedEmployee = null);
+                                return;
+                              }
+                              final emp = dataManager.employees.firstWhere(
+                                (e) => '${e.firstName ?? ''} ${e.lastName ?? ''}'.trim() == displayName,
+                                orElse: () => dataManager.employees.first,
+                              );
+                              setState(() => selectedEmployee = emp.id);
+                            },
+                            required: true,
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -698,34 +768,35 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
       return;
     }
 
-    if (selectedPlatforms.contains('بدون إعلان')) {
-      typedCode = '0';
-    } else if (typedCode == '0') {
-      if (!selectedPlatforms.contains('بدون إعلان')) {
-        selectedPlatforms.clear();
-        selectedPlatforms.add('بدون إعلان');
-      }
-    } else {
-      if (selectedPlatforms.isEmpty) {
+    bool isZeroCode = typedCode == '0' || typedCode.endsWith('-0');
+    bool isWithoutAds = selectedPlatforms.isEmpty || selectedPlatforms.contains('بدون إعلان');
+
+    if (isWithoutAds) {
+      if (!isZeroCode) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('يرجى اختيار منصة إعلانية واحدة على الأقل طالما الكود ليس 0')),
+          const SnackBar(content: Text('طالما العقار بدون إعلان، يجب تعديل كود العقار يدوياً ليكون 0')),
         );
         return;
       }
-      if (typedCode.isEmpty) {
+    } else {
+      if (isZeroCode) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('يجب إدخال كود للعقار عند اختيار منصة إعلانية')),
+          const SnackBar(content: Text('عفواً لا يمكنك كتابة العقار 0 طالما اخترت منصات يرجى كتابة رقم غير ال 0 بعد كودك')),
+        );
+        return;
+      }
+      if (!RegExp(r'^[A-Z]+-[0-9]+$').hasMatch(typedCode)) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('كود العقار غير صحيح. يجب أن يحتوي على حروف ثم شرطة ثم أرقام (مثال: APT-123)')),
         );
         return;
       }
     }
 
     String finalCode = typedCode;
-    if (typedCode != '0' && _userPrefix != null && _userPrefix!.isNotEmpty) {
-      finalCode = '$_userPrefix-$typedCode';
-    }
 
     // Check if propertyCode is unique
     if (finalCode != '0' && (widget.property == null || widget.property!.propertyCode != finalCode)) {
@@ -771,10 +842,20 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
         } catch (_) {}
       }
 
+      String? finalStatusId = widget.property?.approvalStatusId;
+      String? finalStatusName = widget.property?.approvalStatusName;
+      if (selectedPlatforms.contains('بدون إعلان') || selectedPlatforms.isEmpty) {
+        finalStatusId = dataManager.getIdByName('property_approval_statuses', 'بدون إعلان');
+        finalStatusName = 'بدون إعلان';
+      } else if (widget.property == null || widget.property?.approvalStatusName == 'بدون إعلان') {
+        finalStatusId = dataManager.getIdByName('property_approval_statuses', 'قيد المراجعة') ?? '634f7e69-6161-4535-b409-d1ea1bbbdcd3';
+        finalStatusName = 'قيد المراجعة';
+      }
+
       final model = PropertyModel(
         id: widget.property?.id ?? '',
         propertyCode: finalCode,
-        createdBy: widget.property?.createdBy ?? widget.userId,
+        createdBy: selectedEmployee ?? widget.property?.createdBy ?? widget.userId,
         createdByName: widget.property?.createdByName,
         status: status,
         titleAr: _controllers['titleAr']!.text,
@@ -803,10 +884,9 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
         waitingPlatforms: selectedPlatforms.contains('بدون إعلان') ? [] : selectedPlatforms.toList(),
         targetPlatforms: [],
         suspendedPlatforms: [],
-        // تعيين حالة الاعتماد عند الإضافة
-        approvalStatusId: widget.property == null 
-            ? '634f7e69-6161-4535-b409-d1ea1bbbdcd3'
-            : widget.property!.approvalStatusId,
+        // تعيين حالة الاعتماد بناءً على المنصات
+        approvalStatusId: finalStatusId,
+        approvalStatusName: finalStatusName,
       );
 
       // حل أسماء المنصات إلى IDs
@@ -904,5 +984,36 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
         setState(() => _newImagesBytes.add(b));
       }
     }
+  }
+}
+
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    return TextEditingValue(text: newValue.text.toUpperCase(), selection: newValue.selection);
+  }
+}
+
+
+class PrefixTextInputFormatter extends TextInputFormatter {
+  final String prefix;
+  PrefixTextInputFormatter(this.prefix);
+
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    if (!newValue.text.startsWith(prefix)) {
+      if (newValue.text.isEmpty) {
+        return TextEditingValue(
+          text: prefix,
+          selection: TextSelection.collapsed(offset: prefix.length),
+        );
+      }
+      return oldValue;
+    }
+    final rest = newValue.text.substring(prefix.length);
+    if (rest.isNotEmpty && !RegExp(r'^[0-9]+$').hasMatch(rest)) {
+      return oldValue;
+    }
+    return newValue;
   }
 }

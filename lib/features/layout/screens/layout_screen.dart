@@ -22,8 +22,6 @@ import '../../properties/screens/properties_list_screen.dart';
 import '../../profile/screens/user_profile_screen.dart';
 import '../../profile/cubit/profile_cubit.dart';
 import '../../tasks/screens/tasks_screen.dart';
-import '../../tasks/screens/manager_approvals_screen.dart';
-import '../../archive/screens/archive_screen.dart';
 import '../../duplicates/screens/duplicates_screen.dart';
 import '../../properties/screens/property_shares_screen.dart';
 import '../../marketing/screens/marketing_screen.dart';
@@ -59,24 +57,22 @@ class _LayoutScreenState extends State<LayoutScreen> {
     final shares = _NavItemData("مشاركات العقارات", Icons.share_rounded, PropertySharesScreen(user: user, key: const PageStorageKey('shares_page')));
     final leads = _NavItemData("مخزون العملاء", Icons.people_outline_rounded, BlocProvider.value(value: _leadsCubit, child: LeadsManagementScreen(user: user, key: const PageStorageKey('leads_page'))));
     final designs = _NavItemData("مكتبة التصاميم", Icons.format_paint_outlined, const DesignsListScreen(key: PageStorageKey('designs_page')));
-    final archive = _NavItemData("الأرشيف", Icons.archive_outlined, ArchiveScreen(user: user, key: const PageStorageKey('archive_page')));
     final duplicates = _NavItemData("سجل التكرارات", Icons.control_point_duplicate, DuplicatesScreen(user: user, key: const PageStorageKey('duplicates_page')));
-    final approvals = _NavItemData("موافقات الإدارة", Icons.admin_panel_settings_outlined, ManagerApprovalsScreen(user: user, key: const PageStorageKey('approvals_page')));
     final accounts = _NavItemData("إدارة الحسابات", Icons.manage_accounts_outlined, BlocProvider(key: const PageStorageKey('accounts_page'), create: (_) => di.sl<AdminUsersCubit>(), child: const AdminUsersScreen()));
     final dropdowns = _NavItemData("إدارة القوائم", Icons.list_alt_rounded, const DropdownManagementScreen(key: PageStorageKey('dropdown_page')));
 
     final marketing = _NavItemData("إدارة الإعلانات", Icons.campaign_rounded, BlocProvider.value(value: _marketingCubit, child: MarketingScreen(user: user, key: const PageStorageKey('marketing_page'))));
 
     if (user.role == 'sales') {
-      return [dashboard, properties, leads, tasks, archive, shares];
+      return [dashboard, properties, leads, tasks, shares];
     } else if (user.role == 'manager') {
-      return [dashboard, properties, leads, tasks, archive, shares, duplicates, marketing];
+      return [dashboard, properties, leads, tasks, shares, duplicates, marketing];
     } else if (user.role == 'ceo') {
-      return [dashboard, approvals, properties, leads, tasks, archive, shares, duplicates, designs, marketing];
+      return [dashboard, properties, leads, tasks, shares, duplicates, designs, marketing];
     } else if (user.role == 'marketing') {
-      return [dashboard, properties, leads, tasks, archive, shares, marketing];
+      return [dashboard, properties, leads, tasks, shares, marketing];
     } else { // admin
-      return [dashboard, tasks, properties, shares, leads, designs, archive, duplicates, approvals, accounts, dropdowns, marketing];
+      return [dashboard, tasks, properties, shares, leads, designs, duplicates, accounts, dropdowns, marketing];
     }
   }
 

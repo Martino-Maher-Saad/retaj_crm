@@ -58,10 +58,17 @@ class PropertySharesCubit extends Cubit<PropertySharesState> {
   void _handleRealtimeEvent(CrmEvent event) {
     if (event.entity != 'property_share') return;
 
-    // Show refresh banner if they receive a new share or if one of their shares is updated
     final currentState = state;
     if (currentState is PropertySharesLoaded) {
-      if (event.action == 'insert' || event.action == 'delete') {
+      final isSoftDelete = event.action == 'update' && 
+          (event.data?['sender_deleted'] == true || event.data?['receiver_deleted'] == true);
+
+      if (event.action == 'delete' || isSoftDelete) {
+        final shareId = event.id;
+        final newInbox = currentState.inbox.where((s) => s.id != shareId).toList();
+        final newSent = currentState.sent.where((s) => s.id != shareId).toList();
+        emit(currentState.copyWith(inbox: newInbox, sent: newSent));
+      } else if (event.action == 'insert' || event.action == 'update') {
         emit(currentState.copyWith(hasNewUpdates: true));
       }
     }

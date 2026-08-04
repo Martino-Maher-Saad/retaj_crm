@@ -5,9 +5,9 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../data/models/profile_model.dart';
 import '../../../../data/models/property_model.dart';
-import '../../../../data/services/lead_service.dart';
 import '../../../../core/di/injection_container.dart' as di;
 import '../../cubit/properties_cubit.dart';
+import '../../../../core/utils/static_data_manager.dart';
 
 class InternalShareDialog extends StatefulWidget {
   final PropertyModel property;
@@ -40,7 +40,6 @@ class _InternalShareDialogState extends State<InternalShareDialog> {
   final TextEditingController _noteController = TextEditingController();
   List<ProfileModel> _employees = [];
   String? _selectedEmployeeId;
-  bool _isLoading = true;
   bool _isSubmitting = false;
 
   @override
@@ -49,17 +48,11 @@ class _InternalShareDialogState extends State<InternalShareDialog> {
     _fetchEmployees();
   }
 
-  Future<void> _fetchEmployees() async {
-    try {
-      final service = di.sl<LeadService>();
-      final emps = await service.fetchAllEmployees();
-      setState(() {
-        _employees = emps.where((e) => e.id != widget.currentUserId).toList();
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
-    }
+  void _fetchEmployees() {
+    final staticData = di.sl<StaticDataManager>();
+    setState(() {
+      _employees = staticData.employees.where((e) => e.id != widget.currentUserId).toList();
+    });
   }
 
   Future<void> _submit() async {
@@ -95,13 +88,65 @@ class _InternalShareDialogState extends State<InternalShareDialog> {
     }
   }
 
+  void _showNotesEditorDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            title: Text(
+              "ملاحظات المشاركة",
+              style: TextStyle(fontSize: 24.sp, fontWeight: FontWeight.bold),
+            ),
+            content: SizedBox(
+              width: 0.6.sw,
+              height: 0.6.sh,
+              child: TextFormField(
+                controller: _noteController,
+                maxLines: null,
+                expands: true,
+                keyboardType: TextInputType.multiline,
+                textAlignVertical: TextAlignVertical.top,
+                decoration: InputDecoration(
+                  hintText: "اكتب ملاحظتك هنا...",
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  contentPadding: EdgeInsets.all(16.w),
+                ),
+                style: TextStyle(
+                  fontSize: 20.sp,
+                  height: 1.6,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(
+                  "تم",
+                  style: TextStyle(
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
       child: Container(
         padding: EdgeInsets.all(24.w),
-        width: 400.w,
+        width: 450.w,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -120,40 +165,57 @@ class _InternalShareDialogState extends State<InternalShareDialog> {
             
             Text("اختر الموظف", style: AppTextStyles.h3),
             SizedBox(height: 8.h),
-            _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : DropdownButtonFormField<String>(
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r)),
-                      filled: true,
-                      fillColor: Colors.grey[50],
-                    ),
-                    hint: const Text("اختر الزميل..."),
-                    value: _selectedEmployeeId,
-                    items: _employees.map((e) {
-                      return DropdownMenuItem(
+            DropdownMenu<String>(
+              expandedInsets: EdgeInsets.zero,
+              menuHeight: 250,
+              enableFilter: true,
+              enableSearch: false,
+              hintText: "اختر الزميل...",
+              initialSelection: _selectedEmployeeId,
+              onSelected: (val) {
+                setState(() {
+                  _selectedEmployeeId = val;
+                });
+              },
+              dropdownMenuEntries: _employees
+                  .map((e) => DropdownMenuEntry<String>(
                         value: e.id,
-                        child: Text("${e.firstName} ${e.lastName}"),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      setState(() {
-                        _selectedEmployeeId = val;
-                      });
-                    },
-                  ),
+                        label: "${e.firstName} ${e.lastName}".trim(),
+                      ))
+                  .toList(),
+              inputDecorationTheme: InputDecorationTheme(
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r)),
+                filled: true,
+                fillColor: Colors.grey[50],
+              ),
+            ),
             SizedBox(height: 20.h),
             
             Text("ملاحظة (اختياري)", style: AppTextStyles.h3),
             SizedBox(height: 8.h),
-            TextField(
-              controller: _noteController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: "اكتب ملاحظتك هنا...",
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r)),
-                filled: true,
-                fillColor: Colors.grey[50],
+            Directionality(
+              textDirection: TextDirection.rtl,
+              child: TextFormField(
+                controller: _noteController,
+                maxLines: 4,
+                textAlign: TextAlign.right,
+                scrollPhysics: const NeverScrollableScrollPhysics(),
+                keyboardType: TextInputType.multiline,
+                decoration: InputDecoration(
+                  hintText: "اكتب ملاحظتك هنا...",
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r)),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      Icons.open_in_new_rounded,
+                      color: AppColors.brandPrimary,
+                      size: 24.sp,
+                    ),
+                    onPressed: _showNotesEditorDialog,
+                    tooltip: "فتح الملاحظات في نافذة مكبرة",
+                  ),
+                ),
               ),
             ),
             

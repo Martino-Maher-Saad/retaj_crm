@@ -24,6 +24,33 @@ class LeadCubit extends Cubit<LeadState> {
     return r == 'manager' || r == 'admin' || r == 'ceo';
   }
 
+  int _originalTotalCount = 0;
+
+  void cancelFilters() {
+    final currentState = state is LeadLoaded ? state as LeadLoaded : null;
+    if (currentState == null) return;
+    
+    _currentFilterByEmployeeId = null;
+    _currentPlatformId = null;
+    _currentLeadStatusId = null;
+    _currentPropertyTypeId = null;
+    _currentListingTypeId = null;
+    _currentGovernorateId = null;
+    _currentCityId = null;
+    _currentFromDate = null;
+    _currentToDate = null;
+    _currentLastCommentFromDate = null;
+    _currentLastCommentToDate = null;
+    _currentIsArchived = false;
+    _currentIsStagnant = false;
+    _currentIsForTasks = false;
+
+    emit(currentState.copyWith(
+      filteredLeads: currentState.allLeads,
+      totalCount: _originalTotalCount,
+    ));
+  }
+
   final Set<String> _myRecentActions = {};
   
   void _markActionByMe(String id) {
@@ -139,7 +166,7 @@ class LeadCubit extends Cubit<LeadState> {
 
           final isMine = _myRecentActions.contains(event.id);
 
-          if (isMine) {
+          if (isMine || event.action == 'update') {
              final newAll = List<LeadModel>.from(freshState.allLeads)..insert(0, updatedLead);
              final newFiltered = List<LeadModel>.from(freshState.filteredLeads)..insert(0, updatedLead);
              final newPending = freshState.pendingLeads.where((l) => l.id != event.id).toList();
@@ -150,6 +177,7 @@ class LeadCubit extends Cubit<LeadState> {
                totalCount: freshState.totalCount + 1,
              ));
           } else {
+             // Transfer to me by someone else
              final newPending = List<LeadModel>.from(freshState.pendingLeads);
              if (indexPending != -1) {
                 newPending[indexPending] = updatedLead;
@@ -394,8 +422,14 @@ class LeadCubit extends Cubit<LeadState> {
           ? await _repository.getAllEmployees()
           : <ProfileModel>[];
 
+      final hasFilters = filterByEmployeeId != null || platformId != null || leadStatusId != null || propertyTypeId != null || listingTypeId != null || governorateId != null || cityId != null || fromDate != null || toDate != null || lastCommentFromDate != null || lastCommentToDate != null || isArchived == true || isStagnant == true || isForTasks == true;
+
+      if (!hasFilters) {
+        _originalTotalCount = totalCount;
+      }
+
       emit(LeadLoaded(
-        allLeads: leads,
+        allLeads: (hasFilters && currentState != null) ? currentState.allLeads : leads,
         filteredLeads: leads,
         totalCount: totalCount,
         currentFilter: 'الكل',
@@ -555,12 +589,14 @@ class LeadCubit extends Cubit<LeadState> {
           isStagnant: _currentIsStagnant,
           isForTasks: _currentIsForTasks,
         );
+        final hasFilters = _currentFilterByEmployeeId != null || _currentPlatformId != null || _currentLeadStatusId != null || _currentPropertyTypeId != null || _currentListingTypeId != null || _currentGovernorateId != null || _currentCityId != null || _currentFromDate != null || _currentToDate != null || _currentLastCommentFromDate != null || _currentLastCommentToDate != null || _currentIsArchived == true || _currentIsStagnant == true || _currentIsForTasks == true;
 
-        final updatedAll = [...currentState.allLeads, ...nextLeads];
+        final updatedAll = hasFilters ? currentState.allLeads : [...currentState.allLeads, ...nextLeads];
+        final updatedFiltered = [...currentState.filteredLeads, ...nextLeads];
 
         emit(currentState.copyWith(
           allLeads: updatedAll,
-          filteredLeads: updatedAll,
+          filteredLeads: updatedFiltered,
           isLoadingMore: false,
         ));
       } catch (e) {

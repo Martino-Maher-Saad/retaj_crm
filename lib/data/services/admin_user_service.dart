@@ -98,6 +98,18 @@ class AdminUserService {
     }
   }
 
+  /// تحديث قائمة الموظفين المخصصين لموظف ماركيتينج
+  Future<void> updateAssignedEmployees(String marketingUserId, List<String> employeeIds) async {
+    try {
+      await _supabase
+          .from('profiles')
+          .update({'assigned_employees': employeeIds})
+          .eq('id', marketingUserId);
+    } catch (e) {
+      throw ServerException('فشل تحديث الموظفين المخصصين: $e');
+    }
+  }
+
   // جلب إحصائيات المستخدم من عقارات وعملاء
   Future<Map<String, int>> getUserStats(String targetUserId) async {
     try {

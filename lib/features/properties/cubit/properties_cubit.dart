@@ -127,7 +127,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
            
            final isMine = _myRecentActions.contains(event.id);
 
-           if (isMine) {
+           if (isMine || event.action == 'update') {
               final newMy = List<PropertyModel>.from(freshState.myProperties)..insert(0, updatedProperty);
               final newFiltered = List<PropertyModel>.from(freshState.filteredProperties)..insert(0, updatedProperty);
               final newPending = freshState.pendingProperties.where((p) => p.id != event.id).toList();
@@ -138,6 +138,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
                  myTotalCount: freshState.myTotalCount + 1,
               ));
            } else {
+              // This is a transfer to me by someone else
               final newPending = List<PropertyModel>.from(freshState.pendingProperties);
               if (idxPending != -1) {
                  newPending[idxPending] = updatedProperty;
@@ -294,7 +295,10 @@ class PropertiesCubit extends Cubit<PropertiesState> {
 
   // Smart Search Pagination & Cache
   int _smartSearchOffset = 0;
-  String _lastSmartSearchQuery = "";
+  String _lastGeneralSearchQuery = '';
+  String _lastSearchType = 'general';
+  String _lastSmartSearchQuery = '';
+  bool _lastSearchWasSmart = false;
   bool _hasMoreSmartSearch = true;
   bool _isLoadingMoreSmartSearch = false;
   List<double>? _cachedQueryEmbedding;
@@ -303,6 +307,9 @@ class PropertiesCubit extends Cubit<PropertiesState> {
   // Getters for Search
   bool get searchAll => _searchAll;
   bool get isLoadingMoreSmartSearch => _isLoadingMoreSmartSearch;
+  String get activeSearchQuery => _lastSearchWasSmart ? _lastSmartSearchQuery : _lastGeneralSearchQuery;
+  String get activeSearchType => _lastSearchType;
+  bool get isSmartSearchActive => _lastSearchWasSmart;
 
   void toggleSearchAll(bool val) {
     _searchAll = val;
@@ -566,6 +573,9 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     }
     emit(PropertiesLoading());
     try {
+      _lastGeneralSearchQuery = term;
+      _lastSearchType = type;
+      _lastSearchWasSmart = false;
       final results = await _repo.searchProperties(term, type: type, assignedTo: assignedTo);
       emit(
         current.copyWith(
@@ -605,6 +615,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     } else {
       _smartSearchOffset = 0;
       _lastSmartSearchQuery = query;
+      _lastSearchWasSmart = true;
       _hasMoreSmartSearch = true;
       _cachedQueryEmbedding = null;
       emit(PropertiesLoading());
@@ -671,6 +682,8 @@ class PropertiesCubit extends Cubit<PropertiesState> {
       final current = state as PropertiesSuccess;
       _smartSearchOffset = 0;
       _lastSmartSearchQuery = "";
+      _lastGeneralSearchQuery = "";
+      _lastSearchWasSmart = false;
       _hasMoreSmartSearch = true;
       _cachedQueryEmbedding = null;
       emit(current.copyWith(isSearching: false, searchedProperties: []));
@@ -751,6 +764,45 @@ class PropertiesCubit extends Cubit<PropertiesState> {
             filteredTotalCount: current.filteredTotalCount > 0
                 ? current.filteredTotalCount - 1
                 : 0,
+          ),
+        );
+      } catch (e) {
+        emit(PropertiesError("فشل الحذف: $e"));
+        emit(current);
+      }
+    }
+  }
+
+  Future<void> deleteProperties(List<String> ids) async {
+    for (var id in ids) {
+      _markActionByMe(id);
+    }
+    if (state is PropertiesSuccess) {
+      final current = state as PropertiesSuccess;
+      try {
+        for (var id in ids) {
+          await _repo.deleteFullProperty(id);
+        }
+        final updatedList = current.myProperties
+            .where((p) => !ids.contains(p.id))
+            .toList();
+        final filteredList = current.filteredProperties
+            .where((p) => !ids.contains(p.id))
+            .toList();
+        final searchedList = current.searchedProperties
+            .where((p) => !ids.contains(p.id))
+            .toList();
+        
+        final myTotal = (current.myTotalCount - ids.length).clamp(0, current.myTotalCount).toInt();
+        final filteredTotal = (current.filteredTotalCount - ids.length).clamp(0, current.filteredTotalCount).toInt();
+        
+        emit(
+          current.copyWith(
+            myProperties: updatedList,
+            filteredProperties: filteredList,
+            searchedProperties: searchedList,
+            myTotalCount: myTotal,
+            filteredTotalCount: filteredTotal,
           ),
         );
       } catch (e) {
@@ -860,8 +912,30 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     }
   }
 
-  Future<List<PropertyModel>> fetchAllForExport({required String role, required String userId}) async {
+  Future<List<PropertyModel>> fetchAllForExport({
+    required String role, 
+    required String userId,
+    String? searchQuery,
+    String? searchType,
+    bool isSmartSearch = false,
+  }) async {
     try {
+      if (searchQuery != null && searchQuery.isNotEmpty) {
+        final assignedTo = _searchAll ? null : userId;
+        if (isSmartSearch) {
+          final vector = await _repo.generateQueryEmbedding(searchQuery);
+          return await _repo.searchWithAi(
+            vector: vector,
+            limit: 50000,
+            offset: 0,
+            assignedTo: assignedTo,
+          );
+        } else {
+          return await _repo.searchProperties(searchQuery, type: searchType ?? 'general', assignedTo: assignedTo);
+        }
+      }
+
+
       if (role == 'manager' || role == 'admin' || role == 'ceo') {
         return await _repo.filterProperties(
           0, 50000,

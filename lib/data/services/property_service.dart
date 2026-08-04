@@ -62,6 +62,7 @@ class PropertyService {
         .select('*, sender:sender_id(*), receiver:receiver_id(*)')
         .eq('receiver_id', userId)
         .eq('receiver_deleted', false)
+        .eq('sender_deleted', false)
         .order('created_at', ascending: false);
 
     final shares = List<Map<String, dynamic>>.from(response);
@@ -101,9 +102,7 @@ class PropertyService {
   }
 
   Future<void> deleteShare(String shareId, bool isSender) async {
-    final updateData = isSender ? {'sender_deleted': true} : {'receiver_deleted': true};
-    await _client.from('property_shares').update(updateData).eq('id', shareId);
-
+    await _client.from('property_shares').delete().eq('id', shareId);
   }
 
   /// يجيب عقارات صفحة المهمات فقط (مش published)
@@ -212,12 +211,18 @@ class PropertyService {
     DateTime? fromDate,
     DateTime? toDate,
     String? propertyCode,
+    List<String>? assignedEmployeeIds,
   }) async {
     dynamic query = _client
         .from('properties')
         .select(_select)
         .eq('is_active', true)
         .neq('created_by', excludeUserId);
+
+    // فلترة الموظفين المخصصين: لو في assignedEmployeeIds نحصر عليهم
+    if (assignedEmployeeIds != null && assignedEmployeeIds.isNotEmpty) {
+      query = query.inFilter('created_by', assignedEmployeeIds);
+    }
 
     if (assignedToFilter != null && assignedToFilter.isNotEmpty) {
       query = query.eq('created_by', assignedToFilter);
@@ -244,12 +249,17 @@ class PropertyService {
     DateTime? fromDate,
     DateTime? toDate,
     String? propertyCode,
+    List<String>? assignedEmployeeIds,
   }) async {
     dynamic query = _client
         .from('properties')
         .select('*')
         .eq('is_active', true)
         .neq('created_by', excludeUserId);
+
+    if (assignedEmployeeIds != null && assignedEmployeeIds.isNotEmpty) {
+      query = query.inFilter('created_by', assignedEmployeeIds);
+    }
 
     if (assignedToFilter != null && assignedToFilter.isNotEmpty) {
       query = query.eq('created_by', assignedToFilter);
@@ -355,7 +365,7 @@ class PropertyService {
     print('==================================================================');
     final response = await _client.rpc('match_properties_v2', params: {
       'query_embedding': vector,
-      'match_count': limit,
+      'match_count': 100, // طلب عدد أكبر لضمان وجود نتائج بعد الفلترة الصارمة
       'filter_offset': offset,
       'filter_created_by': assignedTo,
       'filter_property_type_id': propertyTypeId,
@@ -370,16 +380,30 @@ class PropertyService {
     if (rpcResults.isEmpty) return [];
 
     final List<String> ids = rpcResults.map((r) => r['id'].toString()).toList();
-    final fullProperties = await _client.from('properties').select(_select).inFilter('id', ids);
+    
+    // الفلترة الصارمة (Strict Filtering) لضمان أن العقارات المعروضة تطابق الفلاتر تماماً
+    var query = _client.from('properties').select(_select).inFilter('id', ids);
+    
+    if (assignedTo != null) query = query.eq('created_by', assignedTo);
+    if (propertyTypeId != null) query = query.eq('property_type_id', propertyTypeId);
+    if (listingTypeId != null) query = query.eq('listing_type_id', listingTypeId);
+    if (governorateId != null) query = query.eq('governorate_id', governorateId);
+    if (cityId != null) query = query.eq('city_id', cityId);
+    if (minPrice != null) query = query.gte('price', minPrice);
+    if (maxPrice != null) query = query.lte('price', maxPrice);
+
+    final fullProperties = await query;
     final List<Map<String, dynamic>> results = List<Map<String, dynamic>>.from(fullProperties);
     
+    // ترتيب النتائج بناءً على ترتيب الذكاء الاصطناعي الأصلي
     results.sort((a, b) {
       final indexA = ids.indexOf(a['id'].toString());
       final indexB = ids.indexOf(b['id'].toString());
       return indexA.compareTo(indexB);
     });
     
-    return results;
+    // إرجاع العدد المطلوب فقط بعد الفلترة
+    return results.take(limit).toList();
   }
 
   /// إضافة منصات إعلانية لعقار (INSERT في property_platforms)

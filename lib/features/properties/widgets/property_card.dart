@@ -65,7 +65,6 @@ class PropertyCard extends StatefulWidget {
   final VoidCallback? onRestore;
   final VoidCallback? onShareInternal;
   final VoidCallback onTap;
-  final VoidCallback? onPinToggle;
 
   /// لإخفاء رقم المالك (للماركتينج في صفحة إدارة الإعلانات)
   final bool hideOwnerPhone;
@@ -80,6 +79,11 @@ class PropertyCard extends StatefulWidget {
   final bool isAddingMode;
   final VoidCallback? onCancelAdd;
 
+  /// لصفحة مشاركة العقارات
+  final bool isSharedView;
+  final String? sharedNotes;
+  final String? sharedBy;
+
   const PropertyCard({
     super.key,
     required this.property,
@@ -91,13 +95,15 @@ class PropertyCard extends StatefulWidget {
     this.onRestore,
     this.onShareInternal,
     required this.onTap,
-    this.onPinToggle,
     this.hideOwnerPhone = false,
     this.platformOnlyMode = false,
     this.onPlatformSaved,
     this.initialEditMode = false,
     this.isAddingMode = false,
     this.onCancelAdd,
+    this.isSharedView = false,
+    this.sharedNotes,
+    this.sharedBy,
   });
 
   @override
@@ -117,12 +123,14 @@ class _PropertyCardState extends State<PropertyCard> {
   String? _selectedListingType;
   String? _selectedPropertyType;
   int? _selectedCityId;
+  String? _selectedEmployeeId;
 
   List<PropertyImageModel> _existingImages = [];
   List<Uint8List> _newImagesBytes = [];
   List<PropertyImageModel> _imagesToDeleteObjects = [];
 
   bool _isDescExpanded = false;
+  bool _isSharedNotesExpanded = false;
 
   String? _propertyCodeError;
   String? _priceError;
@@ -151,11 +159,9 @@ class _PropertyCardState extends State<PropertyCard> {
   }
 
   void _initInlineEditData() {
-    String codeValue = widget.property.propertyCode ?? '';
-    if (_userPrefix != null &&
-        _userPrefix!.isNotEmpty &&
-        codeValue.startsWith('$_userPrefix-')) {
-      codeValue = codeValue.substring(_userPrefix!.length + 1);
+        String codeValue = widget.property.propertyCode ?? '';
+    if (widget.isAddingMode && _userPrefix != null && _userPrefix!.isNotEmpty) {
+      codeValue = '${_userPrefix}-';
     }
     _propertyCodeController.text = codeValue;
 
@@ -196,6 +202,9 @@ class _PropertyCardState extends State<PropertyCard> {
       _selectedPropertyType = null;
       _selectedCityId = null;
       _selectedPlatforms = [];
+      _selectedEmployeeId = widget.currentUserId;
+    } else {
+      _selectedEmployeeId = widget.property.createdBy ?? widget.currentUserId;
     }
 
     _existingImages = List.from(widget.property.images);
@@ -216,10 +225,8 @@ class _PropertyCardState extends State<PropertyCard> {
   bool get _hasChanges {
     if (widget.isAddingMode) return true;
     String typedCode = _propertyCodeController.text.trim();
-    String finalCode = typedCode;
-    if (typedCode != '0' && _userPrefix != null && _userPrefix!.isNotEmpty) {
-      finalCode = '$_userPrefix-$typedCode';
-    }
+      String finalCode = typedCode;
+      bool isZeroCode = typedCode == '0' || typedCode.endsWith('-0');
     final priceStr = _priceController.text.trim().replaceAll(',', '');
     final num priceNum = num.tryParse(priceStr) ?? 0;
 
@@ -230,6 +237,10 @@ class _PropertyCardState extends State<PropertyCard> {
     final bool platformsChanged =
         selectedSorted.join('|') != existingSorted.join('|');
 
+    final bool employeeChanged = (widget.role == 'admin' || widget.role == 'manager' || widget.role == 'ceo')
+        ? _selectedEmployeeId != (widget.property.createdBy ?? widget.currentUserId)
+        : false;
+
     return finalCode != (widget.property.propertyCode ?? '') ||
         priceNum != widget.property.price ||
         _ownerNameController.text.trim() != (widget.property.ownerName ?? '') ||
@@ -239,6 +250,7 @@ class _PropertyCardState extends State<PropertyCard> {
         _selectedListingType != widget.property.listingTypeAr ||
         _selectedPropertyType != widget.property.propertyTypeAr ||
         _selectedCityId != widget.property.cityId ||
+        employeeChanged ||
         platformsChanged ||
         _newImagesBytes.isNotEmpty ||
         _imagesToDeleteObjects.isNotEmpty;
@@ -292,42 +304,32 @@ class _PropertyCardState extends State<PropertyCard> {
       hasError = true;
     }
     String typedCode = _propertyCodeController.text.trim();
-    if (typedCode.isEmpty && _selectedPlatforms.isEmpty) {
-      _propertyCodeError = 'يجب إدخال كود أو اختيار منصة';
+    if (typedCode.isEmpty) {
+      _propertyCodeError = 'مطلوب';
       hasError = true;
     }
 
-    if (_selectedPlatforms.contains('بدون إعلان')) {
-      typedCode = '0';
-    } else if (typedCode == '0') {
-      if (!_selectedPlatforms.contains('بدون إعلان')) {
-        _selectedPlatforms.clear();
-        _selectedPlatforms.add('بدون إعلان');
+    bool isZeroCode = typedCode == '0' || typedCode.endsWith('-0');
+    bool isWithoutAds = _selectedPlatforms.isEmpty || _selectedPlatforms.contains('بدون إعلان');
+
+    if (isWithoutAds) {
+      if (!isZeroCode) {
+        _propertyCodeError = 'طالما العقار بدون إعلان، يجب أن يكون الكود 0';
+        hasError = true;
       }
     } else {
-      if (_selectedPlatforms.isEmpty) {
-        if (mounted)
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'يرجى اختيار منصة إعلانية واحدة على الأقل طالما الكود ليس 0',
-              ),
-            ),
-          );
-        return;
-      }
-      if (typedCode.isEmpty) {
-        _propertyCodeError = 'مطلوب';
+      if (isZeroCode) {
+        _propertyCodeError = 'لا يمكن أن يكون الكود 0 طالما اخترت منصات';
+        hasError = true;
+      } else if (!RegExp(r'^[A-Z]+-[0-9]+$').hasMatch(typedCode)) {
+        _propertyCodeError = 'يجب أن يحتوي الكود على حروف ثم شرطة ثم أرقام';
         hasError = true;
       }
     }
 
     String finalCode = typedCode;
-    if (typedCode != '0' && _userPrefix != null && _userPrefix!.isNotEmpty) {
-      finalCode = '$_userPrefix-$typedCode';
-    }
 
-    if (finalCode != '0' &&
+    if (!isZeroCode &&
         (widget.isAddingMode || widget.property.propertyCode != finalCode)) {
       final isCodeExist = await context
           .read<PropertiesCubit>()
@@ -388,15 +390,19 @@ class _PropertyCardState extends State<PropertyCard> {
 
       String? approvalStatusId = widget.property.approvalStatusId;
       String? approvalStatusName = widget.property.approvalStatusName;
-      if (_selectedPlatforms.contains('بدون إعلان')) {
+      if (_selectedPlatforms.contains('بدون إعلان') || _selectedPlatforms.isEmpty) {
         approvalStatusId = dataManager.getIdByName('property_approval_statuses', 'بدون إعلان');
         approvalStatusName = 'بدون إعلان';
+      } else if (widget.property.approvalStatusName == 'بدون إعلان') {
+        approvalStatusId = dataManager.getIdByName('property_approval_statuses', 'قيد المراجعة');
+        approvalStatusName = 'قيد المراجعة';
       }
 
       final model = widget.property.copyWith(
         approvalStatusId: approvalStatusId,
         approvalStatusName: approvalStatusName,
         propertyCode: finalCode,
+        createdBy: _selectedEmployeeId,
         price:
             num.tryParse(_priceController.text.trim().replaceAll(',', '')) ?? 0,
         ownerName: _ownerNameController.text.trim(),
@@ -445,6 +451,9 @@ class _PropertyCardState extends State<PropertyCard> {
         if (model.propertyCode != widget.property.propertyCode) {
           partialUpdates['property_code'] = model.propertyCode;
         }
+        if (model.createdBy != widget.property.createdBy) {
+          partialUpdates['created_by'] = model.createdBy;
+        }
         if (model.price != widget.property.price) {
           partialUpdates['price'] = model.price;
         }
@@ -480,6 +489,12 @@ class _PropertyCardState extends State<PropertyCard> {
             final pid = dataManager.getIdByName('advertising_platform', pName);
             if (pid != null) pIds.add(pid);
           }
+        }
+        
+        if (platformsChanged) {
+          partialUpdates['waiting_platforms'] = model.waitingPlatforms;
+          partialUpdates['target_platforms'] = model.targetPlatforms;
+          partialUpdates['suspended_platforms'] = model.suspendedPlatforms;
         }
 
         await context.read<PropertiesCubit>().updateProperty(
@@ -550,7 +565,7 @@ class _PropertyCardState extends State<PropertyCard> {
     final bool isMine = widget.property.createdBy == widget.currentUserId;
     final bool shouldMask =
         ((widget.role == 'sales' || widget.role == 'marketing') && !isMine)
-        || widget.hideOwnerPhone;
+        || widget.hideOwnerPhone || widget.isSharedView;
 
     final String? firstImageUrl = widget.property.images.isNotEmpty
         ? widget.property.images.first.thumbnail
@@ -683,7 +698,7 @@ class _PropertyCardState extends State<PropertyCard> {
                                     child: MouseRegion(
                                       cursor: SystemMouseCursors.click,
                                       child: GestureDetector(
-                                        onTap: _openPlatformStatusDialog,
+                                        onTap: widget.isSharedView ? null : _openPlatformStatusDialog,
                                         child: Container(
                                           padding: EdgeInsets.symmetric(
                                             horizontal: 14.w,
@@ -980,6 +995,75 @@ class _PropertyCardState extends State<PropertyCard> {
                                 ),
                             ],
                           ),
+                          if (widget.isSharedView && widget.sharedNotes != null && widget.sharedNotes!.isNotEmpty) ...[
+                            Directionality(
+                              textDirection: TextDirection.rtl,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      SelectableText(
+                                        widget.sharedBy != null ? "ملاحظات المشاركة (${widget.sharedBy})" : "ملاحظات المشاركة",
+                                        style: TextStyle(
+                                          fontSize: 26.sp,
+                                          fontWeight: FontWeight.w900,
+                                          color: Colors.orange[800],
+                                        ),
+                                      ),
+                                      SizedBox(width: 8.w),
+                                      InkWell(
+                                        onTap: () {
+                                          Clipboard.setData(ClipboardData(text: widget.sharedNotes!));
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('تم نسخ الملاحظات بنجاح', style: TextStyle(fontFamily: 'Tajawal'))),
+                                          );
+                                        },
+                                        borderRadius: BorderRadius.circular(8.r),
+                                        child: Padding(
+                                          padding: EdgeInsets.all(4.r),
+                                          child: Icon(Icons.copy_rounded, size: 22.sp, color: Colors.orange[800]),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (widget.sharedNotes!.length > 80 || '\n'.allMatches(widget.sharedNotes!).length >= 2)
+                                    InkWell(
+                                      onTap: () => setState(() => _isSharedNotesExpanded = !_isSharedNotesExpanded),
+                                      child: Padding(
+                                        padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                                        child: Text(
+                                          _isSharedNotesExpanded ? "عرض أقل" : "قراءة المزيد",
+                                          style: TextStyle(color: Colors.orange[800], fontSize: 17.sp, fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(height: 6.h),
+                            Directionality(
+                              textDirection: TextDirection.rtl,
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: SelectableText(
+                                  widget.sharedNotes!,
+                                  scrollPhysics: const NeverScrollableScrollPhysics(),
+                                  style: TextStyle(
+                                    fontSize: 21.sp,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.orange[900],
+                                    height: 1.5,
+                                  ),
+                                  textAlign: TextAlign.right,
+                                  textDirection: TextDirection.rtl,
+                                  maxLines: _isSharedNotesExpanded ? null : 2,
+                                ),
+                              ),
+                            ),
+                            Divider(height: 16.h, color: AppColors.borderSubtle),
+                          ],
                           Divider(height: 16.h, color: AppColors.borderSubtle),
                           Directionality(
                             textDirection: TextDirection.rtl,
@@ -989,7 +1073,7 @@ class _PropertyCardState extends State<PropertyCard> {
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text(
+                                    SelectableText(
                                       "وصف العقار",
                                       style: TextStyle(
                                         fontSize: 26.sp,
@@ -1035,7 +1119,7 @@ class _PropertyCardState extends State<PropertyCard> {
                                       ),
                                   ],
                                 ),
-                                if ((widget.property.descAr ?? "").length > 80)
+                                  if ((widget.property.descAr ?? "").length > 80 || '\n'.allMatches(widget.property.descAr ?? "").length >= 2)
                                   InkWell(
                                     onTap: () => setState(
                                       () => _isDescExpanded = !_isDescExpanded,
@@ -1067,6 +1151,7 @@ class _PropertyCardState extends State<PropertyCard> {
                               width: double.infinity,
                               child: SelectableText(
                                 widget.property.descAr ?? "لا يوجد وصف",
+                                scrollPhysics: const NeverScrollableScrollPhysics(),
                                 style: TextStyle(
                                   fontSize: 21.sp,
                                   fontWeight: FontWeight.bold,
@@ -1098,34 +1183,21 @@ class _PropertyCardState extends State<PropertyCard> {
                     mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      if (widget.onPinToggle != null)
-                        _iconBtn(
-                          widget.property.isPinned
-                              ? Icons.push_pin
-                              : Icons.push_pin_outlined,
-                          widget.property.isPinned
-                              ? Colors.orange
-                              : Colors.grey,
-                          widget.onPinToggle!,
-                          widget.property.isPinned ? "إلغاء التثبيت" : "تثبيت",
-                        ),
-                      if (widget.onPinToggle != null) SizedBox(height: 12.h),
-
-                      if (widget.onEdit != null)
+                      if (widget.onEdit != null && !widget.isSharedView)
                         _iconBtn(Icons.edit_rounded, Colors.blue, () {
                           setState(() {
                             _isEditing = true;
                             _initInlineEditData();
                           });
                         }, "تعديل"),
-                      if (widget.onEdit != null) SizedBox(height: 12.h),
+                      if (widget.onEdit != null && !widget.isSharedView) SizedBox(height: 12.h),
 
                       if (widget.onDelete != null)
                         _iconBtn(
                           Icons.delete_outline_rounded,
                           Colors.red,
                           widget.onDelete!,
-                          "حذف",
+                          widget.isSharedView ? "إزالة من القائمة" : "حذف",
                         ),
                       if (widget.onDelete != null) SizedBox(height: 12.h),
 
@@ -1188,7 +1260,7 @@ class _PropertyCardState extends State<PropertyCard> {
                                 ],
                               ),
                             ),
-                            if (widget.onShareInternal != null)
+                            if (widget.onShareInternal != null && !widget.isSharedView)
                               PopupMenuItem(
                                 value: 'share',
                                 child: Row(
@@ -1250,7 +1322,7 @@ class _PropertyCardState extends State<PropertyCard> {
               Icon(icon, size: 20.sp, color: Colors.grey[600]),
               SizedBox(width: 4.w),
             ],
-            Text(
+            SelectableText(
               label,
               style: TextStyle(
                 fontSize: 18.sp,
@@ -1490,21 +1562,34 @@ class _PropertyCardState extends State<PropertyCard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  _buildTextField(
-                    "كود العقار *",
-                    _propertyCodeController,
-                    errorText: _propertyCodeError,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(
-                        RegExp(r'[a-zA-Z0-9-]'),
+                                      Directionality(
+                      textDirection: TextDirection.ltr,
+                      child: TextFormField(
+                        controller: _propertyCodeController,
+                        textAlign: TextAlign.left,
+                        keyboardType: TextInputType.text,
+                        inputFormatters: [
+                          if (_userPrefix != null && _userPrefix!.isNotEmpty && (widget.isAddingMode || (widget.property.propertyCode != null && widget.property.propertyCode!.startsWith('${_userPrefix}-'))))
+                            PrefixTextInputFormatter('${_userPrefix}-')
+                          else ...[
+                            FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9-]')),
+                            UpperCaseTextFormatter(),
+                          ],
+                        ],
+                        decoration: InputDecoration(
+                          labelText: 'كود العقار *',
+                          errorText: _propertyCodeError,
+                          hintText: "مثال: APT-123 أو APT-0",
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10.r)),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 18.h),
+                        ),
+                        style: TextStyle(
+                          fontSize: 20.sp,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
                       ),
-                      UpperCaseTextFormatter(),
-                    ],
-                    hintText: "مثال: APT-123 أو 0",
-                    prefixText: (_userPrefix != null && _userPrefix!.isNotEmpty)
-                        ? '$_userPrefix-'
-                        : null,
-                  ),
+                    ),
                   SizedBox(height: 16.h),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1573,7 +1658,32 @@ class _PropertyCardState extends State<PropertyCard> {
                         ),
                       ),
                       SizedBox(width: 8.w),
-                      Expanded(flex: 1, child: const SizedBox.shrink()),
+                      Expanded(
+                        flex: 1,
+                        child: (widget.role == 'admin' || widget.role == 'manager' || widget.role == 'ceo') && dataManager.employees.isNotEmpty
+                            ? _buildDropdown(
+                                "الموظف المسؤول (المنشئ)",
+                                _selectedEmployeeId == null ? null : (() {
+                                  try {
+                                    final emp = dataManager.employees.firstWhere((e) => e.id == _selectedEmployeeId);
+                                    return '${emp.firstName ?? ''} ${emp.lastName ?? ''}'.trim();
+                                  } catch (_) { return null; }
+                                })(),
+                                dataManager.employees.map((e) => '${e.firstName ?? ''} ${e.lastName ?? ''}'.trim()).toList(),
+                                (displayName) {
+                                  if (displayName == null) {
+                                    setState(() => _selectedEmployeeId = null);
+                                    return;
+                                  }
+                                  final emp = dataManager.employees.firstWhere(
+                                    (e) => '${e.firstName ?? ''} ${e.lastName ?? ''}'.trim() == displayName,
+                                    orElse: () => dataManager.employees.first,
+                                  );
+                                  setState(() => _selectedEmployeeId = emp.id);
+                                },
+                              )
+                            : const SizedBox.shrink(),
+                      ),
                     ],
                   ),
                 ],
@@ -1845,6 +1955,7 @@ class _PropertyCardState extends State<PropertyCard> {
       textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
       child: TextFormField(
         controller: controller,
+        scrollPhysics: maxLines > 1 ? const NeverScrollableScrollPhysics() : null,
         keyboardType: maxLines > 1
             ? TextInputType.multiline
             : (isNumber ? TextInputType.number : TextInputType.text),
@@ -2033,8 +2144,10 @@ class _PropertyCardState extends State<PropertyCard> {
               property: widget.property,
               isAdsManagement: widget.platformOnlyMode,
               canChangeState: user.canChangePlatformStatus,
+              userPrefix: user.propertyPrefix,
+              currentUserId: widget.currentUserId,
+              isMarketingRole: user.isMarketing,
               onSaved: (updatedProperty) {
-                // حفظ في الداتابيز عن طريق PropertiesCubit
                 try {
                   final cubit = context.read<PropertiesCubit>();
                   cubit.updateProperty(property: updatedProperty, newImages: []);
@@ -2053,6 +2166,9 @@ class _PropertyCardState extends State<PropertyCard> {
               child: PlatformStatusDialog(
                 property: widget.property,
                 canChangeState: user.canChangePlatformStatus,
+                userPrefix: user.propertyPrefix,
+                currentUserId: widget.currentUserId,
+                isMarketingRole: user.isMarketing,
                 onSaved: (updatedProperty) {
                   cubit.updateProperty(property: updatedProperty, newImages: []);
                 },
@@ -2087,4 +2203,29 @@ class _PropertyCardState extends State<PropertyCard> {
     );
   }
 }
+
+
+class PrefixTextInputFormatter extends TextInputFormatter {
+  final String prefix;
+  PrefixTextInputFormatter(this.prefix);
+
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    if (!newValue.text.startsWith(prefix)) {
+      if (newValue.text.isEmpty) {
+        return TextEditingValue(
+          text: prefix,
+          selection: TextSelection.collapsed(offset: prefix.length),
+        );
+      }
+      return oldValue;
+    }
+    final rest = newValue.text.substring(prefix.length);
+    if (rest.isNotEmpty && !RegExp(r'^[0-9]+$').hasMatch(rest)) {
+      return oldValue;
+    }
+    return newValue;
+  }
+}
+
 
