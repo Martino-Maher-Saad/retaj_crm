@@ -225,7 +225,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
                     ),
                   ),
 
-                  if (widget.userRole == 'admin' || widget.userRole == 'ceo' || _canMakeAds || widget.userRole == 'marketing' || widget.property == null)
+                  if (widget.property == null)
                     PropertyFormCard(
                       title: "منصات الإعلان",
                       icon: Icons.campaign_outlined,
@@ -842,33 +842,30 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
         } catch (_) {}
       }
 
-      String? finalStatusId = widget.property?.approvalStatusId;
-      String? finalStatusName = widget.property?.approvalStatusName;
-      if (selectedPlatforms.contains('بدون إعلان') || selectedPlatforms.isEmpty) {
-        finalStatusId = dataManager.getIdByName('property_approval_statuses', 'بدون إعلان');
-        finalStatusName = 'بدون إعلان';
-      } else if (widget.property == null || widget.property?.approvalStatusName == 'بدون إعلان') {
-        finalStatusId = dataManager.getIdByName('property_approval_statuses', 'قيد المراجعة') ?? '634f7e69-6161-4535-b409-d1ea1bbbdcd3';
-        finalStatusName = 'قيد المراجعة';
-      }
-
+      String? finalStatusId;
+      String? finalStatusName;
       List<String> newWaiting = [];
       List<String> newTargeted = [];
       List<String> newSuspended = [];
 
-      if (!selectedPlatforms.contains('بدون إعلان') && selectedPlatforms.isNotEmpty) {
-        final oldTargeted = widget.property?.targetPlatforms ?? [];
-        final oldSuspended = widget.property?.suspendedPlatforms ?? [];
-
-        for (String p in selectedPlatforms) {
-          if (oldTargeted.contains(p)) {
-            newTargeted.add(p);
-          } else if (oldSuspended.contains(p)) {
-            newSuspended.add(p);
-          } else {
+      if (widget.property == null) {
+        if (selectedPlatforms.contains('بدون إعلان') || selectedPlatforms.isEmpty) {
+          finalStatusId = dataManager.getIdByName('property_approval_statuses', 'بدون إعلان');
+          finalStatusName = 'بدون إعلان';
+        } else {
+          finalStatusId = dataManager.getIdByName('property_approval_statuses', 'قيد المراجعة') ?? '634f7e69-6161-4535-b409-d1ea1bbbdcd3';
+          finalStatusName = 'قيد المراجعة';
+          
+          for (String p in selectedPlatforms) {
             newWaiting.add(p);
           }
         }
+      } else {
+        finalStatusId = widget.property!.approvalStatusId;
+        finalStatusName = widget.property!.approvalStatusName;
+        newWaiting = widget.property!.waitingPlatforms;
+        newTargeted = widget.property!.targetPlatforms;
+        newSuspended = widget.property!.suspendedPlatforms;
       }
 
       final model = PropertyModel(
@@ -908,12 +905,15 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
         approvalStatusName: finalStatusName,
       );
 
-      // حل أسماء المنصات إلى IDs
-      final platformIds = selectedPlatforms
-          .map((name) => dataManager.getIdByName('advertising_platform', name))
-          .where((id) => id != null)
-          .cast<String>()
-          .toList();
+      // حل أسماء المنصات إلى IDs فقط في حالة الإضافة (عقار جديد)
+      List<String> platformIds = [];
+      if (widget.property == null) {
+        platformIds = selectedPlatforms
+            .map((name) => dataManager.getIdByName('advertising_platform', name))
+            .where((id) => id != null)
+            .cast<String>()
+            .toList();
+      }
 
       if (widget.property == null) {
         final phone = _controllers['ownerPhone']!.text;

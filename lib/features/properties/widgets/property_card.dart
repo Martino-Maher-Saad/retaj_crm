@@ -390,12 +390,15 @@ class _PropertyCardState extends State<PropertyCard> {
 
       String? approvalStatusId = widget.property.approvalStatusId;
       String? approvalStatusName = widget.property.approvalStatusName;
-      if (_selectedPlatforms.contains('بدون إعلان') || _selectedPlatforms.isEmpty) {
-        approvalStatusId = dataManager.getIdByName('property_approval_statuses', 'بدون إعلان');
-        approvalStatusName = 'بدون إعلان';
-      } else if (widget.property.approvalStatusName == 'بدون إعلان') {
-        approvalStatusId = dataManager.getIdByName('property_approval_statuses', 'قيد المراجعة');
-        approvalStatusName = 'قيد المراجعة';
+      
+      if (widget.isAddingMode) {
+        if (_selectedPlatforms.contains('بدون إعلان') || _selectedPlatforms.isEmpty) {
+          approvalStatusId = dataManager.getIdByName('property_approval_statuses', 'بدون إعلان');
+          approvalStatusName = 'بدون إعلان';
+        } else if (widget.property.approvalStatusName == 'بدون إعلان') {
+          approvalStatusId = dataManager.getIdByName('property_approval_statuses', 'قيد المراجعة');
+          approvalStatusName = 'قيد المراجعة';
+        }
       }
 
       final model = widget.property.copyWith(
@@ -403,26 +406,19 @@ class _PropertyCardState extends State<PropertyCard> {
         approvalStatusName: approvalStatusName,
         propertyCode: finalCode,
         createdBy: _selectedEmployeeId,
-        price:
-            num.tryParse(_priceController.text.trim().replaceAll(',', '')) ?? 0,
+        price: num.tryParse(_priceController.text.trim().replaceAll(',', '')) ?? 0,
         ownerName: _ownerNameController.text.trim(),
         ownerPhone: _ownerPhoneController.text.trim(),
         descAr: _descController.text.trim(),
         listingTypeAr: _selectedListingType,
         propertyTypeAr: _selectedPropertyType,
-        waitingPlatforms: _selectedPlatforms.contains('بدون إعلان')
-            ? []
-            : _selectedPlatforms.toList(),
-        targetPlatforms: [],
-        suspendedPlatforms: [],
-        listingTypeId: dataManager.getIdByName(
-          'listing_type',
-          _selectedListingType!,
-        ),
-        propertyTypeId: dataManager.getIdByName(
-          'property_type',
-          _selectedPropertyType!,
-        ),
+        waitingPlatforms: widget.isAddingMode
+            ? (_selectedPlatforms.contains('بدون إعلان') ? [] : _selectedPlatforms.toList())
+            : widget.property.waitingPlatforms,
+        targetPlatforms: widget.isAddingMode ? [] : widget.property.targetPlatforms,
+        suspendedPlatforms: widget.isAddingMode ? [] : widget.property.suspendedPlatforms,
+        listingTypeId: dataManager.getIdByName('listing_type', _selectedListingType!),
+        propertyTypeId: dataManager.getIdByName('property_type', _selectedPropertyType!),
         cityId: _selectedCityId,
         cityAr: cityObj.name,
       );
@@ -475,27 +471,9 @@ class _PropertyCardState extends State<PropertyCard> {
         if (model.cityId != widget.property.cityId) {
           partialUpdates['city_id'] = model.cityId;
         }
-        if (model.approvalStatusId != widget.property.approvalStatusId) {
-          partialUpdates['approval_status_id'] = model.approvalStatusId;
-        }
 
-        final selectedSorted = _selectedPlatforms.toList()..sort();
-        final existingSorted = widget.property.advertisingPlatforms.map((e) => e.nameAr).toList()..sort();
-        final bool platformsChanged = selectedSorted.join('|') != existingSorted.join('|');
-
+        // We NEVER update platforms from inline edit mode
         final List<String> pIds = [];
-        if (!_selectedPlatforms.contains('بدون إعلان')) {
-          for (final pName in _selectedPlatforms) {
-            final pid = dataManager.getIdByName('advertising_platform', pName);
-            if (pid != null) pIds.add(pid);
-          }
-        }
-        
-        if (platformsChanged) {
-          partialUpdates['waiting_platforms'] = model.waitingPlatforms;
-          partialUpdates['target_platforms'] = model.targetPlatforms;
-          partialUpdates['suspended_platforms'] = model.suspendedPlatforms;
-        }
 
         await context.read<PropertiesCubit>().updateProperty(
           property: model,
