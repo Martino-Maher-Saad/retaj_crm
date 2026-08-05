@@ -15,7 +15,6 @@ class PropertyService {
       'listing_types!listing_type_id(name_ar), '
       'property_sources!source_id(name_ar), '
       'cities!city_id(name), '
-      'governorates!governorate_id(name), '
       'property_approval_statuses!approval_status_id(name_ar), '
       'property_platforms(id, platform_id, is_published, advertising_platforms!pp_platform_fk(id, name_ar))';
 
@@ -52,7 +51,6 @@ class PropertyService {
       'listing_types!listing_type_id(name_ar), '
       'property_sources!source_id(name_ar), '
       'cities!city_id(name), '
-      'governorates!governorate_id(name), '
       'property_approval_statuses!approval_status_id(name_ar), '
       'property_platforms(id, platform_id, is_published, advertising_platforms!pp_platform_fk(id, name_ar))';
 

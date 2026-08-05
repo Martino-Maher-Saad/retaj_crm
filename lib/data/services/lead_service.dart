@@ -25,7 +25,6 @@ class LeadService {
       'listing_types!listing_type_id(name_ar), '
       'communication_channels!channel_id(name_ar), '
       'cities!city_id(name), '
-      'governorates!governorate_id(name), '
       'lead_exclusion_reasons!exclusion_reason_id(name_ar), '
       'lead_phones(id, phone_number, is_primary)';
 
@@ -39,7 +38,6 @@ class LeadService {
       'listing_types!listing_type_id(name_ar), '
       'communication_channels!channel_id(name_ar), '
       'cities!city_id(name), '
-      'governorates!governorate_id(name), '
       'lead_exclusion_reasons!exclusion_reason_id(name_ar), '
       'lead_phones(id, phone_number, is_primary), '
       'lead_notes(id, note_text, created_at, user_id, user:profiles!lead_notes_user_id_fkey(first_name, last_name))';
@@ -54,11 +52,9 @@ class LeadService {
       'listing_types!listing_type_id(name_ar), '
       'communication_channels!channel_id(name_ar), '
       'cities!city_id(name), '
-      'governorates!governorate_id(name), '
       'lead_exclusion_reasons!exclusion_reason_id(name_ar), '
       'lead_phones(id, phone_number, is_primary), '
-      'lead_notes(id, note_text, created_at, user_id, user:profiles!lead_notes_user_id_fkey(first_name, last_name)), '
-      'lead_logs(id, action, created_at, creator:profiles!lead_logs_changed_by_fkey(first_name, last_name), old_status:lead_statuses!old_status_id(name_ar), new_status:lead_statuses!new_status_id(name_ar))';
+      'lead_notes(id, note_text, created_at, user_id, user:profiles!lead_notes_user_id_fkey(first_name, last_name))';
 
   Future<List<LeadModel>> fetchAllLeads({
     required String role,
@@ -95,7 +91,7 @@ class LeadService {
 
     if (isStagnant == true) {
       final oneMonthAgo = DateTime.now().subtract(const Duration(days: 30)).toIso8601String();
-      query = query.lte('updated_at', oneMonthAgo);
+      query = query.lte('status_updated_at', oneMonthAgo);
     }
 
     if (isForTasks == true) {
@@ -169,7 +165,7 @@ class LeadService {
 
     if (isStagnant == true) {
       final oneMonthAgo = DateTime.now().subtract(const Duration(days: 30)).toIso8601String();
-      query = query.lte('updated_at', oneMonthAgo);
+      query = query.lte('status_updated_at', oneMonthAgo);
     }
     
     if (isForTasks == true) {
@@ -363,8 +359,6 @@ class LeadService {
         .update({
           'status_id': statusId,
           'transferred_from': null,
-          'updated_at': DateTime.now().toUtc().toIso8601String(),
-          if (isExcluded) 'is_archived': true,
         })
         .eq('id', leadId);
     final updatedLead = await getLeadById(leadId);
@@ -381,8 +375,6 @@ class LeadService {
           'status_id': statusId,
           'assigned_to': employeeId,
           'transferred_from': null,
-          'updated_at': DateTime.now().toUtc().toIso8601String(),
-          if (isExcluded) 'is_archived': true,
         })
         .eq('id', leadId);
     final updatedLead = await getLeadById(leadId);
@@ -400,7 +392,9 @@ class LeadService {
   }
 
   Future<void> archiveLead(String leadId, bool isArchived) async {
-    await _supabase.from('leads').update({'is_archived': isArchived}).eq('id', leadId);
+    if (isArchived) {
+      await _supabase.from('leads').update({'status_id': '34f6f48c-3179-4b83-b34e-edc3fdc2e3d4'}).eq('id', leadId);
+    }
   }
 
   Future<LeadModel> addNote(String leadId, String noteText) async {
