@@ -366,7 +366,6 @@ class PropertyService {
       'filter_created_by': assignedTo,
       'filter_property_type_id': propertyTypeId,
       'filter_listing_type_id': listingTypeId,
-      'filter_governorate_id': governorateId,
       'filter_city_id': cityId,
       'filter_min_price': minPrice,
       'filter_max_price': maxPrice,

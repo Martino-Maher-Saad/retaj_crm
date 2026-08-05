@@ -444,7 +444,6 @@ class LeadService {
       'match_count': 50,
       'filter_property_type_id': propertyTypeId,
       'filter_listing_type_id': listingTypeId,
-      'filter_governorate_id': governorateId,
       'filter_city_id': cityId,
     });
     
