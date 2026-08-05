@@ -11,6 +11,7 @@ class MarketingCubit extends Cubit<MarketingState> {
   late final StreamSubscription _realtimeSubscription;
   
   String? _excludeUserId;
+  List<String>? _assignedEmployeeIds;
 
   MarketingCubit(this._repo, this._realtimeService) : super(MarketingInitial()) {
     _realtimeSubscription = _realtimeService.eventStream.listen(_handleRealtimeEvent);
@@ -36,8 +37,10 @@ class MarketingCubit extends Cubit<MarketingState> {
         final freshState = state is MarketingSuccess ? state as MarketingSuccess : null;
         if (freshState == null) return;
 
-        // تجاهل لو المستخدم هو اللي ضافه/عنده العقار ده لأن الشاشة دي للإعلانات الخاصة بالشركة (ما عدا عقاراته)
         if (_excludeUserId != null && updatedProp.createdBy == _excludeUserId) return;
+
+        // تجاهل العقار إذا كان موظف الماركيتينج مسؤلاً عن موظفين محددين، وهذا العقار ليس لأحدهم
+        if (_assignedEmployeeIds != null && !_assignedEmployeeIds!.contains(updatedProp.createdBy)) return;
 
         if (event.action == 'insert') {
           // Add to pending to show the refresh button
@@ -57,24 +60,24 @@ class MarketingCubit extends Cubit<MarketingState> {
           
           if (existingIndex != -1) {
             newList[existingIndex] = updatedProp;
+            if (originalIndex != -1) {
+              newOriginalList[originalIndex] = updatedProp;
+            }
+            emit(freshState.copyWith(
+              properties: newList, 
+              originalProperties: newOriginalList,
+            ));
           } else {
-            newList.insert(0, updatedProp);
+            // It's newly visible (transferred or rapid update after insert)
+            final idxPending = freshState.pendingProperties.indexWhere((p) => p.id == event.id);
+            final newPending = List<PropertyModel>.from(freshState.pendingProperties);
+            if (idxPending == -1) {
+              newPending.insert(0, updatedProp);
+            } else {
+              newPending[idxPending] = updatedProp;
+            }
+            emit(freshState.copyWith(hasNewUpdates: true, pendingProperties: newPending));
           }
-          
-          if (originalIndex != -1) {
-            newOriginalList[originalIndex] = updatedProp;
-          } else {
-            newOriginalList.insert(0, updatedProp);
-          }
-          
-          // Remove from pending if it somehow got there
-          final newPending = freshState.pendingProperties.where((p) => p.id != event.id).toList();
-          
-          emit(freshState.copyWith(
-            properties: newList, 
-            originalProperties: newOriginalList,
-            pendingProperties: newPending,
-          ));
         }
       } catch (_) {}
     } else if (event.action == 'delete') {
@@ -136,6 +139,7 @@ class MarketingCubit extends Cubit<MarketingState> {
     List<String>? assignedEmployeeIds,
   }) async {
     _excludeUserId = excludeUserId;
+    _assignedEmployeeIds = assignedEmployeeIds;
     final currentSuccess = state is MarketingSuccess ? state as MarketingSuccess : null;
 
     final appliedEmployeeId = overwriteFilters ? filterEmployeeId : (filterEmployeeId ?? currentSuccess?.filterEmployeeId);
@@ -151,6 +155,21 @@ class MarketingCubit extends Cubit<MarketingState> {
         emit(MarketingLoading());
       }
       
+      if (assignedEmployeeIds != null && assignedEmployeeIds.isEmpty) {
+        emit(MarketingSuccess(
+          originalProperties: [],
+          properties: [],
+          pendingProperties: currentSuccess?.pendingProperties ?? const [],
+          isFiltered: false,
+          hasNewUpdates: currentSuccess?.hasNewUpdates ?? false,
+          totalCount: 0,
+          originalTotalCount: 0,
+          hasMore: false,
+          page: 0,
+        ));
+        return;
+      }
+
       final count = await _repo.fetchAdsManagementCount(
         excludeUserId: excludeUserId,
         assignedToFilter: appliedEmployeeId,

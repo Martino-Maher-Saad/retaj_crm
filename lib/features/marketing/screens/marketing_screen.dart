@@ -46,7 +46,7 @@ class _MarketingScreenState extends State<MarketingScreen>
   void initState() {
     super.initState();
     // موظف الماركيتينج يشوف بس عقارات الموظفين المخصصين له
-    final assignedIds = widget.user.isMarketing && widget.user.assignedEmployees.isNotEmpty
+    final assignedIds = widget.user.isMarketing 
         ? widget.user.assignedEmployees
         : null;
     _cubit = context.read<MarketingCubit>()
@@ -63,8 +63,8 @@ class _MarketingScreenState extends State<MarketingScreen>
     try {
       final dataManager = di.sl<StaticDataManager>();
       List<ProfileModel> emps;
-      // لو موظف ماركيتينج وعنده موظفين مخصصين، يعرض بس هما
-      if (widget.user.isMarketing && widget.user.assignedEmployees.isNotEmpty) {
+      // لو موظف ماركيتينج، يعرض بس الموظفين المخصصين له
+      if (widget.user.isMarketing) {
         emps = dataManager.employees
             .where((e) => widget.user.assignedEmployees.contains(e.id))
             .toList();
@@ -92,7 +92,7 @@ class _MarketingScreenState extends State<MarketingScreen>
   }
 
   void _applyFilters() {
-    final assignedIds = widget.user.isMarketing && widget.user.assignedEmployees.isNotEmpty
+    final assignedIds = widget.user.isMarketing 
         ? widget.user.assignedEmployees
         : null;
     _cubit.fetchProperties(
@@ -123,8 +123,8 @@ class _MarketingScreenState extends State<MarketingScreen>
     final picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -145,9 +145,13 @@ class _MarketingScreenState extends State<MarketingScreen>
     );
     if (picked != null) {
       setState(() {
-        if (isFrom) _fromDate = picked;
-        else _toDate = picked;
+        if (isFrom) {
+          _fromDate = picked;
+        } else {
+          _toDate = picked;
+        }
       });
+      _applyFilters();
     }
   }
 
@@ -350,8 +354,10 @@ class _MarketingScreenState extends State<MarketingScreen>
             SizedBox(width: 8.w),
             IconButton(
               icon: Icon(Icons.refresh_rounded, color: AppColors.brandPrimary, size: 24.sp),
-              tooltip: 'تحديث',
-              onPressed: () => _cubit.fetchProperties(excludeUserId: widget.user.id, isRefresh: true),
+              onPressed: () {
+                final assignedIds = widget.user.isMarketing ? widget.user.assignedEmployees : null;
+                _cubit.fetchProperties(excludeUserId: widget.user.id, isRefresh: true, assignedEmployeeIds: assignedIds);
+              },
             ),
           ],
         ),
@@ -456,7 +462,10 @@ class _MarketingScreenState extends State<MarketingScreen>
           _buildUpdateBanner(),
         Expanded(
           child: RefreshIndicator(
-            onRefresh: () => _cubit.fetchProperties(excludeUserId: widget.user.id, isRefresh: true),
+            onRefresh: () async {
+              final assignedIds = widget.user.isMarketing ? widget.user.assignedEmployees : null;
+              await _cubit.fetchProperties(excludeUserId: widget.user.id, isRefresh: true, assignedEmployeeIds: assignedIds);
+            },
             child: ListView.builder(
               controller: _scrollController,
               padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
