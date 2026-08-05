@@ -218,7 +218,6 @@ class PropertyTasksCubit extends Cubit<PropertyTasksState> {
           'approval_status_id': approvalStatusId,
           if (managerNotes != null) 'manager_notes': managerNotes,
         },
-        platformIds: replacePlatforms ? platformIds : const [],
       );
 
       final dataManager = di.sl<StaticDataManager>();
