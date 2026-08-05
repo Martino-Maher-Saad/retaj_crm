@@ -1550,10 +1550,8 @@ class _LeadCardState extends State<LeadCard> {
                           transferredFrom: widget.lead.transferredFrom,
                           transferredFromName: widget.lead.transferredFromName,
                           createdAt: widget.lead.createdAt,
-                          updatedAt: widget.lead.updatedAt,
                           listingType: widget.lead.listingType,
                           propertyType: widget.lead.propertyType,
-                          governorate: widget.lead.governorate,
                           city: widget.lead.city,
                           platform: widget.lead.platform,
                           leadStatus: widget.lead.leadStatus,
@@ -1564,7 +1562,6 @@ class _LeadCardState extends State<LeadCard> {
                           lastComment: widget.lead.lastComment,
                           propertyCode: widget.lead.propertyCode,
                           notes: widget.lead.notes,
-                          logs: widget.lead.logs,
                           budgetFrom: int.tryParse(
                             budgetFromController.text
                                 .replaceAll(',', '')
@@ -1579,10 +1576,7 @@ class _LeadCardState extends State<LeadCard> {
                           listingTypeId: widget.lead.listingTypeId,
                           channelId: widget.lead.channelId,
                           cityId: widget.lead.cityId,
-                          governorateId: widget.lead.governorateId,
                           exclusionReasonId: widget.lead.exclusionReasonId,
-                          isActive: widget.lead.isActive,
-                          isArchived: widget.lead.isArchived,
                           isPinned: widget.lead.isPinned,
                         );
 
@@ -2070,7 +2064,6 @@ class _LeadCardState extends State<LeadCard> {
       platformId: platformId,
       assignedTo: _inlineSelectedEmployeeId,
       cityId: _inlineSelectedCityId,
-      governorate: widget.lead.governorate,
       city:
           di
               .sl<StaticDataManager>()

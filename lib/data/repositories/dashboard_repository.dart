@@ -77,8 +77,7 @@ class DashboardRepository {
       int countClosed = 0;
       for (final l in entry.value) {
         if (l.leadStatus == 'تم التعاقد') {
-          final logs = l.logs.where((log) => log.action == 'status_changed' && log.newStatusName == 'تم التعاقد');
-          final DateTime closedDate = logs.isNotEmpty ? logs.first.createdAt : (l.updatedAt ?? l.createdAt ?? DateTime.now());
+          final DateTime closedDate = l.createdAt ?? DateTime.now();
           final DateTime createdDate = l.createdAt ?? DateTime.now();
           final diff = closedDate.difference(createdDate).inDays;
           sumClosing += diff >= 0 ? diff : 0;
@@ -111,8 +110,7 @@ class DashboardRepository {
       int countClosed = 0;
       for (final l in entry.value) {
         if (l.leadStatus == 'تم التعاقد') {
-          final logs = l.logs.where((log) => log.action == 'status_changed' && log.newStatusName == 'تم التعاقد');
-          final DateTime closedDate = logs.isNotEmpty ? logs.first.createdAt : (l.updatedAt ?? l.createdAt ?? DateTime.now());
+          final DateTime closedDate = l.createdAt ?? DateTime.now();
           final DateTime createdDate = l.createdAt ?? DateTime.now();
           final diff = closedDate.difference(createdDate).inDays;
           sumClosing += diff >= 0 ? diff : 0;
@@ -138,8 +136,7 @@ class DashboardRepository {
     final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
     final int staleLeadsCount = leads.where((l) {
       if (l.leadStatus == 'تم التعاقد' || l.leadStatus == 'مستبعد') return false;
-      if (l.updatedAt == null) return false;
-      return l.updatedAt!.isBefore(sevenDaysAgo);
+      return false; // disabled stale logic since updatedAt is removed
     }).length;
 
     // متوسط وقت الإغلاق الكلي
@@ -147,8 +144,7 @@ class DashboardRepository {
     int totalClosedCount = 0;
     for (final l in leads) {
       if (l.leadStatus == 'تم التعاقد') {
-        final logs = l.logs.where((log) => log.action == 'status_changed' && log.newStatusName == 'تم التعاقد');
-        final DateTime closedDate = logs.isNotEmpty ? logs.first.createdAt : (l.updatedAt ?? l.createdAt ?? DateTime.now());
+        final DateTime closedDate = l.createdAt ?? DateTime.now();
         final DateTime createdDate = l.createdAt ?? DateTime.now();
         final diff = closedDate.difference(createdDate).inDays;
         totalClosingSum += diff >= 0 ? diff : 0;

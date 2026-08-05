@@ -39,14 +39,7 @@ class DashboardExportHelper {
         final notesStr = l.notes.isEmpty
             ? '—'
             : l.notes.map((n) => '• ${n.noteText}').join('\n');
-        final logsStr = l.logs
-            .where((log) => log.action == 'status_changed')
-            .map((log) {
-              final dateStr = DateFormat("dd/MM/yyyy HH:mm").format(log.createdAt);
-              final changerStr = log.createdByName != null ? ' بواسطة (${log.createdByName})' : '';
-              return '• $dateStr$changerStr: تم تحويل العميل من (${log.oldStatusName ?? "—"}) الي (${log.newStatusName ?? "—"})';
-            })
-            .join('\n');
+        final logsStr = '—';
 
         sheet.appendRow([
           IntCellValue(i + 1),
@@ -175,14 +168,7 @@ class DashboardExportHelper {
           final notesStr = l.notes.isEmpty
               ? '—'
               : l.notes.map((n) => '• ${n.noteText}').join('<br>');
-          final logsStr = l.logs
-              .where((log) => log.action == 'status_changed')
-              .map((log) {
-                final dateStr = DateFormat("dd/MM/yyyy HH:mm").format(log.createdAt);
-                final changerStr = log.createdByName != null ? ' بواسطة (${log.createdByName})' : '';
-                return '• $dateStr$changerStr: تم تحويل العميل من (${log.oldStatusName ?? "—"}) الي (${log.newStatusName ?? "—"})';
-              })
-              .join('<br>');
+          final logsStr = '—';
 
           buf.write('''
             <tr>

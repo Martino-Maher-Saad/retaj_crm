@@ -147,11 +147,11 @@ class PropertyDetailsScreen extends StatelessWidget {
                     initialValue: property.cityAr,
                   ),
                 ),
-                if (property.regionAr != null && property.regionAr!.isNotEmpty)
+                if (null != null && null!.isNotEmpty)
                   RetajTextField(
                     readOnly: true,
                     label: 'المنطقة',
-                    initialValue: property.regionAr,
+                    initialValue: null,
                   ),
                 if (!shouldMask && property.locationInDetails != null && property.locationInDetails!.isNotEmpty)
                   RetajTextField(
@@ -159,11 +159,11 @@ class PropertyDetailsScreen extends StatelessWidget {
                     label: 'العنوان التفصيلي',
                     initialValue: property.locationInDetails,
                   ),
-                if (!shouldMask && property.locationMap != null && property.locationMap!.isNotEmpty)
+                if (!shouldMask && null != null && null!.isNotEmpty)
                   RetajTextField(
                     readOnly: true,
                     label: 'رابط خريطة جوجل',
-                    initialValue: property.locationMap,
+                    initialValue: null,
                     forceLtr: true,
                   ),
               ],
@@ -171,7 +171,7 @@ class PropertyDetailsScreen extends StatelessWidget {
 
             // ─── مصدر العقار والمنصات ───
             if ((property.source != null && property.source!.isNotEmpty) ||
-                property.advertisingPlatforms.isNotEmpty)
+                [].isNotEmpty)
               RetajSectionCard(
                 title: 'مصدر العقار والمنصات',
                 icon: Icons.campaign_outlined,
@@ -183,8 +183,6 @@ class PropertyDetailsScreen extends StatelessWidget {
                       label: 'مصدر العقار',
                       initialValue: property.source,
                     ),
-                  if (property.advertisingPlatforms.isNotEmpty)
-                    _PlatformChips(platforms: property.advertisingPlatforms.map((p) => p.nameAr).toList()),
                 ],
               ),
 

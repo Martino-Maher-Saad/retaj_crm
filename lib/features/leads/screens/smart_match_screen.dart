@@ -53,10 +53,10 @@ class _SmartMatchScreenState extends State<SmartMatchScreen> {
       listingTypeId = dataManager.getIdByName('listing_type', lead.listingType!);
     }
 
-    int? governorateId = lead.governorateId;
-    if (governorateId == null && lead.governorate != null && lead.governorate!.isNotEmpty) {
+    int? governorateId = null;
+    if (governorateId == null && null != null && null!.isNotEmpty) {
       try {
-        governorateId = dataManager.governorates.firstWhere((g) => g.name == lead.governorate).id;
+        governorateId = dataManager.governorates.firstWhere((g) => g.name == null).id;
       } catch (_) {}
     }
 
@@ -80,7 +80,7 @@ class _SmartMatchScreenState extends State<SmartMatchScreen> {
     print("نص طلب العميل: ${lead.descLeadNeed}");
     print("مُعرّف نوع العقار: $propertyTypeId (${lead.propertyType})");
     print("مُعرّف نوع الإعلان: $listingTypeId (${lead.listingType})");
-    print("مُعرّف المحافظة: $governorateId (${lead.governorate})");
+    print("مُعرّف المحافظة: $governorateId (${null})");
     print("مُعرّف المدينة: $cityId (${lead.city})");
     print("الميزانية من (المصححة): $minPrice إلى: $maxPrice");
     print("=================================================");
@@ -243,8 +243,8 @@ class _SmartMatchScreenState extends State<SmartMatchScreen> {
     if (lead.listingType != null && lead.listingType!.isNotEmpty) {
       chips.add(_buildFilterChip(Icons.sell_outlined, lead.listingType!));
     }
-    if (lead.governorate != null && lead.governorate!.isNotEmpty) {
-      chips.add(_buildFilterChip(Icons.map_outlined, lead.governorate!));
+    if (null != null && null!.isNotEmpty) {
+      chips.add(_buildFilterChip(Icons.map_outlined, null!));
     }
     if (lead.city != null && lead.city!.isNotEmpty) {
       chips.add(_buildFilterChip(Icons.location_city_outlined, lead.city!));

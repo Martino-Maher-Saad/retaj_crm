@@ -142,7 +142,7 @@ class _PropertyCardState extends State<PropertyCard> {
 
   String? _userPrefix;
   bool _canMakeAds = false;
-  List<String> _selectedPlatforms = [];
+  List<String> _selectedPlatforms = <String>[];
 
   @override
   void initState() {
@@ -189,19 +189,14 @@ class _PropertyCardState extends State<PropertyCard> {
       ...widget.property.suspendedPlatforms,
       ...widget.property.waitingPlatforms,
     ];
-    if (_selectedPlatforms.isEmpty) {
-      _selectedPlatforms = widget.property.advertisingPlatforms
-          .map((plt) => plt.nameAr)
-          .where((name) => name.isNotEmpty)
-          .toList();
-    }
+    if (_selectedPlatforms.isEmpty) { _selectedPlatforms = []; }
 
     if (widget.isAddingMode) {
       _priceController.text = '';
       _selectedListingType = null;
       _selectedPropertyType = null;
       _selectedCityId = null;
-      _selectedPlatforms = [];
+      _selectedPlatforms = <String>[];
       _selectedEmployeeId = widget.currentUserId;
     } else {
       _selectedEmployeeId = widget.property.createdBy ?? widget.currentUserId;
@@ -232,7 +227,7 @@ class _PropertyCardState extends State<PropertyCard> {
 
     final selectedSorted = _selectedPlatforms.toList()..sort();
     final existingSorted =
-        widget.property.advertisingPlatforms.map((e) => e.nameAr).toList()
+        [].map((e) => e.nameAr).toList()
           ..sort();
     final bool platformsChanged =
         selectedSorted.join('|') != existingSorted.join('|');
