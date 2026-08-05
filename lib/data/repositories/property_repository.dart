@@ -133,6 +133,7 @@ class PropertyRepository {
     DateTime? fromDate,
     DateTime? toDate,
     String? propertyCode,
+    List<String>? assignedEmployeeIds,
   }) async {
     final data = await _pService.fetchAdsManagementProperties(
       excludeUserId: excludeUserId,
@@ -143,6 +144,7 @@ class PropertyRepository {
       fromDate: fromDate,
       toDate: toDate,
       propertyCode: propertyCode,
+      assignedEmployeeIds: assignedEmployeeIds,
     );
     return data.map((e) => PropertyModel.fromJson(e)).toList();
   }
@@ -154,6 +156,7 @@ class PropertyRepository {
     DateTime? fromDate,
     DateTime? toDate,
     String? propertyCode,
+    List<String>? assignedEmployeeIds,
   }) async {
     return await _pService.fetchAdsManagementCount(
       excludeUserId: excludeUserId,
@@ -162,6 +165,7 @@ class PropertyRepository {
       fromDate: fromDate,
       toDate: toDate,
       propertyCode: propertyCode,
+      assignedEmployeeIds: assignedEmployeeIds,
     );
   }
 

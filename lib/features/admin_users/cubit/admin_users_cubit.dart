@@ -97,6 +97,19 @@ class AdminUsersCubit extends Cubit<AdminUsersState> {
     }
   }
 
+  /// تحديث الموظفين المخصصين لموظف ماركيتينج
+  Future<void> updateAssignedEmployees(String marketingUserId, List<String> employeeIds) async {
+    final currentState = state;
+    try {
+      await _adminUserService.updateAssignedEmployees(marketingUserId, employeeIds);
+      emit(const AdminActionSuccess("تم تحديث الموظفين المخصصين بنجاح!"));
+      await fetchAllUsers();
+    } catch (e) {
+      emit(AdminUsersError(e.toString()));
+      if (currentState is AdminUsersLoaded) emit(currentState);
+    }
+  }
+
   Future<Map<String, int>> getUserStats(String targetUserId) async {
     return await _adminUserService.getUserStats(targetUserId);
   }

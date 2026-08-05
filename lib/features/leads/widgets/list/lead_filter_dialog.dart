@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/widgets/retaj_shared_fields.dart';
+
 import '../../../../core/utils/static_data_manager.dart';
 import '../../../../core/di/injection_container.dart' as di;
 import '../../cubit/leads_cubit.dart';
@@ -29,20 +29,16 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
   String? _selectedPlatform;
   String? _selectedPropertyType;
   String? _selectedListingType;
-  int? _selectedGovId;
+  String? _selectedGovName;
   String? _selectedCityName;
   String? _selectedEmployee;
+
   DateTime? _fromDate;
   DateTime? _toDate;
   DateTime? _lastCommentFromDate;
   DateTime? _lastCommentToDate;
-  bool _isStagnant = false;
-  bool _isArchived = false;
-
-  // حالة الـ leads تُجلب من dataManager (لا hardcode)
-  List<String> get _statuses => dataManager.getOptions('lead_status');
-
-  Future<void> _pickDate({required bool isFrom}) async {
+  
+  Future<void> _pickDateTime({required bool isFrom, required bool isComment}) async {
     final date = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
@@ -51,28 +47,18 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
     );
     if (date != null && mounted) {
       setState(() {
-        if (isFrom) {
-          _fromDate = date;
+        if (isComment) {
+          if (isFrom) {
+            _lastCommentFromDate = date;
+          } else {
+            _lastCommentToDate = date;
+          }
         } else {
-          _toDate = date;
-        }
-      });
-    }
-  }
-
-  Future<void> _pickLastCommentDate({required bool isFrom}) async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
-    );
-    if (date != null && mounted) {
-      setState(() {
-        if (isFrom) {
-          _lastCommentFromDate = date;
-        } else {
-          _lastCommentToDate = date;
+          if (isFrom) {
+            _fromDate = date;
+          } else {
+            _toDate = date;
+          }
         }
       });
     }
@@ -82,9 +68,6 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
   void initState() {
     super.initState();
     final cubit = context.read<LeadCubit>();
-    _selectedGovId = cubit.currentGovernorateId;
-    _isStagnant = cubit.currentIsStagnant ?? false;
-    _isArchived = cubit.currentIsArchived ?? false;
     _selectedEmployee = cubit.currentFilterByEmployeeId;
     _fromDate = cubit.currentFromDate;
     _toDate = cubit.currentToDate;
@@ -111,12 +94,23 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
         _selectedListingType = dataManager.getOptionModels('listing_type').firstWhere((o) => o.id == cubit.currentListingTypeId!).nameAr;
       } catch (_) {}
     }
+    
+    if (cubit.currentGovernorateId != null) {
+      try {
+        final gov = dataManager.governorates.firstWhere((g) => g.id == cubit.currentGovernorateId);
+        _selectedGovName = gov.name;
+      } catch (_) {}
+    }
+
     if (cubit.currentCityId != null) {
       try {
         final allCities = dataManager.allCities;
         final city = allCities.firstWhere((c) => c.id == cubit.currentCityId);
         _selectedCityName = city.name;
-        _selectedGovId ??= city.governorateId;
+        if (_selectedGovName == null) {
+          final gov = dataManager.governorates.firstWhere((g) => g.id == city.governorateId);
+          _selectedGovName = gov.name;
+        }
       } catch (_) {}
     }
   }
@@ -124,7 +118,15 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
   @override
   Widget build(BuildContext context) {
     final employees = dataManager.employees;
-    final isManager = widget.role == 'manager' || widget.role == 'admin';
+    final isManager = widget.role == 'manager' || widget.role == 'admin' || widget.role == 'ceo';
+
+    List<String> cityList = dataManager.allCities.map((c) => c.name).toSet().toList();
+    if (_selectedGovName != null) {
+      try {
+        final govId = dataManager.governorates.firstWhere((g) => g.name == _selectedGovName).id;
+        cityList = dataManager.getCitiesByGovId(govId).map((c) => c.name).toSet().toList();
+      } catch (_) {}
+    }
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -133,267 +135,211 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: 540.w),
           child: Container(
+            padding: EdgeInsets.all(24.w),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.bgSurface,
               borderRadius: BorderRadius.circular(20.r),
-              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 16, offset: Offset(0, 6))],
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 10,
+                  offset: Offset(0, 5),
+                ),
+              ],
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // ─── Header ───
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 18.h),
-                  decoration: BoxDecoration(
-                    color: AppColors.brandPrimary,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-                  ),
-                  child: Row(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Icon(Icons.filter_list_rounded, color: Colors.white, size: 22.sp),
-                      SizedBox(width: 10.w),
                       Text(
-                        'فلترة العملاء',
-                        style: TextStyle(color: Colors.white, fontSize: 24.sp, fontWeight: FontWeight.bold),
+                        "الفلاتر المتقدمة",
+                        style: TextStyle(
+                          fontSize: 26.sp,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.brandPrimary,
+                        ),
                       ),
-                      const Spacer(),
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Icon(Icons.close, color: Colors.white70, size: 22.sp),
+                      IconButton(
+                        icon: Icon(Icons.close, size: 24.sp, color: Colors.grey),
+                        onPressed: () => Navigator.pop(context),
                       ),
                     ],
                   ),
-                ),
-
-                // ─── Body ───
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: EdgeInsets.all(20.w),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // ─── Row 1: حالة العميل + المنصة ───
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildDropdown(
-                                'حالة العميل',
-                                Icons.flag_outlined,
-                                _statuses,
-                                _selectedLeadStatus,
-                                (v) => setState(() => _selectedLeadStatus = v),
-                              ),
-                            ),
-                            SizedBox(width: 12.w),
-                            Expanded(
-                              child: _buildDropdown(
-                                'المنصة',
-                                Icons.source_outlined,
-                                dataManager.getOptions('platform'),
-                                _selectedPlatform,
-                                (v) => setState(() => _selectedPlatform = v),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 14.h),
-
-                        // ─── Row 2: نوع العقار + نوع الإعلان ───
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildDropdown(
-                                'نوع العقار',
-                                Icons.home_work_outlined,
-                                dataManager.getOptions('property_type'),
-                                _selectedPropertyType,
-                                (v) => setState(() => _selectedPropertyType = v),
-                              ),
-                            ),
-                            SizedBox(width: 12.w),
-                            Expanded(
-                              child: _buildDropdown(
-                                'نوع الإعلان',
-                                Icons.sell_outlined,
-                                dataManager.getOptions('listing_type'),
-                                _selectedListingType,
-                                (v) => setState(() => _selectedListingType = v),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 14.h),
-
-                        // ─── Row 3: المحافظة + المدينة ───
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildGovDropdown(),
-                            ),
-                            SizedBox(width: 12.w),
-                            Expanded(
-                              child: _buildCityDropdown(),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 14.h),
-
-                        // ─── تاريخ الإضافة ───
-                        _sectionLabel('تاريخ الإضافة', Icons.calendar_month_outlined),
-                        SizedBox(height: 8.h),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildDateButton(
-                                label: _fromDate == null ? 'من تاريخ' : DateFormat('dd/MM/yyyy').format(_fromDate!),
-                                onTap: () => _pickDate(isFrom: true),
-                              ),
-                            ),
-                            SizedBox(width: 12.w),
-                            Expanded(
-                              child: _buildDateButton(
-                                label: _toDate == null ? 'إلى تاريخ' : DateFormat('dd/MM/yyyy').format(_toDate!),
-                                onTap: () => _pickDate(isFrom: false),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 14.h),
-
-                        // ─── تاريخ آخر تعليق ───
-                        _sectionLabel('تاريخ آخر تعليق', Icons.comment_outlined),
-                        SizedBox(height: 8.h),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildDateButton(
-                                label: _lastCommentFromDate == null ? 'من تاريخ' : DateFormat('dd/MM/yyyy').format(_lastCommentFromDate!),
-                                onTap: () => _pickLastCommentDate(isFrom: true),
-                              ),
-                            ),
-                            SizedBox(width: 12.w),
-                            Expanded(
-                              child: _buildDateButton(
-                                label: _lastCommentToDate == null ? 'إلى تاريخ' : DateFormat('dd/MM/yyyy').format(_lastCommentToDate!),
-                                onTap: () => _pickLastCommentDate(isFrom: false),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        // ─── الموظف (للمدير فقط) ───
-                        if (isManager && employees.isNotEmpty) ...[
-                          SizedBox(height: 14.h),
-                          _sectionLabel('الموظف المكلف', Icons.person_search_outlined),
-                          SizedBox(height: 8.h),
-                          _buildDropdown(
-                            'كل الموظفين',
-                            Icons.people_outline,
-                            employees.map((e) => '${e.firstName ?? ''} ${e.lastName ?? ''}'.trim()).toList(),
-                            _selectedEmployee == null ? null : (() {
-                              try {
-                                final emp = employees.firstWhere((e) => e.id == _selectedEmployee);
-                                return '${emp.firstName ?? ''} ${emp.lastName ?? ''}'.trim();
-                              } catch (_) { return null; }
-                            })(),
-                            (displayName) {
-                              if (displayName == null) {
-                                setState(() => _selectedEmployee = null);
-                                return;
-                              }
-                              final emp = employees.firstWhere(
-                                (e) => '${e.firstName ?? ''} ${e.lastName ?? ''}'.trim() == displayName,
-                                orElse: () => employees.first,
-                              );
-                              setState(() => _selectedEmployee = emp.id);
-                            },
-                          ),
-                        ],
-                        SizedBox(height: 14.h),
-                        
-                        // ─── فلاتر إضافية (أكثر من يومين + الأرشيف) ───
-                        _sectionLabel('حالة متقدمة', Icons.local_fire_department_outlined),
-                        SizedBox(height: 8.h),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Material(
-                                color: Colors.transparent,
-                                child: CheckboxListTile(
-                                  title: Text('لم تتغير حالتهم منذ أكثر من يومين', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold)),
-                                  value: _isStagnant,
-                                  contentPadding: EdgeInsets.zero,
-                                  controlAffinity: ListTileControlAffinity.leading,
-                                  dense: true,
-                                  activeColor: AppColors.brandPrimary,
-                                  onChanged: (v) => setState(() => _isStagnant = v ?? false),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Material(
-                                color: Colors.transparent,
-                                child: CheckboxListTile(
-                                  title: Text('العملاء المؤرشفين فقط', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold)),
-                                  value: _isArchived,
-                                  contentPadding: EdgeInsets.zero,
-                                  controlAffinity: ListTileControlAffinity.leading,
-                                  dense: true,
-                                  activeColor: AppColors.brandPrimary,
-                                  onChanged: (v) => setState(() => _isArchived = v ?? false),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                  SizedBox(height: 24.h),
+                  
+                  _buildDropdown(
+                    "حالة العميل",
+                    dataManager.getOptions('lead_status'),
+                    _selectedLeadStatus,
+                    (v) => setState(() => _selectedLeadStatus = v),
                   ),
-                ),
+                  SizedBox(height: 14.h),
+                  _buildDropdown(
+                    "المنصة",
+                    dataManager.getOptions('platform'),
+                    _selectedPlatform,
+                    (v) => setState(() => _selectedPlatform = v),
+                  ),
+                  SizedBox(height: 14.h),
+                  _buildDropdown(
+                    "نوع الإعلان",
+                    dataManager.getOptions('listing_type'),
+                    _selectedListingType,
+                    (v) => setState(() => _selectedListingType = v),
+                  ),
+                  SizedBox(height: 14.h),
+                  _buildDropdown(
+                    "نوع العقار",
+                    dataManager.getOptions('property_type'),
+                    _selectedPropertyType,
+                    (v) => setState(() => _selectedPropertyType = v),
+                  ),
+                  SizedBox(height: 14.h),
+                  
+                  // المحافظة
+                  _buildDropdown(
+                    "المحافظة",
+                    dataManager.governorates.map((g) => g.name).toList(),
+                    _selectedGovName,
+                    (v) => setState(() {
+                      _selectedGovName = v;
+                      _selectedCityName = null;
+                    }),
+                  ),
+                  SizedBox(height: 14.h),
+                  
+                  // المدينة
+                  _buildDropdown(
+                    "المدينة",
+                    cityList,
+                    _selectedCityName,
+                    (v) => setState(() => _selectedCityName = v),
+                  ),
 
-                // ─── Footer Buttons ───
-                Padding(
-                  padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 20.h),
-                  child: Row(
+                  SizedBox(height: 24.h),
+                  Text("تاريخ الإضافة:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.sp)),
+                  SizedBox(height: 10.h),
+                  Row(
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
+                          onPressed: () => _pickDateTime(isFrom: true, isComment: false),
+                          icon: const Icon(Icons.calendar_today, size: 18),
+                          label: Text(_fromDate == null 
+                              ? "من تاريخ" 
+                              : DateFormat('dd/MM/yyyy').format(_fromDate!)),
+                        ),
+                      ),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _pickDateTime(isFrom: false, isComment: false),
+                          icon: const Icon(Icons.calendar_today, size: 18),
+                          label: Text(_toDate == null 
+                              ? "إلى تاريخ" 
+                              : DateFormat('dd/MM/yyyy').format(_toDate!)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  SizedBox(height: 24.h),
+                  Text("تاريخ آخر تعليق:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.sp)),
+                  SizedBox(height: 10.h),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _pickDateTime(isFrom: true, isComment: true),
+                          icon: const Icon(Icons.calendar_today, size: 18),
+                          label: Text(_lastCommentFromDate == null 
+                              ? "من تاريخ" 
+                              : DateFormat('dd/MM/yyyy').format(_lastCommentFromDate!)),
+                        ),
+                      ),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _pickDateTime(isFrom: false, isComment: true),
+                          icon: const Icon(Icons.calendar_today, size: 18),
+                          label: Text(_lastCommentToDate == null 
+                              ? "إلى تاريخ" 
+                              : DateFormat('dd/MM/yyyy').format(_lastCommentToDate!)),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  if (isManager && employees.isNotEmpty) ...[
+                    SizedBox(height: 24.h),
+                    Text("الموظف (للمديرين فقط):", style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.brandPrimary, fontSize: 18.sp)),
+                    SizedBox(height: 10.h),
+                    _buildDropdown(
+                      "كل الموظفين",
+                      employees.map((e) => '${e.firstName ?? ''} ${e.lastName ?? ''}'.trim()).toList(),
+                      _selectedEmployee == null ? null : (() {
+                        try {
+                          final emp = employees.firstWhere((e) => e.id == _selectedEmployee);
+                          return '${emp.firstName ?? ''} ${emp.lastName ?? ''}'.trim();
+                        } catch (_) { return null; }
+                      })(),
+                      (displayName) {
+                        if (displayName == null) {
+                          setState(() => _selectedEmployee = null);
+                          return;
+                        }
+                        final emp = employees.firstWhere(
+                          (e) => '${e.firstName ?? ''} ${e.lastName ?? ''}'.trim() == displayName,
+                          orElse: () => employees.first,
+                        );
+                        setState(() => _selectedEmployee = emp.id);
+                      },
+                    ),
+                  ],
+                  
+
+                  
+                  SizedBox(height: 40.h),
+                  Row(
+                    children: [
+                       Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(vertical: 14.h),
+                            side: const BorderSide(color: Colors.red),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                          ),
                           onPressed: () {
-                            setState(() {
+                             setState(() {
                               _selectedLeadStatus = null;
                               _selectedPlatform = null;
                               _selectedPropertyType = null;
                               _selectedListingType = null;
-                              _selectedGovId = null;
+                              _selectedGovName = null;
                               _selectedCityName = null;
                               _selectedEmployee = null;
                               _fromDate = null;
                               _toDate = null;
                               _lastCommentFromDate = null;
                               _lastCommentToDate = null;
-                              _isStagnant = false;
-                              _isArchived = false;
                             });
                           },
-                          icon: Icon(Icons.clear_all, size: 18.sp),
-                          label: Text('مسح الكل', style: TextStyle(fontSize: 18.sp)),
-                          style: OutlinedButton.styleFrom(
-                            padding: EdgeInsets.symmetric(vertical: 14.h),
-                            side: const BorderSide(color: Colors.grey),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
-                          ),
+                          child: Text("مسح الكل", style: TextStyle(color: Colors.red, fontSize: 20.sp, fontWeight: FontWeight.bold)),
                         ),
                       ),
-                      SizedBox(width: 12.w),
+                      SizedBox(width: 14.w),
                       Expanded(
-                        flex: 2,
-                        child: ElevatedButton.icon(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.brandPrimary,
+                            padding: EdgeInsets.symmetric(vertical: 14.h),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                          ),
                           onPressed: () {
-                            // تحويل الاختيارات النصية إلى IDs
                             final leadStatusId = _selectedLeadStatus != null
                                 ? dataManager.getIdByName('lead_status', _selectedLeadStatus!)
                                 : null;
@@ -406,49 +352,64 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
                             final listingTypeId = _selectedListingType != null
                                 ? dataManager.getIdByName('listing_type', _selectedListingType!)
                                 : null;
+                            
+                            int? govId;
+                            if (_selectedGovName != null) {
+                                try {
+                                  govId = dataManager.governorates.firstWhere((g) => g.name == _selectedGovName).id;
+                                } catch (_) {}
+                            }
+
                             int? cityId;
-                            if (_selectedGovId != null && _selectedCityName != null) {
+                            if (_selectedCityName != null) {
                               try {
-                                final cityObj = dataManager
-                                    .getCitiesByGovId(_selectedGovId!)
-                                    .firstWhere((c) => c.name == _selectedCityName);
-                                cityId = cityObj.id;
+                                cityId = dataManager.allCities
+                                    .firstWhere((c) => c.name == _selectedCityName)
+                                    .id;
                               } catch (_) {}
                             }
-                            context.read<LeadCubit>().getAllLeads(
-                              role: widget.role,
-                              userId: widget.currentUserId,
-                              isRefresh: true,
-                              leadStatusId: leadStatusId,
-                              platformId: platformId,
-                              propertyTypeId: propertyTypeId,
-                              listingTypeId: listingTypeId,
-                              governorateId: _selectedGovId,
-                              cityId: cityId,
-                              filterByEmployeeId: _selectedEmployee,
-                              fromDate: _fromDate,
-                              toDate: _toDate,
-                              lastCommentFromDate: _lastCommentFromDate,
-                              lastCommentToDate: _lastCommentToDate,
-                              isStagnant: _isStagnant ? true : null,
-                              isArchived: _isArchived,
-                            );
+
+                            final hasFilters = leadStatusId != null ||
+                                platformId != null ||
+                                propertyTypeId != null ||
+                                listingTypeId != null ||
+                                govId != null ||
+                                cityId != null ||
+                                _selectedEmployee != null ||
+                                _fromDate != null ||
+                                _toDate != null ||
+                                _lastCommentFromDate != null ||
+                                _lastCommentToDate != null;
+
+                            if (!hasFilters) {
+                              context.read<LeadCubit>().cancelFilters();
+                            } else {
+                              context.read<LeadCubit>().getAllLeads(
+                                role: widget.role,
+                                userId: widget.currentUserId,
+                                isRefresh: true,
+                                leadStatusId: leadStatusId,
+                                platformId: platformId,
+                                propertyTypeId: propertyTypeId,
+                                listingTypeId: listingTypeId,
+                                governorateId: govId,
+                                cityId: cityId,
+                                filterByEmployeeId: _selectedEmployee,
+                                fromDate: _fromDate,
+                                toDate: _toDate,
+                                lastCommentFromDate: _lastCommentFromDate,
+                                lastCommentToDate: _lastCommentToDate,
+                              );
+                            }
                             Navigator.pop(context);
                           },
-                          icon: Icon(Icons.search, size: 18.sp),
-                          label: Text('تطبيق الفلاتر', style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.brandPrimary,
-                            foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(vertical: 14.h),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
-                          ),
+                          child: Text("تطبيق", style: TextStyle(color: Colors.white, fontSize: 20.sp, fontWeight: FontWeight.bold)),
                         ),
                       ),
                     ],
-                  ),
-                ),
-              ],
+                  )
+                ],
+              ),
             ),
           ),
         ),
@@ -456,101 +417,68 @@ class _LeadFilterDialogState extends State<LeadFilterDialog> {
     );
   }
 
-  Widget _sectionLabel(String text, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, size: 16.sp, color: AppColors.brandPrimary),
-        SizedBox(width: 6.w),
-        Text(text, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.sp, color: AppColors.textPrimary)),
-      ],
-    );
-  }
-
-  Widget _buildDropdown(String hint, IconData icon, List<String> items, String? value, ValueChanged<String?> onChanged) {
-    return RetajDropdown<String>(
-      label: hint,
-      prefixIcon: icon,
-      value: value,
-      items: [
-        DropdownMenuItem<String>(
-          value: null,
-          child: Text('الكل', style: TextStyle(fontSize: 13.sp, color: Colors.grey)),
-        ),
-        ...items
-            .map(
-              (e) => DropdownMenuItem<String>(
-                value: e,
-                child: Text(e, style: TextStyle(fontSize: 13.sp)),
-              ),
-            )
-            .toList(),
-      ],
-      onChanged: onChanged,
-    );
-  }
-
-  Widget _buildGovDropdown() {
-    return RetajDropdown<int>(
-      label: 'المحافظة',
-      prefixIcon: Icons.location_on_outlined,
-      value: _selectedGovId,
-      items: [
-        const DropdownMenuItem<int>(
-          value: null,
-          child: Text('الكل'),
-        ),
-        ...dataManager.governorates.map(
-          (g) => DropdownMenuItem<int>(
-            value: g.id,
-            child: Text(g.name),
+  Widget _buildDropdown(
+    String hint,
+    List<String> items,
+    String? value,
+    ValueChanged<String?> onChanged,
+  ) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return DropdownMenu<String>(
+          width: constraints.maxWidth,
+          initialSelection: value,
+          onSelected: onChanged,
+          enableSearch: true,
+          enableFilter: true,
+          menuHeight: 220.h,
+          label: Text(
+            hint,
+            style: TextStyle(
+              fontFamily: 'Cairo',
+              fontSize: 18.sp,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
-      ],
-      onChanged: (v) => setState(() {
-        _selectedGovId = v;
-        _selectedCityName = null;
-      }),
-    );
-  }
-
-  Widget _buildCityDropdown() {
-    final cities = _selectedGovId == null
-        ? <String>[]
-        : dataManager.getCitiesByGovId(_selectedGovId!).map((c) => c.name).toSet().toList();
-
-    return RetajDropdown<String>(
-      label: 'المدينة',
-      prefixIcon: Icons.location_city_outlined,
-      value: _selectedCityName,
-      items: [
-        const DropdownMenuItem<String>(
-          value: null,
-          child: Text('الكل'),
-        ),
-        ...cities
-            .map(
-              (name) => DropdownMenuItem<String>(
-                value: name,
-                child: Text(name),
+          textStyle: TextStyle(
+            fontFamily: 'Cairo',
+            fontSize: 18.sp,
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+          inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: AppColors.bgSurface,
+            contentPadding: EdgeInsets.symmetric(horizontal: 22.w, vertical: 20.h),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12.r),
+              borderSide: BorderSide(color: Colors.black45, width: 1.5.w),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12.r),
+              borderSide: BorderSide(color: Colors.black45, width: 1.5.w),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12.r),
+              borderSide: BorderSide(color: AppColors.brandPrimary, width: 2.0.w),
+            ),
+          ),
+          dropdownMenuEntries: items.map<DropdownMenuEntry<String>>((String item) {
+            return DropdownMenuEntry<String>(
+              value: item,
+              label: item,
+              style: MenuItemButton.styleFrom(
+                textStyle: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            )
-            .toList(),
-      ],
-      onChanged: _selectedGovId == null ? null : (v) => setState(() => _selectedCityName = v),
-    );
-  }
-
-  Widget _buildDateButton({required String label, required VoidCallback onTap}) {
-    return OutlinedButton.icon(
-      onPressed: onTap,
-      icon: Icon(Icons.calendar_today, size: 15.sp, color: AppColors.brandPrimary),
-      label: Text(label, style: TextStyle(fontSize: 12.sp, color: AppColors.textPrimary)),
-      style: OutlinedButton.styleFrom(
-        padding: EdgeInsets.symmetric(vertical: 13.h, horizontal: 10.w),
-        side: BorderSide(color: Colors.grey.shade300),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
-        backgroundColor: const Color(0xFFF8FAFC),
-      ),
+            );
+          }).toList(),
+        );
+      },
     );
   }
 }

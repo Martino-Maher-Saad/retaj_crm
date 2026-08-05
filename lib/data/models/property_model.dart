@@ -67,6 +67,10 @@ class PropertyModel {
   final String? approvalStatusId;
   final String? approvalStatusName;
 
+  // حقول النشر
+  final String? publishedBy;
+  final DateTime? publishedAt;
+
   const PropertyModel({
     this.embedding,
     this.embeddingV2,
@@ -104,6 +108,8 @@ class PropertyModel {
     this.approvalStatusId,
     this.approvalStatusName,
     this.isPinned = false,
+    this.publishedBy,
+    this.publishedAt,
   });
 
   factory PropertyModel.fromJson(Map<String, dynamic> json) {
@@ -195,6 +201,8 @@ class PropertyModel {
       approvalStatusId: json['approval_status_id']?.toString(),
       approvalStatusName: json['property_approval_statuses']?['name_ar']?.toString(),
       isPinned:       json['is_pinned'] == true,
+      publishedBy:    json['published_by']?.toString(),
+      publishedAt:    json['published_at'] != null ? DateTime.parse(json['published_at']).toLocal() : null,
     );
   }
 
@@ -227,6 +235,8 @@ class PropertyModel {
       if (governorateId != null) 'governorate_id': governorateId,
       if (approvalStatusId != null) 'approval_status_id': approvalStatusId,
       'is_pinned': isPinned,
+      if (publishedBy != null) 'published_by': publishedBy,
+      if (publishedAt != null) 'published_at': publishedAt!.toUtc().toIso8601String(),
     };
   }
 
@@ -266,6 +276,8 @@ class PropertyModel {
     int? governorateId,
     String? approvalStatusId,
     String? approvalStatusName,
+    String? publishedBy,
+    DateTime? publishedAt,
   }) {
     return PropertyModel(
       embedding: embedding ?? this.embedding,
@@ -303,6 +315,8 @@ class PropertyModel {
       governorateId: governorateId ?? this.governorateId,
       approvalStatusId: approvalStatusId ?? this.approvalStatusId,
       approvalStatusName: approvalStatusName ?? this.approvalStatusName,
+      publishedBy: publishedBy ?? this.publishedBy,
+      publishedAt: publishedAt ?? this.publishedAt,
     );
   }
 }

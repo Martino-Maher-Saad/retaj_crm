@@ -36,6 +36,13 @@ class RealtimeService {
       callback: (payload) => _handlePostgresChange('property', payload),
     );
 
+    _channel.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'property_shares',
+      callback: (payload) => _handlePostgresChange('property_share', payload),
+    );
+
     _channel.subscribe();
   }
 

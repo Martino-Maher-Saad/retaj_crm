@@ -11,6 +11,7 @@ class ProfileModel {
   final bool canMakeAds;
   final String? propertyPrefix;
   final bool isActive;
+  final List<String> assignedEmployees;
 
   ProfileModel({
     required this.id,
@@ -25,6 +26,7 @@ class ProfileModel {
     this.canMakeAds = false,
     this.propertyPrefix,
     this.isActive = true,
+    this.assignedEmployees = const [],
   });
 
   factory ProfileModel.fromJson(Map<String, dynamic> json) {
@@ -41,6 +43,10 @@ class ProfileModel {
       canMakeAds: json['can_make_ads'] ?? false,
       propertyPrefix: json['property_prefix'],
       isActive: json['is_active'] ?? true,
+      assignedEmployees: (json['assigned_employees'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
     );
   }
 
@@ -58,6 +64,7 @@ class ProfileModel {
       'can_make_ads': canMakeAds,
       'property_prefix': propertyPrefix,
       'is_active': isActive,
+      'assigned_employees': assignedEmployees,
     };
   }
 
@@ -73,6 +80,8 @@ class ProfileModel {
     DateTime? updatedAt,
     bool? canMakeAds,
     String? propertyPrefix,
+    bool? isActive,
+    List<String>? assignedEmployees,
   }) {
     return ProfileModel(
       id: id ?? this.id,
@@ -86,6 +95,8 @@ class ProfileModel {
       updatedAt: updatedAt ?? this.updatedAt,
       canMakeAds: canMakeAds ?? this.canMakeAds,
       propertyPrefix: propertyPrefix ?? this.propertyPrefix,
+      isActive: isActive ?? this.isActive,
+      assignedEmployees: assignedEmployees ?? this.assignedEmployees,
     );
   }
 
@@ -93,7 +104,7 @@ class ProfileModel {
     final name = "${firstName ?? ''} ${lastName ?? ''}".trim();
     return name.isEmpty ? "مستخدم بدون اسم" : name;
   }
-  
+
   bool get isAdmin => role == 'admin';
   bool get isManager => role == 'manager';
   bool get isSales => role == 'sales' || role == 'marketing';

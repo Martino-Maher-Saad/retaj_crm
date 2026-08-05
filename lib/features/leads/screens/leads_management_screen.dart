@@ -23,7 +23,7 @@ import '../widgets/list/lead_archive_dialog.dart';
 import '../widgets/list/lead_empty_state.dart';
 import '../widgets/list/lead_filter_dialog.dart';
 import '../widgets/list/lead_search_bar.dart';
-import '../widgets/list/leads_status_filter_bar.dart';
+
 import 'lead_details_screen.dart';
 import 'lead_form_screen.dart';
 import 'bulk_add_leads_screen.dart';
@@ -139,21 +139,77 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                       totalCount: total,
                       onFilter: () => _openFilterDialog(context),
                       filterLabel: 'فلاتر متقدمة',
-                      filterBar: LeadsStatusFilterBar(
-                        filters: _filters,
-                        currentFilter: currentFilter,
-                        onFilterSelected: (filter) {
-                          setState(() => _isFiltering = false);
-                          final statusId = filter == 'الكل'
-                              ? null
-                              : _dataManager.getIdByName('lead_status', filter);
-                          _cubit.getAllLeads(
-                            role: widget.user.role,
-                            userId: widget.user.id,
-                            isRefresh: true,
-                            leadStatusId: statusId,
-                          );
-                        },
+                      filterBar: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              height: 48.h,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8.r),
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    icon: Icon(Icons.grid_view_rounded, color: !_isExcelView ? AppColors.brandPrimary : Colors.grey),
+                                    onPressed: () => setState(() => _isExcelView = false),
+                                    tooltip: 'عرض الكروت',
+                                  ),
+                                  Container(width: 1.w, height: 28.h, color: Colors.grey.shade300),
+                                  IconButton(
+                                    icon: Icon(Icons.table_chart_rounded, color: _isExcelView ? AppColors.brandPrimary : Colors.grey),
+                                    onPressed: () => setState(() => _isExcelView = true),
+                                    tooltip: 'عرض الجدول',
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (widget.user.role == 'manager' || widget.user.role == 'admin' || widget.user.role == 'ceo') ...[
+                              SizedBox(width: 12.w),
+                              Container(
+                                height: 48.h,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8.r),
+                                  border: Border.all(color: Colors.grey.shade300),
+                                ),
+                                child: IconButton(
+                                  icon: const Icon(Icons.file_download, color: AppColors.brandPrimary),
+                                  onPressed: _exportLeads,
+                                  tooltip: 'تصدير لإكسيل',
+                                ),
+                              ),
+                              SizedBox(width: 12.w),
+                              if (_isBulkSelectMode && _selectedLeadIds.isNotEmpty)
+                                SizedBox(
+                                  height: 48.h,
+                                  child: ElevatedButton.icon(
+                                    onPressed: _showBulkReassignDialog,
+                                    icon: const Icon(Icons.swap_horiz, color: Colors.white),
+                                    label: Text('نقل (${_selectedLeadIds.length})', style: const TextStyle(color: Colors.white)),
+                                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.brandPrimary),
+                                  ),
+                                ),
+                              if (_isBulkSelectMode && _selectedLeadIds.isNotEmpty) SizedBox(width: 8.w),
+                              SizedBox(
+                                height: 48.h,
+                                child: OutlinedButton.icon(
+                                  onPressed: () {
+                                    setState(() {
+                                      _isBulkSelectMode = !_isBulkSelectMode;
+                                      if (!_isBulkSelectMode) _selectedLeadIds.clear();
+                                    });
+                                  },
+                                  icon: Icon(_isBulkSelectMode ? Icons.close : Icons.checklist_rtl),
+                                  label: Text(_isBulkSelectMode ? 'إلغاء' : 'تحديد'),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
                       extraAction: OutlinedButton.icon(
                               onPressed: () {
@@ -186,72 +242,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                       isSearching: (state is LeadLoaded) ? state.isSearching : false,
                     ),
 
-                    // شريط الأدوات (Toggle View & Bulk Select)
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: AppConstants.p16, vertical: 8.h),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // Toggle View
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8.r),
-                              border: Border.all(color: Colors.grey.shade300),
-                            ),
-                            child: Row(
-                              children: [
-                                IconButton(
-                                  icon: Icon(Icons.grid_view_rounded, color: !_isExcelView ? AppColors.brandPrimary : Colors.grey),
-                                  onPressed: () => setState(() => _isExcelView = false),
-                                  tooltip: 'عرض الكروت',
-                                ),
-                                Container(width: 1.w, height: 24.h, color: Colors.grey.shade300),
-                                IconButton(
-                                  icon: Icon(Icons.table_chart_rounded, color: _isExcelView ? AppColors.brandPrimary : Colors.grey),
-                                  onPressed: () => setState(() => _isExcelView = true),
-                                  tooltip: 'عرض الجدول',
-                                ),
-                              ],
-                            ),
-                          ),
-                          
-                          // Export Button
-                          if (widget.user.role == 'manager' || widget.user.role == 'admin' || widget.user.role == 'ceo')
-                            IconButton(
-                              icon: const Icon(Icons.file_download, color: AppColors.brandPrimary),
-                              onPressed: _exportLeads,
-                              tooltip: 'تصدير لإكسيل',
-                            ),
-                          
-                          const Spacer(),
-                          // Bulk Select & Reassign (Admins only)
-                          if (widget.user.role == 'manager' || widget.user.role == 'admin' || widget.user.role == 'ceo')
-                            Row(
-                              children: [
-                                if (_isBulkSelectMode && _selectedLeadIds.isNotEmpty)
-                                  ElevatedButton.icon(
-                                    onPressed: _showBulkReassignDialog,
-                                    icon: const Icon(Icons.swap_horiz, color: Colors.white),
-                                    label: Text('نقل للموظف (${_selectedLeadIds.length})', style: const TextStyle(color: Colors.white)),
-                                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.brandPrimary),
-                                  ),
-                                SizedBox(width: 8.w),
-                                OutlinedButton.icon(
-                                  onPressed: () {
-                                    setState(() {
-                                      _isBulkSelectMode = !_isBulkSelectMode;
-                                      if (!_isBulkSelectMode) _selectedLeadIds.clear();
-                                    });
-                                  },
-                                  icon: Icon(_isBulkSelectMode ? Icons.close : Icons.checklist_rtl),
-                                  label: Text(_isBulkSelectMode ? 'إلغاء التحديد' : 'تحديد متعدد'),
-                                ),
-                              ],
-                            ),
-                        ],
-                      ),
-                    ),
+
 
                     // شريط "فلاتر نشطة"
                     if (_isFiltering)
@@ -270,11 +261,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                             TextButton(
                               onPressed: () {
                                 setState(() => _isFiltering = false);
-                                _cubit.getAllLeads(
-                                  role: widget.user.role,
-                                  userId: widget.user.id,
-                                  isRefresh: true,
-                                );
+                                _cubit.cancelFilters();
                               },
                               child: const Text('إلغاء الفلاتر',
                                   style: TextStyle(color: Colors.red)),

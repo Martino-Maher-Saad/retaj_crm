@@ -49,6 +49,7 @@ class ManagerDashboardLoaded extends DashboardState {
   final String? selectedEmployeeId;
   final String? selectedEmployeeName;
   final PropertyAddedStats propertyAddedStats;
+  final AdsPublishedStats adsPublishedStats;
 
   const ManagerDashboardLoaded({
     required this.data,
@@ -57,12 +58,13 @@ class ManagerDashboardLoaded extends DashboardState {
     this.selectedEmployeeId,
     this.selectedEmployeeName,
     required this.propertyAddedStats,
+    required this.adsPublishedStats,
   });
 
   bool get isViewingEmployee => selectedEmployeeId != null;
 
   @override
-  List<Object?> get props => [data, startDate, endDate, selectedEmployeeId, selectedEmployeeName, propertyAddedStats];
+  List<Object?> get props => [data, startDate, endDate, selectedEmployeeId, selectedEmployeeName, propertyAddedStats, adsPublishedStats];
 
   ManagerDashboardLoaded copyWith({
     DashboardStatsModel? data,
@@ -72,6 +74,7 @@ class ManagerDashboardLoaded extends DashboardState {
     String? selectedEmployeeName,
     bool clearEmployee = false,
     PropertyAddedStats? propertyAddedStats,
+    AdsPublishedStats? adsPublishedStats,
   }) =>
       ManagerDashboardLoaded(
         data: data ?? this.data,
@@ -80,6 +83,7 @@ class ManagerDashboardLoaded extends DashboardState {
         selectedEmployeeId: clearEmployee ? null : (selectedEmployeeId ?? this.selectedEmployeeId),
         selectedEmployeeName: clearEmployee ? null : (selectedEmployeeName ?? this.selectedEmployeeName),
         propertyAddedStats: propertyAddedStats ?? this.propertyAddedStats,
+        adsPublishedStats: adsPublishedStats ?? this.adsPublishedStats,
       );
 }
 

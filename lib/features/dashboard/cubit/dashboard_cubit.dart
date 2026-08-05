@@ -87,9 +87,11 @@ class DashboardCubit extends Cubit<DashboardState> {
       final results = await Future.wait([
         _repository.getFilteredDashboardStats(role: 'manager', userId: employeeId ?? '', startDate: start, endDate: end, employeeId: employeeId),
         _repository.getPropertyAddedStats(startDate: start, endDate: end, employeeId: employeeId),
+        _repository.getAdsPublishedStats(startDate: start, endDate: end, employeeId: employeeId),
       ]);
       final data = results[0] as DashboardStatsModel;
       final propStats = results[1] as PropertyAddedStats;
+      final adsStats = results[2] as AdsPublishedStats;
       emit(ManagerDashboardLoaded(
         data: data,
         startDate: start,
@@ -97,6 +99,7 @@ class DashboardCubit extends Cubit<DashboardState> {
         selectedEmployeeId: employeeId,
         selectedEmployeeName: employeeName,
         propertyAddedStats: propStats,
+        adsPublishedStats: adsStats,
       ));
     } catch (e) {
       emit(DashboardError(e.toString()));
@@ -126,9 +129,11 @@ class DashboardCubit extends Cubit<DashboardState> {
       final results = await Future.wait([
         _repository.getFilteredDashboardStats(role: 'manager', userId: employeeId ?? '', startDate: startDate, endDate: endDate, employeeId: employeeId),
         _repository.getPropertyAddedStats(startDate: startDate, endDate: endDate, employeeId: employeeId),
+        _repository.getAdsPublishedStats(startDate: startDate, endDate: endDate, employeeId: employeeId),
       ]);
       final data = results[0] as DashboardStatsModel;
       final propStats = results[1] as PropertyAddedStats;
+      final adsStats = results[2] as AdsPublishedStats;
       emit(ManagerDashboardLoaded(
         data: data,
         startDate: startDate,
@@ -136,6 +141,7 @@ class DashboardCubit extends Cubit<DashboardState> {
         selectedEmployeeId: employeeId,
         selectedEmployeeName: employeeName,
         propertyAddedStats: propStats,
+        adsPublishedStats: adsStats,
       ));
     } catch (e) {
       emit(DashboardError(e.toString()));

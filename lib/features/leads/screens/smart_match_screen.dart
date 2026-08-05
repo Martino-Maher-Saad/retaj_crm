@@ -43,26 +43,25 @@ class _SmartMatchScreenState extends State<SmartMatchScreen> {
   void _triggerSearch() {
     final lead = widget.lead;
 
-    // استخراج IDs للفلاتر إذا كانت موجودة وغير فارغة
-    String? propertyTypeId;
-    if (lead.propertyType != null && lead.propertyType!.isNotEmpty) {
+    String? propertyTypeId = lead.propertyTypeId;
+    if (propertyTypeId == null && lead.propertyType != null && lead.propertyType!.isNotEmpty) {
       propertyTypeId = dataManager.getIdByName('property_type', lead.propertyType!);
     }
 
-    String? listingTypeId;
-    if (lead.listingType != null && lead.listingType!.isNotEmpty) {
+    String? listingTypeId = lead.listingTypeId;
+    if (listingTypeId == null && lead.listingType != null && lead.listingType!.isNotEmpty) {
       listingTypeId = dataManager.getIdByName('listing_type', lead.listingType!);
     }
 
-    int? governorateId;
-    if (lead.governorate != null && lead.governorate!.isNotEmpty) {
+    int? governorateId = lead.governorateId;
+    if (governorateId == null && lead.governorate != null && lead.governorate!.isNotEmpty) {
       try {
         governorateId = dataManager.governorates.firstWhere((g) => g.name == lead.governorate).id;
       } catch (_) {}
     }
 
-    int? cityId;
-    if (governorateId != null && lead.city != null && lead.city!.isNotEmpty) {
+    int? cityId = lead.cityId;
+    if (cityId == null && governorateId != null && lead.city != null && lead.city!.isNotEmpty) {
       try {
         cityId = dataManager.getCitiesByGovId(governorateId).firstWhere((c) => c.name == lead.city).id;
       } catch (_) {}
@@ -119,7 +118,11 @@ class _SmartMatchScreenState extends State<SmartMatchScreen> {
             onPressed: () => Navigator.pop(context),
           ),
         ),
-        body: BlocBuilder<PropertiesCubit, PropertiesState>(
+        body: Column(
+          children: [
+            _buildActiveFilters(),
+            Expanded(
+              child: BlocBuilder<PropertiesCubit, PropertiesState>(
           builder: (context, state) {
             if (state is PropertiesLoading) {
               return _buildSkeleton();
@@ -211,7 +214,6 @@ class _SmartMatchScreenState extends State<SmartMatchScreen> {
                   final prop = allResults[index];
                   final userId = widget.currentUser.id;
                   final role = widget.currentUser.role;
-
                   return MatchedPropertyCard(
                     property: prop,
                     currentUserId: userId,
@@ -224,6 +226,90 @@ class _SmartMatchScreenState extends State<SmartMatchScreen> {
             return const SizedBox.shrink();
           },
         ),
+      ),
+      ],
+      ),
+    ),
+    );
+  }
+
+  Widget _buildActiveFilters() {
+    final lead = widget.lead;
+    final List<Widget> chips = [];
+
+    if (lead.propertyType != null && lead.propertyType!.isNotEmpty) {
+      chips.add(_buildFilterChip(Icons.home_work_outlined, lead.propertyType!));
+    }
+    if (lead.listingType != null && lead.listingType!.isNotEmpty) {
+      chips.add(_buildFilterChip(Icons.sell_outlined, lead.listingType!));
+    }
+    if (lead.governorate != null && lead.governorate!.isNotEmpty) {
+      chips.add(_buildFilterChip(Icons.map_outlined, lead.governorate!));
+    }
+    if (lead.city != null && lead.city!.isNotEmpty) {
+      chips.add(_buildFilterChip(Icons.location_city_outlined, lead.city!));
+    }
+    if (lead.budgetFrom != null || lead.budgetTo != null) {
+      num? min = lead.budgetFrom;
+      num? max = lead.budgetTo;
+      if (min != null && max != null && min > max) {
+        final t = min; min = max; max = t;
+      }
+      final minStr = min != null ? min.toCurrency() : '0';
+      final maxStr = max != null ? max.toCurrency() : 'غير محدد';
+      chips.add(_buildFilterChip(Icons.attach_money_rounded, 'الميزانية: $minStr - $maxStr'));
+    }
+
+    if (chips.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      color: Colors.white,
+      padding: EdgeInsets.only(left: 16.w, right: 16.w, top: 4.h, bottom: 12.h),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'تم تطبيق الفلاتر التالية قبل البحث الذكي:',
+            style: TextStyle(
+              fontSize: 14.sp,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[600],
+            ),
+          ),
+          SizedBox(height: 8.h),
+          Wrap(
+            spacing: 8.w,
+            runSpacing: 8.h,
+            children: chips,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(IconData icon, String label) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+      decoration: BoxDecoration(
+        color: AppColors.brandPrimary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20.r),
+        border: Border.all(color: AppColors.brandPrimary.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16.sp, color: AppColors.brandPrimary),
+          SizedBox(width: 4.w),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13.sp,
+              fontWeight: FontWeight.bold,
+              color: AppColors.brandPrimary,
+            ),
+          ),
+        ],
       ),
     );
   }

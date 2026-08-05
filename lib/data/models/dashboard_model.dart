@@ -432,3 +432,35 @@ class PropertyAddedStats {
       );
 }
 
+/// إحصائيات نشر الإعلانات لكل موظف
+class EmployeeAdsStats {
+  final String employeeId;
+  final String employeeName;
+  final int adsCount;       // عدد المنصات المنشورة (targeted)
+  final int propertiesCount; // عدد العقارات التي نشر لها
+
+  const EmployeeAdsStats({
+    required this.employeeId,
+    required this.employeeName,
+    required this.adsCount,
+    required this.propertiesCount,
+  });
+}
+
+class AdsPublishedStats {
+  final List<EmployeeAdsStats> byEmployee;
+  final DateTime startDate;
+  final DateTime endDate;
+
+  const AdsPublishedStats({
+    required this.byEmployee,
+    required this.startDate,
+    required this.endDate,
+  });
+
+  factory AdsPublishedStats.empty(DateTime start, DateTime end) => AdsPublishedStats(
+        byEmployee: [],
+        startDate: start,
+        endDate: end,
+      );
+}

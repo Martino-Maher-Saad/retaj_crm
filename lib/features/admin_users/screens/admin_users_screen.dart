@@ -7,6 +7,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/di/injection_container.dart' as di;
+import '../../../core/utils/static_data_manager.dart';
 import '../../../core/widgets/retaj_shared_fields.dart';
 import '../../../data/models/profile_model.dart';
 import '../cubit/admin_users_cubit.dart';
@@ -478,6 +480,7 @@ class _EditUserDialogState extends State<_EditUserDialog> {
   late TextEditingController _phoneCtrl;
   late String _selectedRole;
   late bool _canMakeAds;
+  late List<String> _selectedAssignedEmployees;
 
   @override
   void initState() {
@@ -487,6 +490,7 @@ class _EditUserDialogState extends State<_EditUserDialog> {
     _prefixCtrl = TextEditingController(text: widget.user.propertyPrefix ?? '');
     _phoneCtrl = TextEditingController(text: widget.user.phone ?? '');
     _canMakeAds = widget.user.canMakeAds;
+    _selectedAssignedEmployees = List<String>.from(widget.user.assignedEmployees);
     
     const validRoles = ['user', 'sales', 'marketing', 'manager', 'admin'];
     _selectedRole = validRoles.contains(widget.user.role.toLowerCase())
@@ -571,6 +575,56 @@ class _EditUserDialogState extends State<_EditUserDialog> {
                 contentPadding: EdgeInsets.zero,
               ),
             ),
+            // قسم الموظفين المخصصين (للماركيتينج فقط)
+            if (_selectedRole == 'marketing') ...[
+              SizedBox(height: 14.h),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  'الموظفون المخصصون لهذا الموظف',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.brandPrimary,
+                  ),
+                ),
+              ),
+              SizedBox(height: 6.h),
+              Builder(builder: (ctx) {
+                final dataManager = di.sl<StaticDataManager>();
+                final allEmployees = dataManager.employees
+                    .where((e) => e.id != widget.user.id && (e.role == 'sales' || e.canMakeAds))
+                    .toList();
+                if (allEmployees.isEmpty) {
+                  return Text('لا يوجد موظفون متاحون', style: TextStyle(fontSize: 13.sp, color: Colors.grey));
+                }
+                return Column(
+                  children: allEmployees.map((emp) {
+                    final isSelected = _selectedAssignedEmployees.contains(emp.id);
+                    return CheckboxListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        emp.fullName,
+                        style: TextStyle(fontSize: 14.sp),
+                      ),
+                      subtitle: Text(emp.role, style: TextStyle(fontSize: 12.sp, color: Colors.grey)),
+                      value: isSelected,
+                      activeColor: AppColors.brandPrimary,
+                      onChanged: (val) {
+                        setState(() {
+                          if (val == true) {
+                            _selectedAssignedEmployees.add(emp.id);
+                          } else {
+                            _selectedAssignedEmployees.remove(emp.id);
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                );
+              }),
+            ],
           ],
         ),
       ),
@@ -629,7 +683,14 @@ class _EditUserDialogState extends State<_EditUserDialog> {
                                         ? (_phoneCtrl.text.trim().isNotEmpty ? _phoneCtrl.text.trim() : null)
                                         : null,
                                   )
-                                  .then((_) {
+                                  .then((_) async {
+                                    // تحديث الموظفين المخصصين لو دوره ماركيتينج
+                                    if (_selectedRole == 'marketing' || widget.user.isMarketing) {
+                                      await context.read<AdminUsersCubit>().updateAssignedEmployees(
+                                        widget.user.id,
+                                        _selectedAssignedEmployees,
+                                      );
+                                    }
                                     if (mounted &&
                                         context.read<AdminUsersCubit>().state
                                             is AdminActionSuccess) {

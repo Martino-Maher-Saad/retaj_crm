@@ -88,12 +88,9 @@ class LeadService {
       query = query.eq('assigned_to', filterByEmployeeId);
     }
 
-    final archiveStatuses = ['34f6f48c-3179-4b83-b34e-edc3fdc2e3d4', '6d5c7b17-9ef7-48ee-a9f6-0575cc390278']; // مستبعد و تم التعاقد
-
     if (isArchived == true) {
+      final archiveStatuses = ['34f6f48c-3179-4b83-b34e-edc3fdc2e3d4', '6d5c7b17-9ef7-48ee-a9f6-0575cc390278']; // مستبعد و تم التعاقد
       query = query.filter('status_id', 'in', archiveStatuses);
-    } else if (isArchived == false) {
-      query = query.not('status_id', 'in', archiveStatuses);
     }
 
     if (isStagnant == true) {
