@@ -18,9 +18,7 @@ class WhatsappShareHelper {
     buffer.writeln('📋 *نوع العقار والإعلان:* ${property.propertyTypeAr} - ${property.listingTypeAr}');
     buffer.writeln('💰 *السعر:* ${property.price.toCurrency()} ج.م');
     buffer.writeln('📍 *المحافظة / المدينة:* ${property.governorateAr} - ${property.cityAr}');
-    if (property.regionAr != null && property.regionAr!.isNotEmpty) {
-      buffer.writeln('🏘️ *المنطقة:* ${property.regionAr}');
-    }
+
     buffer.writeln('📝 *الوصف:* ${property.descAr}');
     buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
     buffer.writeln('✨ من ريتاج للعقارات');
@@ -34,14 +32,12 @@ class WhatsappShareHelper {
     buffer.writeln('📋 *نوع العقار والإعلان:* ${property.propertyTypeAr} - ${property.listingTypeAr}');
     buffer.writeln('💰 *السعر:* ${property.price.toCurrency()} ج.م');
     buffer.writeln('📍 *المحافظة / المدينة:* ${property.governorateAr} - ${property.cityAr}');
-    if (property.regionAr != null && property.regionAr!.isNotEmpty) {
-      buffer.writeln('🏘️ *المنطقة:* ${property.regionAr}');
-    }
+
     if (property.locationInDetails != null && property.locationInDetails!.isNotEmpty) {
       buffer.writeln('📌 *تفاصيل الموقع:* ${property.locationInDetails}');
     }
     buffer.writeln('📝 *الوصف:* ${property.descAr}');
-    buffer.writeln('🔑 *الحالة:* ${property.status ? "نشط" : "مغلق"}');
+
     buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
     buffer.writeln('🆔 *كود العقار:* #${property.propertyCode ?? "---"}');
     buffer.writeln('👤 *اسم المالك:* ${property.ownerName ?? "غير محدد"}');

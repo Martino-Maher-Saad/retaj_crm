@@ -173,7 +173,7 @@ class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
                       first: RetajTextField(
                         readOnly: true,
                         label: 'المحافظة',
-                        initialValue: lead.governorate ?? '—',
+                        initialValue: null ?? '—',
                       ),
                       second: RetajTextField(
                         readOnly: true,

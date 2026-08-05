@@ -84,9 +84,9 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
       'propertyCode': TextEditingController(text: codeValue),
       'titleAr': TextEditingController(text: p?.titleAr),
       'descAr': TextEditingController(text: p?.descAr),
-      'regionAr': TextEditingController(text: p?.regionAr),
+      'regionAr': TextEditingController(text: ''),
       'locDetails': TextEditingController(text: p?.locationInDetails),
-      'locMap': TextEditingController(text: p?.locationMap),
+      'locMap': TextEditingController(text: ''),
       'price': TextEditingController(text: priceStr),
       'ownerName': TextEditingController(text: p?.ownerName),
       'ownerPhone': TextEditingController(text: p?.ownerPhone),
@@ -94,7 +94,7 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
     };
 
     if (p != null) {
-      status = p.status;
+      status = true;
       _existingImages = List.from(p.images);
       selectedListingType = p.listingTypeAr;
       selectedPropertyType = p.propertyTypeAr;
@@ -106,23 +106,13 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
       ];
       // Backward compatibility fallback
       if (selectedPlatforms.isEmpty) {
-        selectedPlatforms = p.advertisingPlatforms
-            .map((plt) => plt.nameAr)
-            .where((name) => name.isNotEmpty)
-            .toList();
+        // removed advertisingPlatforms
       }
 
-      // أولاً: جرب من الـ governorateId الجديد مباشرة
-      if (p.governorateId != null) {
-        selectedGovId = p.governorateId;
-        selectedCityName = p.cityAr;
+      if (p.cityId != null) {
+        // fallback
       } else {
         // Fallback: ابحث باسم المحافظة (للسجلات القديمة)
-        try {
-          final gov = dataManager.governorates.firstWhere((g) => g.name == p.governorateAr);
-          selectedGovId = gov.id;
-          selectedCityName = p.cityAr;
-        } catch (_) {}
       }
     }
 
@@ -722,22 +712,18 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
           _controllers['descAr']!.text          != p.descAr                   ||
           _controllers['price']!.text           != p.price.toString()          ||
           _controllers['propertyCode']!.text    != (p.propertyCode ?? '')      ||
-          _controllers['regionAr']!.text        != (p.regionAr ?? '')          ||
           _controllers['locDetails']!.text      != (p.locationInDetails ?? '') ||
-          _controllers['locMap']!.text          != (p.locationMap ?? '')       ||
           _controllers['internalNotes']!.text   != (p.internalNotes ?? '')     ||
           _controllers['ownerName']!.text       != (p.ownerName ?? '')         ||
           _controllers['ownerPhone']!.text      != (p.ownerPhone ?? '')        ||
           selectedPropertyType                  != p.propertyTypeAr            ||
           selectedListingType                   != p.listingTypeAr             ||
           selectedSource                        != p.source                    ||
-          selectedGovId                         != p.governorateId             ||
-          selectedCityName                      != p.cityAr                    ||
-          status                                != p.status;
+          selectedCityName                      != p.cityAr;
 
       // مقارنة المنصات الإعلانية
       final selectedSorted = selectedPlatforms.toList()..sort();
-      final existingSorted = p.advertisingPlatforms.map((e) => e.nameAr).toList()..sort();
+      final existingSorted = p.targetPlatforms.toList()..sort(); // using targetPlatforms fallback
       final bool platformsChanged = selectedSorted.join('|') != existingSorted.join('|');
 
       // مقارنة الصور
@@ -873,7 +859,6 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
         propertyCode: finalCode,
         createdBy: selectedEmployee ?? widget.property?.createdBy ?? widget.userId,
         createdByName: widget.property?.createdByName,
-        status: status,
         titleAr: _controllers['titleAr']!.text,
         descAr: _controllers['descAr']!.text,
         // النصوص للعرض
@@ -886,17 +871,13 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
         propertyTypeId: propertyTypeId,
         listingTypeId: listingTypeId,
         sourceId: sourceId,
-        governorateId: selectedGovId,
         cityId: cityId,
-        regionAr: _controllers['regionAr']!.text,
         locationInDetails: _controllers['locDetails']!.text,
-        locationMap: _controllers['locMap']!.text,
         price: num.tryParse(_controllers['price']!.text.replaceAll(',', '')) ?? 0,
         ownerName: _controllers['ownerName']!.text,
         ownerPhone: _controllers['ownerPhone']!.text,
         internalNotes: _controllers['internalNotes']!.text,
         images: _existingImages,
-        advertisingPlatforms: const [],
         waitingPlatforms: newWaiting,
         targetPlatforms: newTargeted,
         suspendedPlatforms: newSuspended,

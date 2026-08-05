@@ -34,7 +34,6 @@ class PropertyRepository {
       }
       
       model = model.copyWith(
-        embedding: null, // إيقاف الحقل القديم
         embeddingV2: vectorV2,
         approvalStatusId: pendingStatusId,
       );
@@ -44,7 +43,7 @@ class PropertyRepository {
 
       // إضافة المنصات الإعلانية في جدول property_platforms
       if (platformIds.isNotEmpty) {
-        await _pService.insertPlatforms(newId, platformIds);
+        // await _pService.insertPlatforms(newId, platformIds);
       }
 
       for (int i = 0; i < images.length; i++) {
@@ -227,7 +226,7 @@ class PropertyRepository {
       if (updateEmbeddings) {
         final text = p.descAr;
         final vectorV2 = await _aiService.generateEmbedding(text, isSearch: false, useGemini: true);
-        p = p.copyWith(embedding: null, embeddingV2: vectorV2);
+        p = p.copyWith(embeddingV2: vectorV2);
         dataToUpdate['embedding_v2'] = vectorV2;
       }
 
@@ -239,7 +238,7 @@ class PropertyRepository {
       // تحديث المنصات: حذف القديمة ثم إضافة الجديدة
       await _pService.deletePlatforms(p.id);
       if (platformIds.isNotEmpty) {
-        await _pService.insertPlatforms(p.id, platformIds);
+        // await _pService.insertPlatforms(p.id, platformIds);
       }
 
       if (delImgsIds != null && delImgsIds.isNotEmpty) {
@@ -272,8 +271,8 @@ class PropertyRepository {
       await _pService.updateProperty(id, data);
       
       if (platformIds.isNotEmpty) {
-        await _pService.deletePlatforms(id);
-        await _pService.insertPlatforms(id, platformIds);
+        // await _pService.deletePlatforms(id);
+        // await _pService.insertPlatforms(id, platformIds);
       }
 
       final fresh = await _pService.getPropertyById(id);
@@ -366,16 +365,8 @@ class PropertyRepository {
     }
   }
 
-  Future<void> publishPropertyPlatforms(String propertyId, List<String> platformIds) async {
-    await _pService.publishPlatforms(propertyId, platformIds);
-  }
-
-  Future<void> insertPropertyPlatforms(String propertyId, List<String> platformIds) async {
-    await _pService.insertPlatforms(propertyId, platformIds);
-  }
-
   Future<void> resetPlatformsPublished(String propertyId) async {
-    await _pService.resetPlatformsPublished(propertyId);
+    // await _pService.resetPlatformsPublished(propertyId);
   }
 
   Future<PropertyModel> getPropertyById(String id) async {

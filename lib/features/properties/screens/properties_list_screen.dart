@@ -470,7 +470,6 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
                     key: const ValueKey('new_property_inline'),
                     property: PropertyModel(
                       id: '',
-                      status: true,
                       isPinned: false,
                       ownerName: '',
                       ownerPhone: '',

@@ -152,7 +152,6 @@ class PropertyTasksCubit extends Cubit<PropertyTasksState> {
         data: {'approval_status_id': approvalStatusId},
       );
       if (publishedPlatformIds.isNotEmpty) {
-        await _repo.publishPropertyPlatforms(propertyId, publishedPlatformIds);
       }
       final fresh = await _repo.getPropertyById(propertyId);
       _applyPropertyUpdate(current, fresh, removeFromTasks: true);

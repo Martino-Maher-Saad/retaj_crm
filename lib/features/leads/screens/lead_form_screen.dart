@@ -75,17 +75,7 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
     _selectedCommunicationChannel = widget.lead?.communicationChannel;
 
     if (widget.lead != null) {
-      if (widget.lead!.governorateId != null) {
-        _selectedGovId = widget.lead!.governorateId;
-        _selectedCityName = widget.lead!.city;
-      } else if (widget.lead!.governorate != null) {
-        try {
-          final gov = dataManager.governorates
-              .firstWhere((g) => g.name == widget.lead!.governorate);
-          _selectedGovId = gov.id;
-          _selectedCityName = widget.lead!.city;
-        } catch (_) {}
-      }
+      // (محافظة / مدينة محذوفة مؤقتاً)
     }
 
     // تحميل الأرقام من lead_phones
@@ -677,8 +667,6 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
           : null;
 
       final bool isExcluded = _selectedStatus == 'مستبعد';
-      final bool isArchived = isExcluded || (widget.lead?.isArchived ?? false);
-
       final newAssignee = _selectedEmployeeId ?? widget.user.id;
       String? transferredFrom;
       String? finalStatus = _selectedStatus;
@@ -716,13 +704,10 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
         propertyTypeId: propertyTypeId,
         listingTypeId: listingTypeId,
         channelId: channelId,
-        governorateId: _selectedGovId,
         cityId: cityId,
         exclusionReasonId: exclusionReasonId,
         budgetFrom: num.tryParse(_budgetFromController.text.replaceAll(',', '').trim()),
         budgetTo: num.tryParse(_budgetToController.text.replaceAll(',', '').trim()),
-        isActive: widget.lead?.isActive ?? true,
-        isArchived: isArchived,
         isPinned: widget.lead?.isPinned ?? false,
         createdBy: widget.lead?.createdBy ?? widget.user.id,
         assignedTo: newAssignee,
@@ -748,7 +733,6 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
               widget.lead!.propertyTypeId != leadData.propertyTypeId ||
               widget.lead!.channelId != leadData.channelId ||
               widget.lead!.cityId != leadData.cityId ||
-              widget.lead!.governorateId != leadData.governorateId ||
               widget.lead!.exclusionReasonId != leadData.exclusionReasonId ||
               widget.lead!.budgetFrom != leadData.budgetFrom ||
               widget.lead!.budgetTo != leadData.budgetTo ||

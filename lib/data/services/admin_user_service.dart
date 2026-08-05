@@ -143,7 +143,6 @@ class AdminUserService {
       
       // نقل ملاحظات وسجلات العملاء
       await _supabase.from('lead_notes').update({'user_id': newUserId}).eq('user_id', oldUserId);
-      await _supabase.from('lead_logs').update({'changed_by': newUserId}).eq('changed_by', oldUserId);
 
       // نقل مشاركات العقارات
       await _supabase.from('property_shares').update({'sender_id': newUserId}).eq('sender_id', oldUserId);

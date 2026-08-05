@@ -406,29 +406,7 @@ class PropertyService {
     return results.take(limit).toList();
   }
 
-  /// إضافة منصات إعلانية لعقار (INSERT في property_platforms)
-  Future<void> insertPlatforms(String propId, List<String> platformIds) async {
-    if (platformIds.isEmpty) return;
-    final rows = platformIds
-        .map((pid) => {'property_id': propId, 'platform_id': pid})
-        .toList();
-    await _client.from('property_platforms').insert(rows);
-  }
 
-  Future<void> publishPlatforms(String propId, List<String> platformIds) async {
-    if (platformIds.isEmpty) return;
-    await _client.from('property_platforms')
-        .update({'is_published': true})
-        .eq('property_id', propId)
-        .inFilter('platform_id', platformIds);
-  }
-
-  Future<void> resetPlatformsPublished(String propId) async {
-    await _client
-        .from('property_platforms')
-        .update({'is_published': false})
-        .eq('property_id', propId);
-  }
 
   /// حذف كل المنصات المرتبطة بعقار (لإعادة الإضافة بعدين)
   Future<void> deletePlatforms(String propId) async {

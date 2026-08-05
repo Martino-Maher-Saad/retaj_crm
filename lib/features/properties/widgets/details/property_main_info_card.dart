@@ -16,7 +16,7 @@ class PropertyMainInfoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isRent = property.listingTypeAr?.toLowerCase() == 'rent';
     // لو العقار نشط = أخضر، لو مغلق = رمادي
-    final bool isActive = property.status;
+    final bool isActive = false;
 
     return Container(
       decoration: BoxDecoration(

@@ -112,7 +112,7 @@ class _EmployeePropertyTaskCardState extends State<EmployeePropertyTaskCard> {
     final pendingId   = '634f7e69-6161-4535-b409-d1ea1bbbdcd3';
     final currentStatus = widget.property.approvalStatusId;
 
-    final unpublishedPlatforms = widget.property.advertisingPlatforms
+    final unpublishedPlatforms = []
         .where((p) => !p.isPublished)
         .toList();
 

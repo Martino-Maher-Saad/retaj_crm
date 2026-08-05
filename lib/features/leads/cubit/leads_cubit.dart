@@ -95,7 +95,6 @@ class LeadCubit extends Cubit<LeadState> {
         if (_currentLeadStatusId != null && newLead.statusId != _currentLeadStatusId) matchesFilters = false;
         if (_currentPropertyTypeId != null && newLead.propertyTypeId != _currentPropertyTypeId) matchesFilters = false;
         if (_currentListingTypeId != null && newLead.listingTypeId != _currentListingTypeId) matchesFilters = false;
-        if (_currentGovernorateId != null && newLead.governorateId != _currentGovernorateId) matchesFilters = false;
         if (_currentCityId != null && newLead.cityId != _currentCityId) matchesFilters = false;
 
         if (!matchesFilters) return;
@@ -157,7 +156,6 @@ class LeadCubit extends Cubit<LeadState> {
           if (_currentLeadStatusId != null && updatedLead.statusId != _currentLeadStatusId) matchesFilters = false;
           if (_currentPropertyTypeId != null && updatedLead.propertyTypeId != _currentPropertyTypeId) matchesFilters = false;
           if (_currentListingTypeId != null && updatedLead.listingTypeId != _currentListingTypeId) matchesFilters = false;
-          if (_currentGovernorateId != null && updatedLead.governorateId != _currentGovernorateId) matchesFilters = false;
           if (_currentCityId != null && updatedLead.cityId != _currentCityId) matchesFilters = false;
 
           if (!matchesFilters) return;
@@ -846,7 +844,6 @@ class LeadCubit extends Cubit<LeadState> {
         old.listingTypeId != updated.listingTypeId ||
         old.channelId != updated.channelId ||
         old.cityId != updated.cityId ||
-        old.governorateId != updated.governorateId ||
         old.propertyCode != updated.propertyCode ||
         old.descLeadNeed != updated.descLeadNeed ||
         old.assignedTo != updated.assignedTo;

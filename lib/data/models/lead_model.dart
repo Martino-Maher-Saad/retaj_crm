@@ -67,42 +67,6 @@ class LeadNoteModel {
   }
 }
 
-class LeadLogEntryModel {
-  final String id;
-  final String action;
-  final DateTime createdAt;
-  final String? oldStatusName;
-  final String? newStatusName;
-  final String? createdByName;
-
-  const LeadLogEntryModel({
-    required this.id,
-    required this.action,
-    required this.createdAt,
-    this.oldStatusName,
-    this.newStatusName,
-    this.createdByName,
-  });
-
-  factory LeadLogEntryModel.fromJson(Map<String, dynamic> json) {
-    final oldStatusMap = json['old_status'] as Map<String, dynamic>?;
-    final newStatusMap = json['new_status'] as Map<String, dynamic>?;
-    final creatorMap = json['creator'] as Map<String, dynamic>?;
-    final creatorName = creatorMap != null
-        ? '${creatorMap['first_name'] ?? ''} ${creatorMap['last_name'] ?? ''}'.trim()
-        : null;
-
-    return LeadLogEntryModel(
-      id: json['id']?.toString() ?? '',
-      action: json['action']?.toString() ?? '',
-      createdAt: DateTime.parse(json['created_at']).toLocal(),
-      oldStatusName: oldStatusMap?['name_ar']?.toString(),
-      newStatusName: newStatusMap?['name_ar']?.toString(),
-      createdByName: creatorName?.isNotEmpty == true ? creatorName : null,
-    );
-  }
-}
-
 class LeadModel {
   final String? id;
   final String clientName;
@@ -114,12 +78,10 @@ class LeadModel {
   final String? transferredFrom;
   final String? transferredFromName;
   final DateTime? createdAt;
-  final DateTime? updatedAt;
 
   // حقول العرض النصية
   final String? listingType;
   final String? propertyType;
-  final String? governorate;
   final String? city;
   final String? platform;
   final String? leadStatus;
@@ -132,7 +94,6 @@ class LeadModel {
   final DateTime? lastCommentDate;
   final String? propertyCode;
   final List<LeadNoteModel> notes;
-  final List<LeadLogEntryModel> logs;
   final num? budgetFrom;
   final num? budgetTo;
 
@@ -143,11 +104,8 @@ class LeadModel {
   final String? listingTypeId;
   final String? channelId;
   final int? cityId;
-  final int? governorateId;
   final String? exclusionReasonId;
   
-  final bool isActive;
-  final bool isArchived;
   final bool isPinned;
 
   LeadModel({
@@ -161,10 +119,8 @@ class LeadModel {
     this.transferredFrom,
     this.transferredFromName,
     this.createdAt,
-    this.updatedAt,
     this.listingType,
     this.propertyType,
-    this.governorate,
     this.city,
     this.platform,
     this.leadStatus,
@@ -175,7 +131,6 @@ class LeadModel {
     this.lastCommentDate,
     this.propertyCode,
     this.notes = const [],
-    this.logs = const [],
     this.budgetFrom,
     this.budgetTo,
     this.statusId,
@@ -184,10 +139,7 @@ class LeadModel {
     this.listingTypeId,
     this.channelId,
     this.cityId,
-    this.governorateId,
     this.exclusionReasonId,
-    this.isActive = true,
-    this.isArchived = false,
     this.isPinned = false,
   });
 
@@ -202,10 +154,8 @@ class LeadModel {
     String? transferredFrom,
     String? transferredFromName,
     DateTime? createdAt,
-    DateTime? updatedAt,
     String? listingType,
     String? propertyType,
-    String? governorate,
     String? city,
     String? platform,
     String? leadStatus,
@@ -216,7 +166,6 @@ class LeadModel {
     DateTime? lastCommentDate,
     String? propertyCode,
     List<LeadNoteModel>? notes,
-    List<LeadLogEntryModel>? logs,
     num? budgetFrom,
     num? budgetTo,
     String? statusId,
@@ -225,10 +174,7 @@ class LeadModel {
     String? listingTypeId,
     String? channelId,
     int? cityId,
-    int? governorateId,
     String? exclusionReasonId,
-    bool? isActive,
-    bool? isArchived,
     bool? isPinned,
   }) {
     return LeadModel(
@@ -242,10 +188,8 @@ class LeadModel {
       transferredFrom: transferredFrom ?? this.transferredFrom,
       transferredFromName: transferredFromName ?? this.transferredFromName,
       createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
       listingType: listingType ?? this.listingType,
       propertyType: propertyType ?? this.propertyType,
-      governorate: governorate ?? this.governorate,
       city: city ?? this.city,
       platform: platform ?? this.platform,
       leadStatus: leadStatus ?? this.leadStatus,
@@ -256,7 +200,6 @@ class LeadModel {
       lastCommentDate: lastCommentDate ?? this.lastCommentDate,
       propertyCode: propertyCode ?? this.propertyCode,
       notes: notes ?? this.notes,
-      logs: logs ?? this.logs,
       budgetFrom: budgetFrom ?? this.budgetFrom,
       budgetTo: budgetTo ?? this.budgetTo,
       statusId: statusId ?? this.statusId,
@@ -265,10 +208,7 @@ class LeadModel {
       listingTypeId: listingTypeId ?? this.listingTypeId,
       channelId: channelId ?? this.channelId,
       cityId: cityId ?? this.cityId,
-      governorateId: governorateId ?? this.governorateId,
       exclusionReasonId: exclusionReasonId ?? this.exclusionReasonId,
-      isActive: isActive ?? this.isActive,
-      isArchived: isArchived ?? this.isArchived,
       isPinned: isPinned ?? this.isPinned,
     );
   }
@@ -297,7 +237,6 @@ class LeadModel {
     final propTypeMap   = json['property_types'] as Map<String, dynamic>?;
     final listTypeMap   = json['listing_types'] as Map<String, dynamic>?;
     final channelMap    = json['communication_channels'] as Map<String, dynamic>?;
-    final govMap        = json['governorates'] as Map<String, dynamic>?;
     final cityMapData   = json['cities'] as Map<String, dynamic>?;
     final exclusionMap  = json['lead_exclusion_reasons'] as Map<String, dynamic>?;
 
@@ -317,14 +256,6 @@ class LeadModel {
             .toList()
         : <LeadNoteModel>[];
 
-    // السجلات من lead_logs
-    final rawLogs = json['lead_logs'] as List?;
-    final logs = rawLogs != null
-        ? rawLogs
-            .map((l) => LeadLogEntryModel.fromJson(l as Map<String, dynamic>))
-            .toList()
-        : <LeadLogEntryModel>[];
-
     return LeadModel(
       id: json['id']?.toString(),
       clientName: json['client_name'] ?? '',
@@ -338,9 +269,6 @@ class LeadModel {
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at']).toLocal()
           : null,
-      updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at']).toLocal()
-          : null,
           
       // قراءة الاسم سواء من Relation أو من الـ View المسطح
       leadStatus:           leadStatusMap?['name_ar'] ?? json['status_name'],
@@ -348,7 +276,6 @@ class LeadModel {
       propertyType:         propTypeMap?['name_ar'] ?? json['property_type_name'],
       listingType:          listTypeMap?['name_ar'] ?? json['listing_type_name'],
       communicationChannel: channelMap?['name_ar'] ?? json['channel_name'],
-      governorate:          govMap?['name'] ?? json['governorate_name'],
       city:                 cityMapData?['name'] ?? json['city_name'],
       exclusionReasonName:  exclusionMap?['name_ar'] ?? json['exclusion_reason_name'],
       
@@ -358,7 +285,6 @@ class LeadModel {
       listingTypeId:  json['listing_type_id']?.toString(),
       channelId:      json['channel_id']?.toString(),
       cityId:         json['city_id'] as int?,
-      governorateId:  json['governorate_id'] as int?,
       exclusionReasonId: json['exclusion_reason_id']?.toString(),
       
       descLeadNeed: json['desc_lead_need'],
@@ -372,12 +298,9 @@ class LeadModel {
       budgetTo: json['budget_to'] != null
           ? num.tryParse(json['budget_to'].toString()) : null,
           
-      isActive: json['is_active'] ?? true,
-      isArchived: json['is_archived'] ?? false,
       isPinned: json['is_pinned'] ?? false,
       
       notes: notes,
-      logs: logs,
     );
   }
 }

@@ -414,7 +414,6 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                                 leadStatus: 'جديد',
                                 createdBy: widget.user.id,
                                 assignedTo: widget.user.id,
-                                isActive: true,
                               ),
                               role: widget.user.role,
                               initialEditMode: true,

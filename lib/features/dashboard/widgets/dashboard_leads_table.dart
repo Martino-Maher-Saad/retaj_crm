@@ -194,16 +194,7 @@ class _DashboardLeadsTableState extends State<DashboardLeadsTable> {
   }
 
   Widget _buildLogsCell(LeadModel lead, int idx) {
-    final statusLogs = lead.logs
-        .where((log) => log.action == 'status_changed')
-        .map((log) {
-          final dateStr = DateFormat("dd/MM/yyyy HH:mm").format(log.createdAt);
-          final changerStr = log.createdByName != null
-              ? ' بواسطة (${log.createdByName})'
-              : '';
-          return '• $dateStr$changerStr: تم تحويل العميل من (${log.oldStatusName ?? "—"}) الي (${log.newStatusName ?? "—"})';
-        })
-        .toList();
+    final statusLogs = <String>[];
 
     if (statusLogs.isEmpty) {
       return SizedBox(
