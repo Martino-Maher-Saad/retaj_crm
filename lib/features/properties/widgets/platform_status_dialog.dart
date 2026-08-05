@@ -295,8 +295,7 @@ class _PlatformStatusDialogState extends State<PlatformStatusDialog> {
             ),
           ),
         ),
-      ),
-      actions: [
+        actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text('إلغاء', style: TextStyle(color: Colors.grey.shade600, fontSize: 20.sp)),
