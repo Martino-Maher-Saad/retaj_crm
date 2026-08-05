@@ -406,11 +406,6 @@ class PropertyService {
 
 
 
-  /// حذف كل المنصات المرتبطة بعقار (لإعادة الإضافة بعدين)
-  Future<void> deletePlatforms(String propId) async {
-    await _client.from('property_platforms').delete().eq('property_id', propId);
-  }
-
   Future<Map<String, dynamic>> togglePin(String propertyId, bool isPinned) async {
     final response = await _client
         .from('properties')
