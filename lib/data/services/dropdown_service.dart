@@ -88,6 +88,8 @@ class DropdownService {
   Future<List<LookupOptionModel>> fetchAdvertisingPlatforms() => _fetchFromTable('advertising_platforms');
   Future<List<LookupOptionModel>> fetchLeadExclusionReasons() => _fetchFromTable('lead_exclusion_reasons');
   Future<List<LookupOptionModel>> fetchPropertyApprovalStatuses() => _fetchFromTable('property_approval_statuses');
+  Future<List<LookupOptionModel>> fetchDesignRoomTypes() => _fetchFromTable('design_room_types');
+  Future<List<LookupOptionModel>> fetchDesignStyles() => _fetchFromTable('design_styles');
 
   // ────────────────────────────────────────────────
   //  للـ Admin Screen: كل القيم (Active + Inactive)

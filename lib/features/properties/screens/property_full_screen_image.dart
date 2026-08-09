@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/utils/image_download_helper.dart';
 import '../../../core/utils/property_cache_manager.dart';
 
 /// شاشة عرض الصور بالحجم الكامل مع إمكانية التكبير والتنقل بينها
@@ -66,6 +68,22 @@ class _PropertyFullScreenImageState extends State<PropertyFullScreenImage> {
           "${_currentIndex + 1} / ${widget.imageUrls.length}",
           style: const TextStyle(color: Colors.white),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download, color: Colors.white),
+            tooltip: 'تنزيل الصورة',
+            onPressed: () async {
+              if (widget.imageUrls.isNotEmpty) {
+                await ImageDownloadHelper.downloadImages(
+                  context,
+                  [widget.imageUrls[_currentIndex]],
+                  'image',
+                );
+              }
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Stack(
         children: [
