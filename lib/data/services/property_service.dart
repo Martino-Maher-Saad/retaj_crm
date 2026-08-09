@@ -15,9 +15,7 @@ class PropertyService {
       'listing_types!listing_type_id(name_ar), '
       'property_sources!source_id(name_ar), '
       'cities!city_id(name), '
-      'governorates!governorate_id(name), '
-      'property_approval_statuses!approval_status_id(name_ar), '
-      'property_platforms(id, platform_id, is_published, advertising_platforms!pp_platform_fk(id, name_ar))';
+      'property_approval_statuses!approval_status_id(name_ar)';
 
   Future<List<Map<String, dynamic>>> fetchAllEmployees() async {
     final response = await _client.from('profiles').select();
@@ -52,9 +50,7 @@ class PropertyService {
       'listing_types!listing_type_id(name_ar), '
       'property_sources!source_id(name_ar), '
       'cities!city_id(name), '
-      'governorates!governorate_id(name), '
-      'property_approval_statuses!approval_status_id(name_ar), '
-      'property_platforms(id, platform_id, is_published, advertising_platforms!pp_platform_fk(id, name_ar))';
+      'property_approval_statuses!approval_status_id(name_ar)';
 
   Future<List<Map<String, dynamic>>> fetchReceivedShares(String userId) async {
     final response = await _client
@@ -370,7 +366,6 @@ class PropertyService {
       'filter_created_by': assignedTo,
       'filter_property_type_id': propertyTypeId,
       'filter_listing_type_id': listingTypeId,
-      'filter_governorate_id': governorateId,
       'filter_city_id': cityId,
       'filter_min_price': minPrice,
       'filter_max_price': maxPrice,
@@ -407,11 +402,6 @@ class PropertyService {
   }
 
 
-
-  /// حذف كل المنصات المرتبطة بعقار (لإعادة الإضافة بعدين)
-  Future<void> deletePlatforms(String propId) async {
-    await _client.from('property_platforms').delete().eq('property_id', propId);
-  }
 
   Future<Map<String, dynamic>> togglePin(String propertyId, bool isPinned) async {
     final response = await _client

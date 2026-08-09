@@ -41,10 +41,6 @@ class PropertyRepository {
       final data = await _pService.insertProperty(model.toJson());
       newId = data['id'].toString();
 
-      // إضافة المنصات الإعلانية في جدول property_platforms
-      if (platformIds.isNotEmpty) {
-        // await _pService.insertPlatforms(newId, platformIds);
-      }
 
       for (int i = 0; i < images.length; i++) {
         final name = 'img_${DateTime.now().microsecondsSinceEpoch}_$i.jpg';
@@ -235,11 +231,6 @@ class PropertyRepository {
       // Update the local model with the returned data from DB (in case of partial updates)
       p = PropertyModel.fromJson(updatedData);
 
-      // تحديث المنصات: حذف القديمة ثم إضافة الجديدة
-      await _pService.deletePlatforms(p.id);
-      if (platformIds.isNotEmpty) {
-        // await _pService.insertPlatforms(p.id, platformIds);
-      }
 
       if (delImgsIds != null && delImgsIds.isNotEmpty) {
         await _pService.deleteImageRecordsByIds(delImgsIds);
@@ -265,15 +256,9 @@ class PropertyRepository {
   Future<PropertyModel> updateProperty({
     required String id,
     required Map<String, dynamic> data,
-    List<String> platformIds = const [],
   }) async {
     try {
       await _pService.updateProperty(id, data);
-      
-      if (platformIds.isNotEmpty) {
-        // await _pService.deletePlatforms(id);
-        // await _pService.insertPlatforms(id, platformIds);
-      }
 
       final fresh = await _pService.getPropertyById(id);
       return PropertyModel.fromJson(fresh);
