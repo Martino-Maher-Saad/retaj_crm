@@ -74,11 +74,11 @@ class _LayoutScreenState extends State<LayoutScreen> {
     if (user.role == 'sales') {
       return [dashboard, properties, leads, tasks, shares];
     } else if (user.role == 'manager') {
-      return [dashboard, properties, leads, tasks, shares, duplicates, marketing];
+      return [dashboard, properties, leads, tasks, shares, duplicates, designs, marketing];
     } else if (user.role == 'ceo') {
       return [dashboard, properties, leads, tasks, shares, duplicates, designs, marketing];
     } else if (user.role == 'marketing') {
-      return [dashboard, properties, leads, tasks, shares, marketing];
+      return [dashboard, properties, leads, tasks, shares, designs, marketing];
     } else { // admin
       return [dashboard, tasks, properties, shares, leads, designs, duplicates, accounts, dropdowns, marketing];
     }
