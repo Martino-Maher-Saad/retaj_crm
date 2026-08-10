@@ -365,7 +365,7 @@ class _DesignInlineFormState extends State<DesignInlineForm> {
                                                   _links[index] =
                                                       DesignLinkModel(
                                                         title: val,
-                                                        url: link.url,
+                                                        url: _links[index].url,
                                                       ),
                                             ),
                                           ),
@@ -397,7 +397,7 @@ class _DesignInlineFormState extends State<DesignInlineForm> {
                                               onChanged: (val) =>
                                                   _links[index] =
                                                       DesignLinkModel(
-                                                        title: link.title,
+                                                        title: _links[index].title,
                                                         url: val,
                                                       ),
                                             ),
