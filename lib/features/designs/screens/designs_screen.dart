@@ -255,6 +255,7 @@ class _DesignsScreenState extends State<DesignsScreen> {
 
                 if (state is DesignsLoading && context.read<DesignsCubit>().state is! DesignsLoaded) {
                   return ListView.builder(
+                    cacheExtent: 3000,
                     padding: EdgeInsets.all(16.w),
                     itemCount: 3,
                     itemBuilder: (_, __) => Padding(
@@ -268,6 +269,7 @@ class _DesignsScreenState extends State<DesignsScreen> {
                 final designs = loadedState.designs;
 
                 return ListView.builder(
+                  cacheExtent: 3000,
                   controller: _scrollController,
                   padding: EdgeInsets.all(16.w),
                   itemCount: designs.length + (_isAddingNew ? 1 : 0) + (loadedState.hasReachedMax ? 0 : 1),

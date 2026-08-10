@@ -467,6 +467,7 @@ class _MarketingScreenState extends State<MarketingScreen>
               await _cubit.fetchProperties(excludeUserId: widget.user.id, isRefresh: true, assignedEmployeeIds: assignedIds);
             },
             child: ListView.builder(
+              cacheExtent: 3000,
               controller: _scrollController,
               padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
               itemCount: state.properties.length + (state.hasMore ? 1 : 0),
