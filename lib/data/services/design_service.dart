@@ -79,11 +79,9 @@ class DesignService {
       'query_embedding': vector,
       'match_threshold': 0.7,
       'match_count': 20,
+      'filter_room_type_id': roomTypeId,
+      'filter_style_id': styleId,
     };
-
-    if (roomTypeId != null) params['filter_room_type_id'] = roomTypeId;
-    if (styleId != null) params['filter_style_id'] = styleId;
-    if (addedByProfileId != null) params['filter_profile_id'] = addedByProfileId; // This assumes the RPC supports it. If it crashes, we'll need to filter locally.
 
     final response = await _client.rpc('match_designs', params: params);
 
@@ -93,9 +91,13 @@ class DesignService {
     final List<String> ids = rpcResults.map((r) => r['id'].toString()).toList();
     
     final fullDesigns = await _client.from('designs').select(_select).inFilter('id', ids);
-    final List<DesignModel> designs = (fullDesigns as List).map((e) => DesignModel.fromJson(e)).toList();
+    List<DesignModel> designs = (fullDesigns as List).map((e) => DesignModel.fromJson(e)).toList();
     
-    // ترتيب التشطيبات حسب نتيجة البحث الذكاء الاصطناعي
+    if (addedByProfileId != null) {
+      designs = designs.where((d) => d.addedBy == addedByProfileId).toList();
+    }
+    
+    // إعادة الترتيب حسب ترتيب الذكاء الاصطناعي الأصلي
     designs.sort((a, b) {
       final indexA = ids.indexOf(a.id.toString());
       final indexB = ids.indexOf(b.id.toString());
