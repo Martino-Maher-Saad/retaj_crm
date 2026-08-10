@@ -339,6 +339,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                     return Skeletonizer(
                       enabled: true,
                       child: ListView.builder(
+                        cacheExtent: 3000,
                         padding: EdgeInsets.only(bottom: 20.h, top: 10.h),
                         itemCount: 4,
                         itemBuilder: (context, index) {
@@ -397,6 +398,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                                     },
                                   )
                                 : ListView.builder(
+                        cacheExtent: 3000,
                         controller: _scrollController,
                         padding: EdgeInsets.only(bottom: 20.h, top: 10.h),
                         itemCount: state.filteredLeads.length +
