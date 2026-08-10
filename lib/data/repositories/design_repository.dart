@@ -1,142 +1,133 @@
 import 'dart:typed_data';
-import '../models/design_image_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/design_model.dart';
-import '../services/ai_service.dart';
 import '../services/design_service.dart';
-import '../services/storage_service.dart';
+import '../services/cloudinary_service.dart';
+import '../services/ai_service.dart';
 
 class DesignRepository {
-  final DesignService _service;
-  final StorageService _storageService;
+  final DesignService _dService;
+  final CloudinaryService _cService;
   final AiService _aiService;
 
-  DesignRepository(this._service, this._storageService, this._aiService);
+  DesignRepository(this._dService, this._cService, this._aiService);
 
-  Future<List<DesignModel>> getDesigns({required int from, required int to}) async {
-    final data = await _service.getDesigns(from: from, to: to);
-    return data.map((e) => DesignModel.fromJson(e)).toList();
+  /// إضافة تشطيب جديد بالكامل (البيانات + التضمين AI + الصور في Cloudinary)
+  Future<DesignModel> createFullDesign(
+    DesignModel model,
+    List<Uint8List> images,
+  ) async {
+    String? newId;
+    try {
+      final text = model.descAr;
+      
+      // 1. توليد الـ Vector من وصف التشطيب (768 بعداً باستخدام Gemini)
+      final vector = await _aiService.generateEmbedding(text, isSearch: false, useGemini: true);
+      
+      // 2. تعيين المُدخل (User ID)
+      final userId = Supabase.instance.client.auth.currentUser!.id;
+
+      final dataToInsert = model.toJson(embedding: vector);
+      dataToInsert['added_by'] = userId;
+
+      // 3. إضافة التشطيب في Supabase
+      final data = await _dService.insertDesign(dataToInsert);
+      newId = data['id'].toString();
+
+      // 4. رفع الصور إلى Cloudinary وإضافة روابطها في Supabase
+      for (int i = 0; i < images.length; i++) {
+        final name = 'design_${newId}_img_$i.jpg';
+        final url = await _cService.uploadImage(images[i], name, folder: 'designs/$newId');
+        
+        if (url != null) {
+          final isThumbnail = (i == 0); // نعتبر أول صورة هي المصغرة (الغلاف)
+          await _dService.insertImage(newId, url, isThumbnail);
+        }
+      }
+
+      // 5. جلب التشطيب بالكامل مرة أخرى لإرجاعه للمستخدم
+      return await _dService.getDesignById(newId);
+    } catch (e) {
+      if (newId != null) {
+        // في حالة فشل رفع الصور بعد إضافة التشطيب، نحذفه لتجنب البيانات المعلقة
+        await _dService.deleteDesign(newId);
+      }
+      rethrow;
+    }
   }
 
-  Future<DesignModel> createFullDesign({
-    required DesignModel baseDesign,
-    required List<Uint8List> rawImages,
+  /// تعديل تشطيب (تعديل الوصف أو الروابط) مع إعادة توليد الـ Vector إذا لزم الأمر
+  Future<DesignModel> updateFullDesign(
+    DesignModel model, {
+    List<Uint8List>? newImages,
+    List<String>? deletedImageIds,
   }) async {
-    // 1. Generate Semantic Embedding
-    final textForAi = "${baseDesign.descAr ?? ''} ${baseDesign.roomType ?? ''} ${baseDesign.style ?? ''}";
-    List<double>? embedding;
-    if (textForAi.trim().isNotEmpty) {
-      try {
-        embedding = await _aiService.generateEmbedding(textForAi, isSearch: false);
-      } catch (e) {
-        // Continue even if AI fails, or handle it as required
+    final oldModel = await _dService.getDesignById(model.id);
+    
+    List<double>? vector;
+    // إعادة التوليد لو اختلف الوصف
+    if (oldModel.descAr != model.descAr) {
+      vector = await _aiService.generateEmbedding(model.descAr, isSearch: false, useGemini: true);
+    }
+
+    final dataToUpdate = model.toJson(embedding: vector);
+    dataToUpdate.remove('added_by'); // لا نحدث من أضافه أبداً
+
+    await _dService.updateDesign(model.id, dataToUpdate);
+
+    // حذف الصور القديمة
+    if (deletedImageIds != null && deletedImageIds.isNotEmpty) {
+      for (var imgId in deletedImageIds) {
+        await _dService.deleteImage(imgId);
       }
     }
 
-    final dataToInsert = baseDesign.toJson();
-    if (embedding != null) {
-      dataToInsert['embedding'] = embedding;
-    }
-
-    // 2. Insert into Database
-    final insertedData = await _service.insertDesign(dataToInsert);
-    final String newId = insertedData['id'].toString();
-    final List<DesignImageModel> createdImages = [];
-
-    // 3. Upload Images
-    if (rawImages.isNotEmpty) {
-      final String folderName = newId;
-      for (int i = 0; i < rawImages.length; i++) {
-        final imageBytes = rawImages[i];
-        final fileName = 'img_${DateTime.now().microsecondsSinceEpoch}_$i.jpg';
-        try {
-          final url = await _storageService.uploadImage(
-            imageBytes,
-            folderName,
-            fileName,
-            bucket: 'design_images',
-          );
-          await _service.insertImageRecord(newId, url);
-          createdImages.add(DesignImageModel(
-            id: '',
-            designId: newId,
-            imageUrl: url,
-            createdAt: DateTime.now(),
-          ));
-        } catch (e) {
-          // If a major error occurs, we might want to rollback
-          await deleteFullDesign(newId);
-          throw Exception("Failed to upload images, design creation rolled back. Error: $e");
+    // إضافة الصور الجديدة
+    if (newImages != null && newImages.isNotEmpty) {
+      for (int i = 0; i < newImages.length; i++) {
+        final name = 'design_${model.id}_new_img_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
+        final url = await _cService.uploadImage(newImages[i], name);
+        if (url != null) {
+          // نعطي أول صورة مضافة حديثاً كـ Thumbnail لو لم يكن هناك صور من قبل
+          bool isThumb = false;
+          if (i == 0 && (oldModel.images == null || oldModel.images!.isEmpty) && (deletedImageIds?.length ?? 0) >= (oldModel.images?.length ?? 0)) {
+            isThumb = true;
+          }
+          await _dService.insertImage(model.id, url, isThumb);
         }
       }
     }
 
-    return DesignModel(
-      id: newId,
-      descAr: insertedData['desc_ar'],
-      roomType: insertedData['room_type'],
-      style: insertedData['style'],
-      createdAt: DateTime.parse(insertedData['created_at']),
-      addedBy: insertedData['added_by'],
-      embedding: embedding,
-      images: createdImages,
-    );
+    // جلب التشطيب المحدث
+    return await _dService.getDesignById(model.id);
   }
 
-  Future<void> deleteFullDesign(String designId) async {
-    // Delete images from Storage first
-    await _storageService.deleteFolder(designId, bucket: 'design_images');
-    // Delete from DB logic (cascade usually handles image records, but record is deleted here)
-    await _service.deleteDesignRecord(designId);
-  }
-
-  Future<DesignModel> updateFullDesign({
-    required String designId,
-    required Map<String, dynamic> updatedFields,
-    required List<Uint8List> newImagesBytes,
-    required List<String> imagesToDeleteIds,
-  }) async {
-    // Re-generate embeddings if relevant fields changed
-    if (updatedFields.containsKey('desc_ar') || updatedFields.containsKey('room_type') || updatedFields.containsKey('style')) {
-      final textForAi = "${updatedFields['desc_ar'] ?? ''} ${updatedFields['room_type'] ?? ''} ${updatedFields['style'] ?? ''}";
-      try {
-        final embedding = await _aiService.generateEmbedding(textForAi, isSearch: false);
-        updatedFields['embedding'] = embedding;
-      } catch (_) {}
-    }
-
-    // 1. Delete requested images
-    if (imagesToDeleteIds.isNotEmpty) {
-      await _service.deleteImageRecordsByIds(imagesToDeleteIds);
-    }
-
-    // 2. Upload new images
-    if (newImagesBytes.isNotEmpty) {
-      final String folderName = designId;
-      for (int i = 0; i < newImagesBytes.length; i++) {
-        final imageBytes = newImagesBytes[i];
-        final fileName = 'img_${DateTime.now().microsecondsSinceEpoch}_$i.jpg';
-        final url = await _storageService.uploadImage(
-          imageBytes,
-          folderName,
-          fileName,
-          bucket: 'design_images',
-        );
-        await _service.insertImageRecord(designId, url);
+  /// حذف التشطيب بالكامل
+  Future<void> deleteDesign(String id) async {
+    // 1. Fetch design to get image URLs
+    final design = await _dService.getDesignById(id);
+    
+    // 2. Delete images from Cloudinary first (so we don't leave orphaned images)
+    if (design.images != null) {
+      for (var img in design.images!) {
+        if (img.imageUrl != null) {
+          await _cService.deleteImageByUrl(img.imageUrl!);
+        }
       }
     }
-
-    // 3. Update core details
-    final updatedData = await _service.updateDesign(designId, updatedFields);
     
-    // Fetch full design to return
-    final fullDesign = await _service.getDesignById(designId);
-    return DesignModel.fromJson(fullDesign);
+    // 3. Delete from database
+    await _dService.deleteDesign(id);
   }
 
-  Future<List<DesignModel>> searchDesignsSemantic(String query) async {
-    if (query.trim().isEmpty) return [];
-    final vector = await _aiService.generateEmbedding(query, isSearch: true);
-    final data = await _service.searchDesignsByAi(vector);
-    return data.map((e) => DesignModel.fromJson(e)).toList();
+  /// البحث الذكي عبر AI
+  Future<List<DesignModel>> searchDesignsByAi(String query, {String? roomTypeId, String? styleId, String? addedByProfileId}) async {
+    final vector = await _aiService.generateEmbedding(query, isSearch: true, useGemini: true);
+    return await _dService.searchDesignsByAi(vector: vector, roomTypeId: roomTypeId, styleId: styleId, addedByProfileId: addedByProfileId);
+  }
+
+  /// جلب القائمة
+  Future<List<DesignModel>> getDesigns({int limit = 20, int offset = 0, String? roomTypeId, String? styleId, String? addedByProfileId}) async {
+    return await _dService.getDesigns(limit: limit, offset: offset, roomTypeId: roomTypeId, styleId: styleId, addedByProfileId: addedByProfileId);
   }
 }

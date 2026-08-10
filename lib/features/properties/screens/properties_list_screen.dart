@@ -457,6 +457,7 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
 
           Expanded(
             child: ListView.builder(
+              cacheExtent: 3000,
               controller: _scrollController,
               padding: EdgeInsets.symmetric(horizontal: 10.w),
               itemCount: properties.length +

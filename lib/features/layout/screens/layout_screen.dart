@@ -16,7 +16,9 @@ import '../../admin_users/screens/admin_users_screen.dart';
 import '../../admin_users/screens/dropdown_management_screen.dart';
 import '../../admin_users/cubit/admin_users_cubit.dart';
 import '../../dashboard/screens/dashboard_screen.dart';
-import '../../designs/screens/designs_list_screen.dart';
+import '../../designs/screens/designs_screen.dart';
+import '../../designs/cubit/designs_cubit.dart';
+import '../../designs/cubit/design_form_cubit.dart';
 import '../../leads/screens/leads_management_screen.dart';
 import '../../properties/screens/properties_list_screen.dart';
 import '../../profile/screens/user_profile_screen.dart';
@@ -56,7 +58,13 @@ class _LayoutScreenState extends State<LayoutScreen> {
     final properties = _NavItemData("مخزون العقارات", Icons.home_work_outlined, BlocProvider.value(value: _propertiesCubit, child: PropertiesListScreen(userId: user.id, role: user.role, key: const PageStorageKey('properties_page'))));
     final shares = _NavItemData("مشاركات العقارات", Icons.share_rounded, PropertySharesScreen(user: user, key: const PageStorageKey('shares_page')));
     final leads = _NavItemData("مخزون العملاء", Icons.people_outline_rounded, BlocProvider.value(value: _leadsCubit, child: LeadsManagementScreen(user: user, key: const PageStorageKey('leads_page'))));
-    final designs = _NavItemData("مكتبة التصاميم", Icons.format_paint_outlined, const DesignsListScreen(key: PageStorageKey('designs_page')));
+    final designs = _NavItemData("معرض التشطيبات", Icons.format_paint_outlined, MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => di.sl<DesignsCubit>()),
+        BlocProvider(create: (_) => di.sl<DesignFormCubit>()),
+      ],
+      child: DesignsScreen(user: user, key: const PageStorageKey('designs_page')),
+    ));
     final duplicates = _NavItemData("سجل التكرارات", Icons.control_point_duplicate, DuplicatesScreen(user: user, key: const PageStorageKey('duplicates_page')));
     final accounts = _NavItemData("إدارة الحسابات", Icons.manage_accounts_outlined, BlocProvider(key: const PageStorageKey('accounts_page'), create: (_) => di.sl<AdminUsersCubit>(), child: const AdminUsersScreen()));
     final dropdowns = _NavItemData("إدارة القوائم", Icons.list_alt_rounded, const DropdownManagementScreen(key: PageStorageKey('dropdown_page')));
@@ -66,11 +74,11 @@ class _LayoutScreenState extends State<LayoutScreen> {
     if (user.role == 'sales') {
       return [dashboard, properties, leads, tasks, shares];
     } else if (user.role == 'manager') {
-      return [dashboard, properties, leads, tasks, shares, duplicates, marketing];
+      return [dashboard, properties, leads, tasks, shares, duplicates, designs, marketing];
     } else if (user.role == 'ceo') {
       return [dashboard, properties, leads, tasks, shares, duplicates, designs, marketing];
     } else if (user.role == 'marketing') {
-      return [dashboard, properties, leads, tasks, shares, marketing];
+      return [dashboard, properties, leads, tasks, shares, designs, marketing];
     } else { // admin
       return [dashboard, tasks, properties, shares, leads, designs, duplicates, accounts, dropdowns, marketing];
     }

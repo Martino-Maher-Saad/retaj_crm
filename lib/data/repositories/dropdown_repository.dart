@@ -24,6 +24,8 @@ class DropdownRepository {
       _service.fetchAdvertisingPlatforms(),      // 8
       _service.fetchLeadExclusionReasons(),      // 9
       _service.fetchPropertyApprovalStatuses(),  // 10
+      _service.fetchDesignRoomTypes(),           // 11
+      _service.fetchDesignStyles(),              // 12
     ]);
 
     final govRaw = results[0] as List<Map<String, dynamic>>;
@@ -51,6 +53,8 @@ class DropdownRepository {
         'advertising_platform':  results[8] as List<LookupOptionModel>,
         'lead_exclusion_reasons': results[9] as List<LookupOptionModel>,
         'property_approval_statuses': results[10] as List<LookupOptionModel>,
+        'design_room_types':          results[11] as List<LookupOptionModel>,
+        'design_styles':              results[12] as List<LookupOptionModel>,
       },
     );
   }

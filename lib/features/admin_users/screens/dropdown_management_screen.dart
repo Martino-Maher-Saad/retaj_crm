@@ -37,6 +37,8 @@ class _DropdownManagementScreenState extends State<DropdownManagementScreen> {
     'advertising_platforms':  _CategoryConfig(label: 'منصات الإعلان',       icon: Icons.ads_click_outlined,     tableName: 'advertising_platforms',  color: Color(0xFFB91C1C)),
     'lead_exclusion_reasons': _CategoryConfig(label: 'أسباب الاستبعاد',      icon: Icons.block_outlined,         tableName: 'lead_exclusion_reasons', color: Color(0xFFDC2626)),
     'property_approval_statuses': _CategoryConfig(label: 'حالات الموافقة',     icon: Icons.verified_user_outlined, tableName: 'property_approval_statuses', color: Color(0xFF047857)),
+    'design_room_types':      _CategoryConfig(label: 'أنواع الغرف (تشطيب)', icon: Icons.meeting_room_outlined,  tableName: 'design_room_types',      color: Color(0xFF059669)),
+    'design_styles':          _CategoryConfig(label: 'أنماط التشطيب (ستايل)',icon: Icons.style_outlined,         tableName: 'design_styles',          color: Color(0xFFD97706)),
     'cities':                 _CategoryConfig(label: 'المدن',               icon: Icons.location_city_outlined, tableName: 'cities',       isLocation: true, color: Color(0xFF374151)),
   };
 
