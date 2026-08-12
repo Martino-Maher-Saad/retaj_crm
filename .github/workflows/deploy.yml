@@ -24,8 +24,30 @@ jobs:
 
       - run: flutter pub get
 
-      - name: Build Web
-        # استبدل retaj_crm باسم مستودعك بالضبط
+      # ==========================================
+      # 1. Build & Deploy على Hostinger
+      # ==========================================
+      - name: Build Web for Hostinger
+        # Hostinger بيستخدم base-href / لأن الدومين هو الرئيسي مباشرة
+        run: flutter build web --release --base-href /
+
+      - name: Deploy to Hostinger via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        # لو فشل الاتصال بـ Hostinger، يكمل ويرفع على GitHub Pages
+        continue-on-error: true
+        with:
+          server: 31.170.160.8
+          username: ${{ secrets.HOSTINGER_FTP_USERNAME }}
+          password: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
+          local-dir: ./build/web/
+          # ./ لأن حساب الـ FTP مربوط بالمجلد الصح مباشرة
+          server-dir: ./
+
+      # ==========================================
+      # 2. Build & Deploy على GitHub Pages
+      # ==========================================
+      - name: Build Web for GitHub Pages
+        # GitHub Pages محتاج اسم الريبو في الـ base-href
         run: flutter build web --release --base-href /retaj_crm/
 
       - name: Setup Pages
