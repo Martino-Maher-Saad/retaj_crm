@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:trina_grid/trina_grid.dart';
+
 import '../../../core/utils/static_data_manager.dart';
 import '../../../core/di/injection_container.dart';
+import '../../../data/models/lead_model.dart';
 import '../../auth/cubit/auth_cubit.dart';
 import '../../auth/cubit/auth_states.dart';
 import '../cubit/bulk_add_leads_cubit.dart';
 import '../cubit/bulk_add_leads_state.dart';
+import '../widgets/distinct_mapping_dialog.dart';
 
 class BulkAddLeadsScreen extends StatelessWidget {
   const BulkAddLeadsScreen({super.key});
@@ -23,150 +26,589 @@ class BulkAddLeadsScreen extends StatelessWidget {
     }
     
     final cubit = sl<BulkAddLeadsCubit>()..init(role, userId);
-    return BlocProvider.value(
-      value: cubit,
-      child: const _BulkAddLeadsView(),
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: BlocProvider.value(
+        value: cubit,
+        child: const _BulkAddLeadsView(),
+      ),
     );
   }
 }
 
 class _BulkAddLeadsView extends StatefulWidget {
-  const _BulkAddLeadsView({super.key});
+  const _BulkAddLeadsView();
 
   @override
   State<_BulkAddLeadsView> createState() => _BulkAddLeadsViewState();
 }
 
 class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
-  final ScrollController _horizontalScrollController = ScrollController();
-  final ScrollController _verticalScrollController = ScrollController();
+  TrinaGridStateManager? _stateManager;
 
-  late List<DropdownMenuEntry<int>> _cityEntries;
-  late List<DropdownMenuEntry<String>> _employeeEntries;
-  late Map<String, List<DropdownMenuEntry<String>>> _optionEntries;
+  // Lookup maps
+  final Map<int, String> _cityNameById = {};
+  final Map<String, int> _cityIdByName = {};
+
+  final Map<String, String> _employeeNameById = {};
+  final Map<String, String> _employeeIdByName = {};
+
+  final Map<String, Map<String, String>> _optionNameById = {};
+  final Map<String, Map<String, String>> _optionIdByName = {};
+
+  List<String> _cityNames = [];
+  List<String> _employeeNames = [];
+  List<String> _propertyTypeNames = [];
+  List<String> _listingTypeNames = [];
+  List<String> _platformNames = [];
+
+  late List<TrinaColumn> _columns;
+  bool _isGridInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    final dataManager = sl<StaticDataManager>();
-    _cityEntries = dataManager.allCities.map((c) => DropdownMenuEntry<int>(value: c.id, label: c.name)).toList();
-    _employeeEntries = dataManager.employees.map((e) => DropdownMenuEntry<String>(value: e.id, label: '${e.firstName} ${e.lastName}'.trim())).toList();
-    _optionEntries = {
-      'property_type': dataManager.getOptionModels('property_type').map((o) => DropdownMenuEntry<String>(value: o.id, label: o.nameAr)).toList(),
-      'listing_type': dataManager.getOptionModels('listing_type').map((o) => DropdownMenuEntry<String>(value: o.id, label: o.nameAr)).toList(),
-      'platform': dataManager.getOptionModels('platform').map((o) => DropdownMenuEntry<String>(value: o.id, label: o.nameAr)).toList(),
-      'communication_channel': dataManager.getOptionModels('communication_channel').map((o) => DropdownMenuEntry<String>(value: o.id, label: o.nameAr)).toList(),
-      'lead_status': dataManager.getOptionModels('lead_status').map((o) => DropdownMenuEntry<String>(value: o.id, label: o.nameAr)).toList(),
-    };
+    _initLookupData();
+    _initColumns();
   }
 
-  static const Map<String, String> _columnLabels = {
-    'name': 'اسم العميل',
-    'phone': 'رقم الهاتف (إجباري)',
-    'cityId': 'المدينة (إجباري)',
-    'propertyTypeId': 'نوع العقار (إجباري)',
-    'listingTypeId': 'نوع الإعلان (إجباري)',
-    'platformId': 'المنصة (إجباري)',
-    'channelId': 'طريقة التواصل',
-    'statusId': 'حالة العميل',
-    'assignedTo': 'الموظف المسند إليه (إجباري)',
-    'propertyCode': 'كود العقار',
-    'createdAt': 'تاريخ الإضافة',
-    'descLeadNeed': 'متطلبات العميل',
-    'budgetFrom': 'ميزانية من',
-    'budgetTo': 'ميزانية إلى',
-    'notes': 'ملاحظات'
-  };
+  void _initLookupData() {
+    final dataManager = sl<StaticDataManager>();
 
-  void _showReorderColumnsDialog(BuildContext context) {
-    final cubit = context.read<BulkAddLeadsCubit>();
-    if (cubit.state is! BulkAddLeadsLoaded) return;
-    
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return BlocProvider.value(
-          value: cubit,
-          child: AlertDialog(
-            title: const Text('ترتيب الخانات'),
-            content: SizedBox(
-              width: 350,
-              height: 500,
-              child: BlocBuilder<BulkAddLeadsCubit, BulkAddLeadsState>(
-                builder: (context, state) {
-                  if (state is! BulkAddLeadsLoaded) return const SizedBox();
-                  return ReorderableListView(
-                    onReorder: (oldIndex, newIndex) {
-                      context.read<BulkAddLeadsCubit>().reorderColumns(oldIndex, newIndex);
-                    },
-                    children: state.columnOrder.map((key) {
-                      return ListTile(
-                        key: ValueKey(key),
-                        title: Text(_columnLabels[key] ?? ''),
-                        trailing: const Icon(Icons.drag_handle),
-                      );
-                    }).toList(),
-                  );
-                },
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('إغلاق'),
-              ),
-            ],
-          ),
-        );
+    // المدن
+    for (var c in dataManager.allCities) {
+      _cityNameById[c.id] = c.name;
+      _cityIdByName[c.name] = c.id;
+    }
+    _cityNames = dataManager.allCities.where((c) => c.isActive).map((c) => c.name).toList();
+
+    // الموظفون
+    for (var e in dataManager.employees) {
+      final fullName = '${e.firstName ?? ''} ${e.lastName ?? ''}'.trim();
+      _employeeNameById[e.id] = fullName;
+      _employeeIdByName[fullName] = e.id;
+    }
+    _employeeNames = dataManager.employees.where((e) => e.isActive).map((e) => '${e.firstName ?? ''} ${e.lastName ?? ''}'.trim()).toList();
+
+    // القوائم الأخرى
+    final categories = ['property_type', 'listing_type', 'platform', 'communication_channel', 'lead_status'];
+    for (var cat in categories) {
+      _optionNameById[cat] = {};
+      _optionIdByName[cat] = {};
+      for (var o in dataManager.getOptionModels(cat)) {
+        _optionNameById[cat]![o.id] = o.nameAr;
+        _optionIdByName[cat]![o.nameAr] = o.id;
+      }
+    }
+
+    _propertyTypeNames = dataManager.getOptionModels('property_type').where((o) => o.isActive).map((o) => o.nameAr).toList();
+    _listingTypeNames = dataManager.getOptionModels('listing_type').where((o) => o.isActive).map((o) => o.nameAr).toList();
+    _platformNames = dataManager.getOptionModels('platform').where((o) => o.isActive).map((o) => o.nameAr).toList();
+  }
+
+  void _initColumns() {
+    // الأعمدة الـ 10 المحددة والمطلوبة فقط من اليسار لليمين:
+    // 1. التاريخ | 2. اسم المنصة | 3. اسم العميل | 4. رقم العميل | 5. اسم الموظف
+    // 6. كود العقار | 7. نوع العقار | 8. نوع الاعلان | 9. المنطقة الأصلية | 10. المدينة
+    _columns = [
+      TrinaColumn(
+        title: '#',
+        field: 'no',
+        type: TrinaColumnType.text(),
+        width: 60,
+        enableRowChecked: true, // Checkbox لاختيار الصف بالكامل
+        enableEditingMode: false,
+        enableSorting: false,
+        frozen: TrinaColumnFrozen.start,
+      ),
+      TrinaColumn(
+        title: 'التاريخ',
+        field: 'createdAt',
+        type: TrinaColumnType.text(),
+        width: 150,
+      ),
+      TrinaColumn(
+        title: 'اسم المنصة',
+        field: 'platform',
+        type: TrinaColumnType.select(_platformNames),
+        width: 150,
+      ),
+      TrinaColumn(
+        title: 'اسم العميل',
+        field: 'name',
+        type: TrinaColumnType.text(),
+        width: 160,
+      ),
+      TrinaColumn(
+        title: 'رقم العميل',
+        field: 'phone',
+        type: TrinaColumnType.text(),
+        width: 140,
+      ),
+      TrinaColumn(
+        title: 'اسم الموظف',
+        field: 'assignedTo',
+        type: TrinaColumnType.select(_employeeNames),
+        width: 170,
+      ),
+      TrinaColumn(
+        title: 'كود العقار',
+        field: 'propertyCode',
+        type: TrinaColumnType.text(),
+        width: 120,
+      ),
+      TrinaColumn(
+        title: 'نوع العقار',
+        field: 'propertyType',
+        type: TrinaColumnType.select(_propertyTypeNames),
+        width: 150,
+      ),
+      TrinaColumn(
+        title: 'نوع الاعلان',
+        field: 'listingType',
+        type: TrinaColumnType.select(_listingTypeNames),
+        width: 140,
+      ),
+      TrinaColumn(
+        title: 'المنطقة الأصلية',
+        field: 'areaName',
+        type: TrinaColumnType.text(),
+        width: 210,
+      ),
+      TrinaColumn(
+        title: 'المدينة',
+        field: 'city',
+        type: TrinaColumnType.select(_cityNames),
+        width: 160,
+      ),
+    ];
+  }
+
+  TrinaRow _createTrinaRowFromLeadRow(EditableLeadRow r, int idx) {
+    String dateStr = '';
+    if (r.createdAt != null) {
+      dateStr = r.createdAt!.toIso8601String().replaceAll('T', ' ').split('.').first;
+    }
+
+    return TrinaRow(
+      cells: {
+        'no': TrinaCell(value: '${idx + 1}'),
+        'createdAt': TrinaCell(value: dateStr),
+        'platform': TrinaCell(value: _optionNameById['platform']?[r.platformId] ?? r.unmappedPlatform ?? ''),
+        'name': TrinaCell(value: r.name ?? ''),
+        'phone': TrinaCell(value: r.phone ?? ''),
+        'assignedTo': TrinaCell(value: _employeeNameById[r.assignedTo] ?? r.unmappedAssignedTo ?? ''),
+        'propertyCode': TrinaCell(value: r.propertyCode ?? ''),
+        'propertyType': TrinaCell(value: _optionNameById['property_type']?[r.propertyTypeId] ?? r.unmappedPropertyType ?? ''),
+        'listingType': TrinaCell(value: _optionNameById['listing_type']?[r.listingTypeId] ?? r.unmappedListingType ?? ''),
+        'areaName': TrinaCell(value: r.areaName ?? ''),
+        'city': TrinaCell(value: _cityNameById[r.cityId] ?? r.unmappedCity ?? ''),
       },
     );
   }
 
-  @override
-  void dispose() {
-    _horizontalScrollController.dispose();
-    _verticalScrollController.dispose();
-    super.dispose();
+  TrinaRow _createEmptyTrinaRow(int idx) {
+    return TrinaRow(
+      cells: {
+        'no': TrinaCell(value: '${idx + 1}'),
+        'createdAt': TrinaCell(value: DateTime.now().toLocal().toIso8601String().split('T').first),
+        'platform': TrinaCell(value: ''),
+        'name': TrinaCell(value: ''),
+        'phone': TrinaCell(value: ''),
+        'assignedTo': TrinaCell(value: ''),
+        'propertyCode': TrinaCell(value: ''),
+        'propertyType': TrinaCell(value: ''),
+        'listingType': TrinaCell(value: ''),
+        'areaName': TrinaCell(value: ''),
+        'city': TrinaCell(value: ''),
+      },
+    );
+  }
+
+  void _syncGridWithRows(List<EditableLeadRow> rows) {
+    if (_stateManager == null) return;
+    final List<TrinaRow> trinaRows = [];
+    for (int i = 0; i < rows.length; i++) {
+      trinaRows.add(_createTrinaRowFromLeadRow(rows[i], i));
+    }
+    _stateManager!.removeAllRows(notify: false);
+    _stateManager!.appendRows(trinaRows);
+  }
+
+  // --- التعبئة الجماعية للخلايا المحددة (Bulk Fill Selected Cells) ---
+
+  List<String>? _getItemsForField(String field) {
+    switch (field) {
+      case 'platform': return _platformNames;
+      case 'assignedTo': return _employeeNames;
+      case 'propertyType': return _propertyTypeNames;
+      case 'listingType': return _listingTypeNames;
+      case 'city': return _cityNames;
+      default: return null;
+    }
+  }
+
+  // --- التعبئة الجماعية للخلايا المحددة (Bulk Fill Selected Cells) ---
+
+  void _bulkFillSelectedCells(BuildContext context) {
+    if (_stateManager == null) return;
+
+    final selectedPositions = _stateManager!.currentSelectingPositionList;
+    if (selectedPositions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('يرجى تحديد خلية أو مجموعة خلايا في الجدول أولاً (بالسحب بالماوس أو Shift + الأسهم)'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // تحديد الأعمدة الموجودة في التحديد
+    final Set<String> selectedFields = selectedPositions.map((p) => p.field).whereType<String>().toSet();
+    if (selectedFields.length > 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('لتعبئة الخلايا دفعة واحدة، يرجى تحديد خلايا في عمود واحد فقط (مثلاً عمود المدينة أو الموظف)'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final String field = selectedFields.first;
+    final column = _stateManager!.columns.firstWhere((c) => c.field == field);
+    final title = column.title;
+
+    if (field == 'no') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لا يمكن تعديل عمود الترقيم'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
+    final selectItems = _getItemsForField(field);
+
+    // إذا كان العمود قائمة منسدلة (Select Column)
+    if (selectItems != null) {
+      dynamic chosenVal;
+
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('تعبئة ${selectedPositions.length} خلايا محددة لـ ($title)'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('اختر القيمة التي ترغب في تطبيقها على جميع الخلايا المحددة:'),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                items: selectItems.map((it) => DropdownMenuItem(value: it, child: Text(it))).toList(),
+                onChanged: (v) => chosenVal = v,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white),
+              onPressed: () {
+                if (chosenVal != null) {
+                  for (final pos in selectedPositions) {
+                    final row = _stateManager!.getRowByIdx(pos.rowIdx);
+                    if (row != null && row.cells.containsKey(field)) {
+                      _stateManager!.changeCellValue(row.cells[field]!, chosenVal, notify: false);
+                    }
+                  }
+                  _stateManager!.notifyListeners();
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('تمت تعبئة ${selectedPositions.length} خلية بالقيمة ($chosenVal)'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              },
+              child: const Text('تطبيق وتعبئة'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // عمود نصي عادي
+      final textController = TextEditingController();
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('تعبئة ${selectedPositions.length} خلايا محددة لـ ($title)'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('اكتب القيمة المراد تعميمها على الخلايا المحددة:'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: textController,
+                autofocus: true,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  hintText: 'اكتب القيمة هنا...',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white),
+              onPressed: () {
+                final text = textController.text.trim();
+                for (final pos in selectedPositions) {
+                  final row = _stateManager!.getRowByIdx(pos.rowIdx);
+                  if (row != null && row.cells.containsKey(field)) {
+                    _stateManager!.changeCellValue(row.cells[field]!, text, notify: false);
+                  }
+                }
+                _stateManager!.notifyListeners();
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('تمت تعبئة ${selectedPositions.length} خلية بنجاح'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+              child: const Text('تطبيق وتعبئة'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  // --- حذف الصفوف المحددة ---
+
+  void _deleteCheckedOrSelectedRows(BuildContext context) {
+    if (_stateManager == null) return;
+
+    final checkedRows = _stateManager!.checkedRows;
+    if (checkedRows.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('يرجى تحديد الصفوف المراد حذفها باستخدام مربع الاختيار (#) أولاً'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تأكيد الحذف'),
+        content: Text('هل أنت متأكد من حذف ${checkedRows.length} صفاً من الجدول؟'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () {
+              _stateManager!.removeRows(checkedRows);
+              // إعادة ترقيم الصفوف
+              for (int i = 0; i < _stateManager!.rows.length; i++) {
+                _stateManager!.rows[i].cells['no']?.value = '${i + 1}';
+              }
+              _stateManager!.notifyListeners();
+              Navigator.pop(ctx);
+            },
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- حفظ الكل في Supabase ---
+
+  void _saveAllFromGrid(BuildContext context) {
+    if (_stateManager == null) return;
+
+    final gridRows = _stateManager!.rows;
+    final authState = context.read<AuthCubit>().state;
+    String creatorId = '';
+    if (authState is AuthSuccess) {
+      creatorId = authState.user.id;
+    }
+
+    List<LeadModel> leadsToInsert = [];
+    List<String> errorMessages = [];
+
+    for (int i = 0; i < gridRows.length; i++) {
+      final cells = gridRows[i].cells;
+
+      final dateStr = cells['createdAt']?.value?.toString().trim();
+      final platformName = cells['platform']?.value?.toString().trim();
+      final name = cells['name']?.value?.toString().trim();
+      final phone = cells['phone']?.value?.toString().trim();
+      final assignedToName = cells['assignedTo']?.value?.toString().trim();
+      final pCode = cells['propertyCode']?.value?.toString().trim();
+      final propTypeName = cells['propertyType']?.value?.toString().trim();
+      final listTypeName = cells['listingType']?.value?.toString().trim();
+      final areaName = cells['areaName']?.value?.toString().trim();
+      final cityName = cells['city']?.value?.toString().trim();
+
+      // تخطي الصفوف الفارغة بالكامل
+      final bool isEmptyRow = (name == null || name.isEmpty) &&
+          (phone == null || phone.isEmpty) &&
+          (pCode == null || pCode.isEmpty) &&
+          (areaName == null || areaName.isEmpty);
+      if (isEmptyRow) continue;
+
+      // فحص هل المنصة هي Property Finder؟
+      final bool isPF = (platformName != null &&
+          (platformName.toLowerCase().contains('property') ||
+              platformName.contains('فايندر') ||
+              platformName.toLowerCase() == 'pf'));
+
+      // التحقق من المتطلبات
+      List<String> missing = [];
+      if (phone == null || phone.isEmpty) {
+        missing.add('رقم الهاتف');
+      } else if (phone.contains(',') || phone.contains(' ')) {
+        missing.add('رقم الهاتف (بدون مسافات)');
+      }
+
+      if (platformName == null || platformName.isEmpty) missing.add('اسم المنصة');
+      if (assignedToName == null || assignedToName.isEmpty) missing.add('اسم الموظف');
+
+      // شروط المدينة ونوع العقار ونوع الإعلان: إجبارية فقط إذا لم يكن Property Finder!
+      if (!isPF) {
+        if (cityName == null || cityName.isEmpty) missing.add('المدينة');
+        if (propTypeName == null || propTypeName.isEmpty) missing.add('نوع العقار');
+        if (listTypeName == null || listTypeName.isEmpty) missing.add('نوع الإعلان');
+      }
+
+      if (missing.isNotEmpty) {
+        errorMessages.add('الصف ${i + 1}: ينقصه (${missing.join('، ')})');
+        continue;
+      }
+
+      // تحويل القيم إلى IDs
+      final cityId = (cityName != null && cityName.isNotEmpty) ? _cityIdByName[cityName] : null;
+      final propTypeId = (propTypeName != null && propTypeName.isNotEmpty) ? (_optionIdByName['property_type'] ?? {})[propTypeName] : null;
+      final listTypeId = (listTypeName != null && listTypeName.isNotEmpty) ? (_optionIdByName['listing_type'] ?? {})[listTypeName] : null;
+      final platId = (platformName != null && platformName.isNotEmpty) ? (_optionIdByName['platform'] ?? {})[platformName] : null;
+      final chanId = (_optionIdByName['communication_channel'] ?? {})['مكالمة هاتفية'] ?? 
+                     (_optionIdByName['communication_channel'] ?? {})['واتساب'];
+      final statusMap = _optionIdByName['lead_status'] ?? {};
+      final statId = statusMap['لم يتم التواصل معه'] ?? 
+                     statusMap['لم يتم التواصل'] ?? 
+                     statusMap['جديد'] ?? 
+                     statusMap['تم التواصل اول مرة'] ?? 
+                     '460be748-7685-49ef-abcf-c4dd49511ab7';
+      final assignedToId = (assignedToName != null && assignedToName.isNotEmpty) ? _employeeIdByName[assignedToName] : null;
+
+      if (assignedToId == null) {
+        errorMessages.add('الصف ${i + 1}: لم يتم التعرف على الموظف ($assignedToName)');
+        continue;
+      }
+
+      DateTime? parsedDate;
+      if (dateStr != null && dateStr.isNotEmpty) {
+        parsedDate = DateTime.tryParse(dateStr.replaceAll('/', '-'));
+      }
+
+      final lead = LeadModel(
+        clientName: (name != null && name.isNotEmpty) ? name : 'بدون اسم',
+        phones: [LeadPhoneModel(phoneNumber: phone!, isPrimary: true)],
+        createdBy: creatorId,
+        assignedTo: assignedToId,
+        createdAt: parsedDate ?? DateTime.now().toLocal(),
+        cityId: cityId,
+        propertyTypeId: propTypeId,
+        listingTypeId: listTypeId,
+        platformId: platId,
+        channelId: chanId,
+        statusId: statId,
+        propertyCode: pCode?.toUpperCase(),
+        areaName: areaName,
+        descLeadNeed: null,
+        budgetFrom: null,
+        budgetTo: null,
+        notes: [],
+      );
+
+      leadsToInsert.add(lead);
+    }
+
+    if (errorMessages.isNotEmpty) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('تنبيه: أخطاء في البيانات'),
+          content: SizedBox(
+            width: 450,
+            height: 300,
+            child: ListView(
+              children: errorMessages.map((e) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2.0),
+                child: Text('• $e', style: const TextStyle(color: Colors.red, fontSize: 13)),
+              )).toList(),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق وتصحيح')),
+          ],
+        ),
+      );
+      return;
+    }
+
+    if (leadsToInsert.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('جميع الصفوف فارغة، لا يوجد شيء للحفظ'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
+    // استدعاء خدمة الحفظ الجماعي السريع
+    context.read<BulkAddLeadsCubit>().saveLeadsList(leadsToInsert);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('إضافة عملاء متعددين / رفع إكسيل'),
+        title: const Row(
+          children: [
+            Icon(Icons.table_chart_outlined, color: Colors.green),
+            SizedBox(width: 8),
+            Text('منظومة استيراد وتوحيد العملاء (Excel DataGrid)'),
+          ],
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.view_column),
-            tooltip: 'ترتيب الأعمدة',
-            onPressed: () => _showReorderColumnsDialog(context),
-          ),
-          IconButton(
             icon: const Icon(Icons.download),
-            tooltip: 'تحميل القالب',
+            tooltip: 'تحميل القالب الموحد',
             onPressed: () {
               context.read<BulkAddLeadsCubit>().downloadTemplate();
             },
           ),
           IconButton(
             icon: const Icon(Icons.upload_file),
-            tooltip: 'رفع ملف إكسيل',
+            tooltip: 'رفع ملف (Excel أو CSV)',
             onPressed: () {
-              context.read<BulkAddLeadsCubit>().uploadExcelFile();
+              context.read<BulkAddLeadsCubit>().uploadFile();
             },
           ),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 8.h),
             child: ElevatedButton.icon(
               icon: const Icon(Icons.save),
-              label: const Text('حفظ الكل'),
+              label: const Text('حفظ الكل دفعة واحدة'),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-              onPressed: () {
-                FocusScope.of(context).unfocus();
-                final authState = context.read<AuthCubit>().state;
-                if (authState is AuthSuccess) {
-                  context.read<BulkAddLeadsCubit>().saveAll(authState.user.id);
-                }
-              },
+              onPressed: () => _saveAllFromGrid(context),
             ),
           ),
         ],
@@ -176,7 +618,11 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
           if (state is BulkAddLeadsError) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.error), backgroundColor: Colors.red));
           } else if (state is BulkAddLeadsSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم الحفظ بنجاح!'), backgroundColor: Colors.green));
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ جميع العملاء بنجاح في قاعدة البيانات!'), backgroundColor: Colors.green));
+          } else if (state is BulkAddLeadsLoaded) {
+            if (_isGridInitialized) {
+              _syncGridWithRows(state.rows);
+            }
           }
         },
         builder: (context, state) {
@@ -195,470 +641,170 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
               children: [
                 const CircularProgressIndicator(),
                 SizedBox(height: 16.h),
-                Text('جاري الحفظ: ${state.processed} / ${state.total}', style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold)),
+                Text('جاري الحفظ الجماعي: ${state.processed} / ${state.total}', style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold)),
               ],
             ));
           } else if (state is BulkAddLeadsLoaded) {
-            return _buildGrid(context, state.rows, state.columnOrder);
+            return Column(
+              children: [
+                if (state.unmappedLocations.isNotEmpty)
+                  _buildDistinctMappingBanner(context, state.unmappedLocations),
+                _buildExcelToolbar(context),
+                Expanded(
+                  child: Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: TrinaGrid(
+                      columns: _columns,
+                      rows: state.rows.map((r) => _createTrinaRowFromLeadRow(r, state.rows.indexOf(r))).toList(),
+                      onLoaded: (TrinaGridOnLoadedEvent event) {
+                        _stateManager = event.stateManager;
+                        _isGridInitialized = true;
+                      },
+                      configuration: TrinaGridConfiguration(
+                        style: TrinaGridStyleConfig(
+                          gridBorderColor: Colors.grey.shade400,
+                          rowHeight: 44,
+                          columnHeight: 44,
+                          activatedColor: Colors.green.shade50,
+                          activatedBorderColor: Colors.green.shade700,
+                          cellTextStyle: const TextStyle(fontSize: 13, color: Colors.black87),
+                          columnTextStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87),
+                        ),
+                        selectingMode: TrinaGridSelectingMode.cell, // إمكانية تحديد خلايا مفردة أو نطاق بالماوس
+                        enableMoveHorizontalInEditing: true,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
           }
           return const Center(child: CircularProgressIndicator());
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.read<BulkAddLeadsCubit>().addEmptyRows(),
-        icon: const Icon(Icons.add),
-        label: const Text('إضافة 10 صفوف'),
-        tooltip: 'إضافة 10 صفوف فارغة للجدول',
-      ),
     );
   }
 
-  double _getColumnWidth(String key) {
-    if (key == 'descLeadNeed' || key == 'notes') return 220;
-    if (key == 'propertyTypeId' || key == 'listingTypeId' || key == 'platformId' || key == 'channelId' || key == 'statusId' || key == 'assignedTo' || key == 'cityId') return 180;
-    return 140; 
-  }
+  // --- شريط أدوات الإكسيل (Excel Action Bar) ---
 
-  Widget _buildHeaderCell(BuildContext context, String key) {
-    final bool isDropdown = ['cityId', 'propertyTypeId', 'listingTypeId', 'platformId', 'channelId', 'statusId', 'assignedTo'].contains(key);
-    final pinnedValues = (context.read<BulkAddLeadsCubit>().state as BulkAddLeadsLoaded).pinnedValues;
-    final isPinned = pinnedValues.containsKey(key);
-
+  Widget _buildExcelToolbar(BuildContext context) {
     return Container(
-      width: _getColumnWidth(key),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        border: Border(left: BorderSide(color: Colors.grey.shade400)),
-      ),
-      alignment: Alignment.center,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Expanded(child: Text(_columnLabels[key] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 14), textAlign: TextAlign.center)),
-          if (isDropdown)
-            InkWell(
-              onTap: () => _showPinDialog(context, key),
-              child: Padding(
-                padding: const EdgeInsets.all(4.0),
-                child: Icon(Icons.push_pin, size: 16, color: isPinned ? Colors.blue : Colors.grey),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  void _showPinDialog(BuildContext context, String key) {
-    final cubit = context.read<BulkAddLeadsCubit>();
-    
-    String title = _columnLabels[key] ?? '';
-    dynamic selectedValue = (cubit.state as BulkAddLeadsLoaded).pinnedValues[key];
-    
-    List<DropdownMenuEntry<dynamic>> entries = [];
-    if (key == 'cityId') {
-      entries = _cityEntries;
-    } else if (key == 'assignedTo') {
-      entries = _employeeEntries;
-    } else {
-      String tableName = '';
-      if (key == 'propertyTypeId') tableName = 'property_type';
-      else if (key == 'listingTypeId') tableName = 'listing_type';
-      else if (key == 'platformId') tableName = 'platform';
-      else if (key == 'channelId') tableName = 'communication_channel';
-      else if (key == 'statusId') tableName = 'lead_status';
-      entries = _optionEntries[tableName] ?? [];
-    }
-
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        dynamic tempValue = selectedValue;
-        return AlertDialog(
-          title: Text('تثبيت قيمة لـ ($title)'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('القيمة المحددة سيتم تطبيقها على جميع الصفوف فوراً وللصفوف الجديدة.'),
-              const SizedBox(height: 16),
-              DropdownMenu<dynamic>(
-                initialSelection: tempValue,
-                enableFilter: true,
-                requestFocusOnTap: true,
-                width: 250,
-                menuHeight: 200,
-                dropdownMenuEntries: entries,
-                onSelected: (v) => tempValue = v,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                cubit.pinColumnValue(key, null);
-                Navigator.pop(ctx);
-              },
-              child: const Text('إلغاء التثبيت', style: TextStyle(color: Colors.red)),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('إغلاق'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                cubit.pinColumnValue(key, tempValue);
-                Navigator.pop(ctx);
-              },
-              child: const Text('تطبيق وتثبيت'),
-            ),
-          ],
-        );
-      }
-    );
-  }
-
-
-
-  Widget _buildGrid(BuildContext context, List<EditableLeadRow> rows, List<String> columnOrder) {
-    final double totalWidth = columnOrder.fold(0.0, (sum, key) => sum + _getColumnWidth(key)) + 50.0; // +50 for index column
-
-    return Scrollbar(
-      controller: _verticalScrollController, // Put vertical scrollbar OUTSIDE!
-      thumbVisibility: true,
-      thickness: 10,
-      radius: const Radius.circular(8),
-      child: Scrollbar(
-        controller: _horizontalScrollController,
-        thumbVisibility: true,
-        thickness: 10,
-        radius: const Radius.circular(8),
-        child: SingleChildScrollView(
-          controller: _horizontalScrollController,
-          scrollDirection: Axis.horizontal,
-          child: SizedBox(
-            width: totalWidth + 2,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: Colors.grey.shade400, width: 1),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    color: Colors.grey[300],
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 50,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(border: Border(left: BorderSide(color: Colors.grey.shade400))),
-                          child: const Text('#', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                        ),
-                        ...columnOrder.map((key) => _buildHeaderCell(context, key)).toList(),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: ListView.builder(
-                      controller: _verticalScrollController,
-                      itemCount: rows.length,
-                      itemExtent: 64.0,
-                      itemBuilder: (ctx, i) => _buildCustomDataRow(ctx, rows[i], i, columnOrder),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  DateTime? _parseCustomDate(String text) {
-    text = text.trim();
-    if (text.isEmpty) return null;
-    var d = DateTime.tryParse(text);
-    if (d != null) return d;
-    final parts = text.split(RegExp(r'[-/]'));
-    if (parts.length == 3) {
-      int? p1 = int.tryParse(parts[0]);
-      int? p2 = int.tryParse(parts[1]);
-      int? p3 = int.tryParse(parts[2]);
-      if (p1 != null && p2 != null && p3 != null) {
-        if (p3 > 1000) {
-          if (p2 > 12 && p1 <= 12) return DateTime(p3, p1, p2);
-          return DateTime(p3, p2, p1);
-        } else if (p1 > 1000) {
-          return DateTime(p1, p2, p3);
-        }
-      }
-    }
-    return null;
-  }
-
-  Widget _buildCustomDataRow(BuildContext context, EditableLeadRow row, int index, List<String> columnOrder) {
-    final cubit = context.read<BulkAddLeadsCubit>();
-    final bool hasError = !row.isValid && !row.isEmpty;
-
-    Widget buildTextField(String? initial, Function(String) onChanged, {required String cellKey, double width = 140, TextInputType type = TextInputType.text}) {
-      return _ExcelTextField(
-        key: ValueKey('${row.id}_$cellKey'),
-        initialValue: initial ?? '',
-        type: type,
-        onChanged: onChanged,
-        width: width,
-      );
-    }
-
-    Widget buildDateField(DateTime? initial, Function(DateTime?) onChanged, {required String cellKey}) {
-      return _ExcelTextField(
-        key: ValueKey('${row.id}_$cellKey'),
-        initialValue: initial != null ? initial.toIso8601String().split('T')[0] : '',
-        type: TextInputType.datetime,
-        width: 140,
-        hintText: 'مثال: 22/7/2026',
-        onChanged: (v) {
-          if (v.isEmpty) onChanged(null);
-          else {
-            final d = _parseCustomDate(v);
-            if (d != null) onChanged(d);
-          }
-        },
-      );
-    }
-
-    final cellsMap = {
-      'name': buildTextField(row.name, (v) => cubit.updateRow(row.copyWith(name: v)), cellKey: 'name'),
-      'phone': buildTextField(row.phone, (v) => cubit.updateRow(row.copyWith(phone: v)), type: TextInputType.phone, cellKey: 'phone'),
-      'cityId': _DropdownCell<int>(label: _columnLabels['cityId']!, value: row.cityId, unmappedValue: row.unmappedCity, entries: _cityEntries, onChanged: (v) => cubit.updateRow(row.copyWith(cityId: v, unmappedCity: null))),
-      'propertyTypeId': _DropdownCell<String>(label: _columnLabels['propertyTypeId']!, value: row.propertyTypeId, unmappedValue: row.unmappedPropertyType, entries: _optionEntries['property_type'] ?? [], onChanged: (v) => cubit.updateRow(row.copyWith(propertyTypeId: v, unmappedPropertyType: null))),
-      'listingTypeId': _DropdownCell<String>(label: _columnLabels['listingTypeId']!, value: row.listingTypeId, unmappedValue: row.unmappedListingType, entries: _optionEntries['listing_type'] ?? [], onChanged: (v) => cubit.updateRow(row.copyWith(listingTypeId: v, unmappedListingType: null))),
-      'platformId': _DropdownCell<String>(label: _columnLabels['platformId']!, value: row.platformId, unmappedValue: row.unmappedPlatform, entries: _optionEntries['platform'] ?? [], onChanged: (v) => cubit.updateRow(row.copyWith(platformId: v, unmappedPlatform: null))),
-      'channelId': _DropdownCell<String>(label: _columnLabels['channelId']!, value: row.channelId, unmappedValue: row.unmappedChannel, entries: _optionEntries['communication_channel'] ?? [], onChanged: (v) => cubit.updateRow(row.copyWith(channelId: v, unmappedChannel: null))),
-      'statusId': _DropdownCell<String>(label: _columnLabels['statusId']!, value: row.statusId, unmappedValue: row.unmappedStatus, entries: _optionEntries['lead_status'] ?? [], onChanged: (v) => cubit.updateRow(row.copyWith(statusId: v, unmappedStatus: null))),
-      'assignedTo': _DropdownCell<String>(label: _columnLabels['assignedTo']!, value: row.assignedTo, unmappedValue: row.unmappedAssignedTo, entries: _employeeEntries, onChanged: (v) => cubit.updateRow(row.copyWith(assignedTo: v, unmappedAssignedTo: null))),
-      'propertyCode': buildTextField(row.propertyCode, (v) => cubit.updateRow(row.copyWith(propertyCode: v)), cellKey: 'propertyCode'),
-      'createdAt': buildDateField(row.createdAt, (v) => cubit.updateRow(row.copyWith(createdAt: v)), cellKey: 'createdAt'),
-      'descLeadNeed': buildTextField(row.descLeadNeed, (v) => cubit.updateRow(row.copyWith(descLeadNeed: v)), width: 220, type: TextInputType.multiline, cellKey: 'descLeadNeed'),
-      'budgetFrom': buildTextField(row.budgetFrom, (v) => cubit.updateRow(row.copyWith(budgetFrom: v)), type: TextInputType.number, cellKey: 'budgetFrom'),
-      'budgetTo': buildTextField(row.budgetTo, (v) => cubit.updateRow(row.copyWith(budgetTo: v)), type: TextInputType.number, cellKey: 'budgetTo'),
-      'notes': buildTextField(row.notes, (v) => cubit.updateRow(row.copyWith(notes: v)), width: 220, type: TextInputType.multiline, cellKey: 'notes'),
-    };
-
-    return Container(
-      height: 64,
-      decoration: BoxDecoration(
-        color: hasError ? Colors.red.withValues(alpha: 0.05) : null,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade400)),
+        color: Colors.grey.shade100,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          ElevatedButton.icon(
+            icon: const Icon(Icons.format_color_fill, size: 18),
+            label: const Text('تعبئة الخلايا المحددة (Fill Selected)'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.indigo,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            ),
+            onPressed: () => _bulkFillSelectedCells(context),
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('إضافة 10 صفوف'),
+            onPressed: () {
+              if (_stateManager != null) {
+                final currentCount = _stateManager!.rows.length;
+                final newRows = List.generate(10, (i) => _createEmptyTrinaRow(currentCount + i));
+                _stateManager!.appendRows(newRows);
+              }
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+            label: const Text('حذف الصفوف المحددة', style: TextStyle(color: Colors.red)),
+            onPressed: () => _deleteCheckedOrSelectedRows(context),
+          ),
+          const Spacer(),
           Container(
-            width: 50,
-            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.grey[100],
-              border: Border(left: BorderSide(color: Colors.grey.shade400)),
+              color: Colors.white,
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(6),
             ),
-            child: Text('${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            child: const Row(
+              children: [
+                Icon(Icons.info_outline, size: 16, color: Colors.grey),
+                SizedBox(width: 6),
+                Text(
+                  'يدعم السحب لتحديد نطاق خلايا • النسخ (Ctrl+C) واللصق (Ctrl+V) لعدة خلايا دفعة واحدة',
+                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                ),
+              ],
+            ),
           ),
-          ...columnOrder.map((key) {
-            return Container(
-              width: _getColumnWidth(key),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                border: Border(left: BorderSide(color: Colors.grey.shade400)),
-              ),
-              child: cellsMap[key]!,
-            );
-          }).toList(),
         ],
       ),
     );
   }
-}
 
-class _ExcelTextField extends StatefulWidget {
-  final String initialValue;
-  final TextInputType type;
-  final Function(String) onChanged;
-  final double width;
-  final String? hintText;
+  // --- شريط التنبيه للمطابقة السريعة للمناطق الفريدة ---
 
-  const _ExcelTextField({
-    super.key,
-    required this.initialValue,
-    required this.type,
-    required this.onChanged,
-    required this.width,
-    this.hintText,
-  });
-
-  @override
-  State<_ExcelTextField> createState() => _ExcelTextFieldState();
-}
-
-class _ExcelTextFieldState extends State<_ExcelTextField> {
-  final ScrollController _scrollController = ScrollController();
-  final FocusNode _focusNode = FocusNode();
-  late TextEditingController _textController;
-
-  @override
-  void initState() {
-    super.initState();
-    _textController = TextEditingController(text: widget.initialValue);
-    _focusNode.addListener(() {
-      if (!_focusNode.hasFocus) {
-        if (_scrollController.hasClients) {
-          _scrollController.jumpTo(0);
-        }
-        if (_textController.text != widget.initialValue) {
-          widget.onChanged(_textController.text);
-        }
-      }
-    });
-  }
-
-  @override
-  void didUpdateWidget(_ExcelTextField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialValue != widget.initialValue && widget.initialValue != _textController.text) {
-      _textController.text = widget.initialValue;
-    }
-  }
-
-  @override
-  void dispose() {
-    _textController.dispose();
-    _scrollController.dispose();
-    _focusNode.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: widget.width,
-      child: TextFormField(
-        controller: _textController,
-        keyboardType: widget.type,
-        scrollController: _scrollController,
-        onChanged: (v) => widget.onChanged(v),
-        style: const TextStyle(fontSize: 14),
-        maxLines: widget.type == TextInputType.multiline ? null : 1,
-        expands: widget.type == TextInputType.multiline,
-        textAlignVertical: TextAlignVertical.top,
-        inputFormatters: widget.type == TextInputType.phone || widget.type == TextInputType.number
-            ? [FilteringTextInputFormatter.allow(RegExp(r'[0-9]'))]
-            : null,
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 15),
-          hintText: widget.hintText,
-          hintStyle: widget.hintText != null ? const TextStyle(fontSize: 12) : null,
-        ),
-      ),
-    );
-  }
-}
-
-class _DropdownCell<T> extends StatefulWidget {
-  final String label;
-  final T? value;
-  final String? unmappedValue;
-  final List<DropdownMenuEntry<T>> entries;
-  final Function(T?) onChanged;
-
-  const _DropdownCell({
-    required this.label,
-    required this.value,
-    this.unmappedValue,
-    required this.entries,
-    required this.onChanged,
-  });
-
-  @override
-  State<_DropdownCell<T>> createState() => _DropdownCellState<T>();
-}
-
-class _DropdownCellState<T> extends State<_DropdownCell<T>> {
-  bool _isEditing = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final bool isError = widget.value == null && widget.unmappedValue != null;
-    
-    if (!_isEditing) {
-      String displayLabel = '';
-      if (widget.value != null) {
-        final entry = widget.entries.where((e) => e.value == widget.value).firstOrNull;
-        displayLabel = entry?.label ?? '';
-      } else if (isError) {
-        displayLabel = 'غير معروف (${widget.unmappedValue})';
-      }
-
-      return InkWell(
-        onTap: () {
-          setState(() {
-            _isEditing = true;
-          });
-        },
-        child: Container(
-          width: 180,
-          height: 64,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          color: isError ? Colors.red.withValues(alpha: 0.1) : null,
-          alignment: Alignment.centerRight,
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  displayLabel,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: (widget.value == null && !isError) ? Colors.grey : Colors.black87,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const Icon(Icons.arrow_drop_down, color: Colors.grey),
-            ],
-          ),
-        ),
-      );
-    }
+  Widget _buildDistinctMappingBanner(BuildContext context, Map<String, int> unmapped) {
+    final int totalLeads = unmapped.values.fold(0, (sum, count) => sum + count);
 
     return Container(
-      width: 180,
-      height: 64,
-      color: isError ? Colors.red.withValues(alpha: 0.1) : Colors.white,
-      child: DropdownMenu<T>(
-        initialSelection: widget.value,
-        enableFilter: true,
-        requestFocusOnTap: true,
-        width: 180,
-        menuHeight: 200,
-        textStyle: const TextStyle(fontSize: 14, color: Colors.black87),
-        inputDecorationTheme: const InputDecorationTheme(
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          isDense: true,
-          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 15),
-        ),
-        dropdownMenuEntries: widget.entries,
-        onSelected: (val) {
-          widget.onChanged(val);
-          setState(() {
-            _isEditing = false;
-          });
-        },
+      color: Colors.amber.shade50,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, color: Colors.amber.shade800),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'تنبيه: يوجد ${unmapped.length} منطقة أو كمبوند فريد غير معروف في النظام ($totalLeads عميل). يمكنك ربطها بالمدن دفعة واحدة بضغطة زر:',
+              style: TextStyle(color: Colors.amber.shade900, fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.hub_outlined, size: 16),
+            label: const Text('مطابقة سريعة للمدن (Distinct Mapping)'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber.shade800,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            ),
+            onPressed: () {
+              DistinctMappingDialog.show(
+                context,
+                unmappedLocations: unmapped,
+                onApply: (mapping) {
+                  // تحديث الكيوبت
+                  context.read<BulkAddLeadsCubit>().applyDistinctMapping(mapping);
+
+                  // تحديث الخلايا المعروضة في TrinaGrid فوراً
+                  if (_stateManager != null) {
+                    for (final r in _stateManager!.rows) {
+                      final areaVal = r.cells['areaName']?.value?.toString().trim();
+                      final cityVal = r.cells['city']?.value?.toString().trim();
+                      final raw = (areaVal != null && areaVal.isNotEmpty) ? areaVal : cityVal;
+
+                      if (raw != null && mapping.containsKey(raw)) {
+                        final cityId = mapping[raw];
+                        final cityName = _cityNameById[cityId];
+                        if (cityName != null) {
+                          _stateManager!.changeCellValue(r.cells['city']!, cityName, notify: false);
+                        }
+                      }
+                    }
+                    _stateManager!.notifyListeners();
+                  }
+                },
+              );
+            },
+          ),
+        ],
       ),
     );
   }

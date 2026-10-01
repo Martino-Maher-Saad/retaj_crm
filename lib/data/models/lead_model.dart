@@ -90,8 +90,12 @@ class LeadModel {
 
   // حقول أخرى
   final String? descLeadNeed;
+  final String? areaName;
+  final String? lastCommentId;
   final String? lastComment;
   final DateTime? lastCommentDate;
+  final DateTime? lastCallAt;
+  final DateTime? lastWhatsappAt;
   final String? propertyCode;
   final List<LeadNoteModel> notes;
   final num? budgetFrom;
@@ -127,8 +131,12 @@ class LeadModel {
     this.communicationChannel,
     this.exclusionReasonName,
     this.descLeadNeed,
+    this.areaName,
+    this.lastCommentId,
     this.lastComment,
     this.lastCommentDate,
+    this.lastCallAt,
+    this.lastWhatsappAt,
     this.propertyCode,
     this.notes = const [],
     this.budgetFrom,
@@ -162,8 +170,12 @@ class LeadModel {
     String? communicationChannel,
     String? exclusionReasonName,
     String? descLeadNeed,
+    String? areaName,
+    String? lastCommentId,
     String? lastComment,
     DateTime? lastCommentDate,
+    DateTime? lastCallAt,
+    DateTime? lastWhatsappAt,
     String? propertyCode,
     List<LeadNoteModel>? notes,
     num? budgetFrom,
@@ -196,8 +208,12 @@ class LeadModel {
       communicationChannel: communicationChannel ?? this.communicationChannel,
       exclusionReasonName: exclusionReasonName ?? this.exclusionReasonName,
       descLeadNeed: descLeadNeed ?? this.descLeadNeed,
+      areaName: areaName ?? this.areaName,
+      lastCommentId: lastCommentId ?? this.lastCommentId,
       lastComment: lastComment ?? this.lastComment,
       lastCommentDate: lastCommentDate ?? this.lastCommentDate,
+      lastCallAt: lastCallAt ?? this.lastCallAt,
+      lastWhatsappAt: lastWhatsappAt ?? this.lastWhatsappAt,
       propertyCode: propertyCode ?? this.propertyCode,
       notes: notes ?? this.notes,
       budgetFrom: budgetFrom ?? this.budgetFrom,
@@ -288,9 +304,17 @@ class LeadModel {
       exclusionReasonId: json['exclusion_reason_id']?.toString(),
       
       descLeadNeed: json['desc_lead_need'],
+      areaName: json['area_name']?.toString(),
+      lastCommentId: json['last_comment_id']?.toString(),
       lastComment: json['last_comment'],
       lastCommentDate: json['last_comment_date'] != null
           ? DateTime.parse(json['last_comment_date']).toLocal()
+          : null,
+      lastCallAt: json['last_call_at'] != null
+          ? DateTime.parse(json['last_call_at']).toLocal()
+          : null,
+      lastWhatsappAt: json['last_whatsapp_at'] != null
+          ? DateTime.parse(json['last_whatsapp_at']).toLocal()
           : null,
       propertyCode: json['property_code'],
       budgetFrom: json['budget_from'] != null

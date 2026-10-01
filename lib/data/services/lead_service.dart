@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/lead_model.dart';
 import '../models/profile_model.dart';
+import 'dropdown_service.dart';
 import '../../core/di/injection_container.dart' as di;
 import '../../core/utils/static_data_manager.dart';
 import 'realtime_service.dart';
@@ -281,28 +282,88 @@ class LeadService {
     List<LeadModel> leads,
     Function(int processed, int total) onProgress,
   ) async {
-    const int batchSize = 5;
+    return batchInsertUnifiedLeads(leads, onProgress);
+  }
+
+  /// إضافة مجموعة عملاء بدفعة سريعة ومباشرة لجداول leads و lead_phones
+  Future<void> batchInsertUnifiedLeads(
+    List<LeadModel> leads,
+    Function(int processed, int total) onProgress,
+  ) async {
+    const int batchSize = 50;
     int processed = 0;
 
     for (var i = 0; i < leads.length; i += batchSize) {
       final end = (i + batchSize < leads.length) ? i + batchSize : leads.length;
       final batch = leads.sublist(i, end);
 
-      await Future.wait(batch.map((lead) {
-        return addLead(
-          lead,
-          lead.phones,
-          notes: lead.notes,
-        );
-      }));
+      final leadsPayload = batch.map((lead) {
+        final lastNote = lead.notes.isNotEmpty ? lead.notes.last.noteText.trim() : null;
+        return {
+          'client_name': lead.clientName,
+          'created_by': lead.createdBy,
+          'assigned_to': lead.assignedTo,
+          'created_at': (lead.createdAt ?? DateTime.now()).toUtc().toIso8601String(),
+          'city_id': lead.cityId,
+          'property_type_id': lead.propertyTypeId,
+          'listing_type_id': lead.listingTypeId,
+          'platform_id': lead.platformId,
+          'channel_id': lead.channelId,
+          'status_id': lead.statusId,
+          'property_code': lead.propertyCode,
+          'desc_lead_need': lead.descLeadNeed,
+          'area_name': lead.areaName,
+          'budget_from': lead.budgetFrom,
+          'budget_to': lead.budgetTo,
+          'last_comment': lastNote,
+          'last_comment_date': lastNote != null ? DateTime.now().toUtc().toIso8601String() : null,
+        };
+      }).toList();
+
+      final insertedRows = await _supabase
+          .from('leads')
+          .insert(leadsPayload)
+          .select('id');
+
+      final insertedIds = (insertedRows as List).map((r) => r['id'].toString()).toList();
+
+      final phonesPayload = <Map<String, dynamic>>[];
+      final notesPayload = <Map<String, dynamic>>[];
+
+      for (var idx = 0; idx < insertedIds.length; idx++) {
+        final leadId = insertedIds[idx];
+        final lead = batch[idx];
+
+        for (final p in lead.phones) {
+          if (p.phoneNumber.trim().isNotEmpty) {
+            phonesPayload.add({
+              'lead_id': leadId,
+              'phone_number': p.phoneNumber.trim(),
+              'is_primary': p.isPrimary,
+            });
+          }
+        }
+
+        for (final n in lead.notes) {
+          if (n.noteText.trim().isNotEmpty) {
+            notesPayload.add({
+              'lead_id': leadId,
+              'note_text': n.noteText.trim(),
+              'user_id': lead.createdBy,
+            });
+          }
+        }
+      }
+
+      if (phonesPayload.isNotEmpty) {
+        await _supabase.from('lead_phones').insert(phonesPayload);
+      }
+      if (notesPayload.isNotEmpty) {
+        await _supabase.from('lead_notes').insert(notesPayload);
+      }
 
       processed += batch.length;
       onProgress(processed, leads.length);
-
-      // تأخير بسيط لتجنب الـ Rate Limiting في النسخة المجانية
-      if (end < leads.length) {
-        await Future.delayed(const Duration(milliseconds: 300));
-      }
     }
   }
 
@@ -337,7 +398,10 @@ class LeadService {
     });
 
     await _supabase.from('leads').update({
-      'transferred_from': lead.transferredFrom
+      'transferred_from': lead.transferredFrom,
+      'budget_from': lead.budgetFrom,
+      'budget_to': lead.budgetTo,
+      'desc_lead_need': lead.descLeadNeed,
     }).eq('id', id);
 
     final updatedLead = await getLeadById(id);
@@ -397,22 +461,46 @@ class LeadService {
     }
   }
 
-  Future<LeadModel> addNote(String leadId, String noteText) async {
+  Future<LeadModel> addNote(
+    String leadId,
+    String noteText, {
+    String? quickCommentId,
+    String? newStatusId,
+  }) async {
     final text = noteText.trim();
     await _supabase.from('lead_notes').insert({
       'lead_id': leadId,
       'user_id': _supabase.auth.currentUser?.id,
       'note_text': text,
     });
-    
-    await _supabase.from('leads').update({
+
+    final updateData = <String, dynamic>{
       'last_comment': text,
       'last_comment_date': DateTime.now().toUtc().toIso8601String(),
-    }).eq('id', leadId);
-    
-    final updatedLead = await getLeadById(leadId);
+    };
 
-    
+    if (newStatusId != null && newStatusId.isNotEmpty) {
+      updateData['status_id'] = newStatusId;
+      updateData['transferred_from'] = null;
+    }
+
+    if (quickCommentId != null &&
+        quickCommentId.isNotEmpty &&
+        !quickCommentId.startsWith('fallback_')) {
+      updateData['last_comment_id'] = quickCommentId;
+    } else {
+      updateData['last_comment_id'] = null;
+    }
+
+    try {
+      await _supabase.from('leads').update(updateData).eq('id', leadId);
+    } catch (_) {
+      // إذا فشل بسبب foreign key لـ last_comment_id أو غيره، نحذفه ونحدث باقي البيانات
+      updateData.remove('last_comment_id');
+      await _supabase.from('leads').update(updateData).eq('id', leadId);
+    }
+
+    final updatedLead = await getLeadById(leadId);
     return updatedLead;
   }
 
@@ -426,7 +514,65 @@ class LeadService {
   }
 
   Future<void> deleteLead(String id) async {
+    try {
+      await _supabase.from('lead_phones').delete().eq('lead_id', id);
+    } catch (_) {}
+    try {
+      await _supabase.from('lead_notes').delete().eq('lead_id', id);
+    } catch (_) {}
     await _supabase.from('leads').delete().eq('id', id);
+  }
+
+  Future<void> bulkDeleteLeads(List<String> ids) async {
+    if (ids.isEmpty) return;
+    try {
+      await _supabase.from('lead_phones').delete().filter('lead_id', 'in', ids);
+    } catch (_) {}
+    try {
+      await _supabase.from('lead_notes').delete().filter('lead_id', 'in', ids);
+    } catch (_) {}
+    await _supabase.from('leads').delete().filter('id', 'in', ids);
+  }
+
+  /// جلب إحصائيات الشهر الحالي للتواصل والفيدباك (عملاء الشهر، تم التعليق، بدون تعليق، المتبقي)
+  Future<Map<String, int>> getMonthlyFeedbackStats({
+    required String role,
+    required String userId,
+    String? employeeId,
+  }) async {
+    final now = DateTime.now();
+    final startDate = DateTime(now.year, now.month, 1, 0, 0, 0).toIso8601String();
+    final endDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59).toIso8601String();
+
+    var query = _supabase
+        .from('leads')
+        .select('id, last_comment, last_comment_id')
+        .gte('created_at', startDate)
+        .lte('created_at', endDate);
+
+    if (!_isManagerOrAdmin(role)) {
+      query = query.eq('assigned_to', userId);
+    } else if (employeeId != null && employeeId.isNotEmpty) {
+      query = query.eq('assigned_to', employeeId);
+    }
+
+    final response = await query;
+    final list = List<Map<String, dynamic>>.from(response);
+
+    final total = list.length;
+    final withFeedback = list.where((row) {
+      final comment = (row['last_comment'] as String?)?.trim() ?? '';
+      final commentId = row['last_comment_id'];
+      return comment.isNotEmpty || commentId != null;
+    }).length;
+    final withoutFeedback = total - withFeedback;
+
+    return {
+      'total': total,
+      'with_feedback': withFeedback,
+      'without_feedback': withoutFeedback,
+      'remaining': withoutFeedback,
+    };
   }
 
   Future<List<LeadModel>> searchLeadsByAi({
@@ -503,5 +649,62 @@ class LeadService {
   Future<List<ProfileModel>> fetchAllEmployees() async {
     final response = await _supabase.from('profiles').select();
     return (response as List).map((e) => ProfileModel.fromJson(e)).toList();
+  }
+
+  /// جلب قائمة التعليقات السريعة المتكررة (Quick Comments)
+  Future<List<LookupOptionModel>> fetchQuickComments() async {
+    try {
+      final response = await _supabase
+          .from('lead_quick_comments')
+          .select('id, name_ar, comment_text, name_en, list_order, is_active')
+          .eq('is_active', true)
+          .order('list_order', ascending: true);
+      final list = (response as List)
+          .map((e) => LookupOptionModel.fromJson(e))
+          .where((m) => m.nameAr.isNotEmpty)
+          .toList();
+      if (list.isNotEmpty) {
+        final hasOther = list.any((c) =>
+            c.id == 'other' ||
+            c.nameAr.trim().contains('أخرى') ||
+            c.nameAr.trim().contains('اخرى') ||
+            c.nameAr.trim().contains('أخري') ||
+            c.nameAr.trim().contains('اخري') ||
+            c.nameEn.toLowerCase().contains('other'));
+        if (!hasOther) {
+          list.add(const LookupOptionModel(
+            id: 'other',
+            nameAr: 'أخرى (كتابة تعليق حر)',
+            nameEn: 'other',
+            listOrder: 999,
+          ));
+        }
+        return list;
+      }
+    } catch (_) {}
+
+    // القائمة الافتراضية الجاهزة إذا لم يكن الجدول متاحاً
+    const defaults = [
+      'لم يرد على الهاتف',
+      'الهاتف مغلق / غير متاح',
+      'تم التواصل على الواتس',
+      'تم إرسال العروض والتفاصيل على الواتساب',
+      'مهتم ومطلوب المتابعة لاحقاً',
+      'تم تحديد موعد مقابلة / معاينة',
+      'السعر خارج الميزانية',
+      'يبحث في منطقة أو كمبوند آخر',
+      'غير مهتم حالياً',
+      'طلب الاتصال به في وقت لاحق',
+      'أخرى (كتابة تعليق يدوي)',
+    ];
+
+    return List.generate(
+      defaults.length,
+      (i) => LookupOptionModel(
+        id: 'fallback_$i',
+        nameAr: defaults[i],
+        listOrder: i + 1,
+      ),
+    );
   }
 }

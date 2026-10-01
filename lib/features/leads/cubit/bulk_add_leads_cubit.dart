@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:excel/excel.dart';
@@ -7,6 +8,7 @@ import 'bulk_add_leads_state.dart';
 import '../../../data/models/lead_model.dart';
 import '../../../data/services/lead_service.dart';
 import '../../../core/utils/static_data_manager.dart';
+import '../../../core/utils/csv_parser.dart';
 import '../../../core/di/injection_container.dart';
 
 class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
@@ -52,14 +54,99 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
     );
   }
 
-  void _emitLoaded(List<EditableLeadRow> rows, [Map<String, dynamic>? pinned]) {
+  void _emitLoaded(
+    List<EditableLeadRow> rows, {
+    Map<String, dynamic>? pinned,
+    Set<String>? selectedRowIds,
+    Map<String, int>? unmappedLocations,
+  }) {
     if (state is BulkAddLeadsLoaded) {
       final st = state as BulkAddLeadsLoaded;
-      emit(st.copyWith(rows: rows, pinnedValues: pinned ?? st.pinnedValues));
+      emit(st.copyWith(
+        rows: rows,
+        pinnedValues: pinned ?? st.pinnedValues,
+        selectedRowIds: selectedRowIds ?? st.selectedRowIds,
+        unmappedLocations: unmappedLocations ?? st.unmappedLocations,
+      ));
     } else {
-      emit(BulkAddLeadsLoaded(rows, pinnedValues: pinned ?? const {}));
+      emit(BulkAddLeadsLoaded(
+        rows,
+        pinnedValues: pinned ?? const {},
+        selectedRowIds: selectedRowIds ?? const {},
+        unmappedLocations: unmappedLocations ?? const {},
+      ));
     }
   }
+
+  // --- إدارة تحديد الصفوف والتعديل الجماعي ---
+
+  void toggleSelectRow(String id) {
+    if (state is! BulkAddLeadsLoaded) return;
+    final st = state as BulkAddLeadsLoaded;
+    final currentSelected = Set<String>.from(st.selectedRowIds);
+    if (currentSelected.contains(id)) {
+      currentSelected.remove(id);
+    } else {
+      currentSelected.add(id);
+    }
+    emit(st.copyWith(selectedRowIds: currentSelected));
+  }
+
+  void selectAllRows(bool select) {
+    if (state is! BulkAddLeadsLoaded) return;
+    final st = state as BulkAddLeadsLoaded;
+    final newSelected = select ? st.rows.map((r) => r.id).toSet() : <String>{};
+    emit(st.copyWith(selectedRowIds: newSelected));
+  }
+
+  void clearSelection() {
+    if (state is! BulkAddLeadsLoaded) return;
+    final st = state as BulkAddLeadsLoaded;
+    emit(st.copyWith(selectedRowIds: const {}));
+  }
+
+  void deleteSelectedRows() {
+    if (state is! BulkAddLeadsLoaded) return;
+    final st = state as BulkAddLeadsLoaded;
+    if (st.selectedRowIds.isEmpty) return;
+
+    final remaining = st.rows.where((r) => !st.selectedRowIds.contains(r.id)).toList();
+    if (remaining.isEmpty) {
+      remaining.add(_createEmptyRow(st.pinnedValues));
+    }
+    _emitLoaded(remaining, selectedRowIds: const {});
+  }
+
+  void bulkUpdateSelected({
+    int? cityId,
+    String? assignedTo,
+    String? propertyTypeId,
+    String? listingTypeId,
+    String? platformId,
+    String? statusId,
+  }) {
+    if (state is! BulkAddLeadsLoaded) return;
+    final st = state as BulkAddLeadsLoaded;
+    if (st.selectedRowIds.isEmpty) return;
+
+    final updated = st.rows.map((row) {
+      if (st.selectedRowIds.contains(row.id)) {
+        return row.copyWith(
+          cityId: cityId != null ? (cityId == -1 ? null : cityId) : row.cityId,
+          assignedTo: assignedTo != null ? (assignedTo.isEmpty ? null : assignedTo) : row.assignedTo,
+          propertyTypeId: propertyTypeId != null ? (propertyTypeId.isEmpty ? null : propertyTypeId) : row.propertyTypeId,
+          listingTypeId: listingTypeId != null ? (listingTypeId.isEmpty ? null : listingTypeId) : row.listingTypeId,
+          platformId: platformId != null ? (platformId.isEmpty ? null : platformId) : row.platformId,
+          statusId: statusId != null ? (statusId.isEmpty ? null : statusId) : row.statusId,
+        );
+      }
+      return row;
+    }).toList();
+
+    _emitLoaded(updated, selectedRowIds: const {});
+  }
+
+  // --- ترتيب الأعمدة والتثبيت ---
 
   void reorderColumns(int oldIndex, int newIndex) {
     if (state is BulkAddLeadsLoaded) {
@@ -68,15 +155,15 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
       if (oldIndex < newIndex) newIndex -= 1;
       final item = newOrder.removeAt(oldIndex);
       newOrder.insert(newIndex, item);
-      emit(BulkAddLeadsLoaded(currentState.rows, columnOrder: newOrder));
+      emit(currentState.copyWith(columnOrder: newOrder));
     }
   }
 
   void addEmptyRows() {
     if (state is BulkAddLeadsLoaded) {
       final currentState = state as BulkAddLeadsLoaded;
-      final newRows = List.generate(30, (_) => _createEmptyRow(currentState.pinnedValues));
-      _emitLoaded([...currentState.rows, ...newRows], currentState.pinnedValues);
+      final newRows = List.generate(20, (_) => _createEmptyRow(currentState.pinnedValues));
+      _emitLoaded([...currentState.rows, ...newRows], pinned: currentState.pinnedValues);
     }
   }
 
@@ -129,6 +216,475 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
     }
   }
 
+  // --- شاشة المطابقة للقيم الفريدة (Distinct Values Mapping) ---
+
+  void applyDistinctMapping(Map<String, int> mapping) {
+    if (state is! BulkAddLeadsLoaded) return;
+    final currentState = state as BulkAddLeadsLoaded;
+
+    final updatedRows = currentState.rows.map((row) {
+      if (row.cityId == null) {
+        final rawLocation = row.areaName ?? row.unmappedCity;
+        if (rawLocation != null && mapping.containsKey(rawLocation)) {
+          return row.copyWith(
+            cityId: mapping[rawLocation],
+            unmappedCity: null,
+          );
+        }
+      }
+      return row;
+    }).toList();
+
+    // إعادة حساب المناطق المتبقية غير المطابقة
+    final remainingUnmapped = _collectUnmappedLocations(updatedRows);
+    _emitLoaded(updatedRows, unmappedLocations: remainingUnmapped);
+  }
+
+  Map<String, int> _collectUnmappedLocations(List<EditableLeadRow> rows) {
+    final Map<String, int> counts = {};
+    for (var r in rows) {
+      if (r.cityId == null) {
+        final key = (r.areaName?.isNotEmpty == true) ? r.areaName! : r.unmappedCity;
+        if (key != null && key.trim().isNotEmpty) {
+          counts[key] = (counts[key] ?? 0) + 1;
+        }
+      }
+    }
+    return counts;
+  }
+
+  // --- رفع ومعالجة الملفات (Excel & CSV) ---
+
+  void uploadFile() {
+    final uploadInput = html.FileUploadInputElement();
+    uploadInput.accept = '.xlsx,.csv';
+    uploadInput.click();
+
+    uploadInput.onChange.listen((e) async {
+      final files = uploadInput.files;
+      if (files != null && files.isNotEmpty) {
+        final file = files[0];
+        final fileName = file.name.toLowerCase();
+        final reader = html.FileReader();
+
+        if (fileName.endsWith('.csv')) {
+          reader.readAsArrayBuffer(file);
+          reader.onLoadEnd.listen((e) async {
+            final bytes = reader.result as Uint8List;
+            _parseCsvBytes(bytes);
+          });
+        } else {
+          reader.readAsArrayBuffer(file);
+          reader.onLoadEnd.listen((e) async {
+            final bytes = reader.result as Uint8List;
+            _parseExcelBytes(bytes);
+          });
+        }
+      }
+    });
+  }
+
+  void _parseCsvBytes(Uint8List bytes) {
+    try {
+      emit(BulkAddLeadsLoading('جاري قراءة ومعالجة ملف CSV...'));
+      // معالجة الـ BOM والترميز العربي
+      String content;
+      try {
+        content = utf8.decode(bytes);
+      } catch (_) {
+        content = latin1.decode(bytes);
+      }
+
+      final parsedGrid = CsvParser.parse(content);
+      processImportedGrid(parsedGrid);
+    } catch (e) {
+      emit(BulkAddLeadsError('خطأ أثناء قراءة ملف CSV: $e'));
+      _emitLoaded([_createEmptyRow()]);
+    }
+  }
+
+  void _parseExcelBytes(Uint8List bytes) {
+    try {
+      emit(BulkAddLeadsLoading('جاري قراءة ومعالجة ملف Excel...'));
+      final excel = Excel.decodeBytes(bytes);
+      final sheet = excel.tables.values.first;
+      final rawRows = sheet.rows;
+
+      if (rawRows.length < 2) {
+        emit(BulkAddLeadsError('الملف فارغ أو لا يحتوي على صفوف بيانات'));
+        _emitLoaded([_createEmptyRow()]);
+        return;
+      }
+
+      final List<List<String>> grid = [];
+      for (final row in rawRows) {
+        grid.add(row.map((cell) => cell?.value?.toString().trim() ?? '').toList());
+      }
+
+      processImportedGrid(grid);
+    } catch (e) {
+      emit(BulkAddLeadsError('خطأ أثناء قراءة ملف الإكسيل: $e'));
+      _emitLoaded([_createEmptyRow()]);
+    }
+  }
+
+  void processImportedGrid(List<List<String>> grid) {
+    if (grid.length < 2) {
+      emit(BulkAddLeadsError('الملف فارغ أو لا يحتوي على بيانات كافية'));
+      _emitLoaded([_createEmptyRow()]);
+      return;
+    }
+
+    final headerRow = grid[0].map((h) => h.toLowerCase()).toList();
+    
+    // هل الملف هو الملف الموحد بـ 10 أعمدة الناتج عن سكريبت البايثون؟
+    final bool isUnifiedFile = headerRow.any((h) => h.contains('منصة') || h.contains('platform') || h.contains('المنطقة الأصلية') || h.contains('كود العقار')) 
+        || (headerRow.length >= 9 && headerRow.length <= 11);
+
+    List<EditableLeadRow> newRows = [];
+
+    for (int i = 1; i < grid.length; i++) {
+      final r = grid[i];
+      if (r.isEmpty || r.every((c) => c.isEmpty)) continue;
+
+      if (isUnifiedFile) {
+        // الأعمدة الـ 10 للملف الموحد:
+        // 0: التاريخ
+        // 1: اسم المنصة
+        // 2: اسم العميل
+        // 3: رقم العميل
+        // 4: اسم الموظف
+        // 5: كود العقار (UPPERCASE)
+        // 6: نوع العقار
+        // 7: نوع الاعلان
+        // 8: المنطقة الأصلية
+        // 9: المدينة
+        final dateStr = _cell(r, 0);
+        final platformName = _cell(r, 1);
+        final name = _cell(r, 2);
+        final rawPhone = _cell(r, 3);
+        final assignedToName = _cell(r, 4);
+        final pCode = _cell(r, 5)?.toUpperCase();
+        final propTypeName = _cell(r, 6);
+        final listTypeName = _cell(r, 7);
+        final rawArea = _cell(r, 8);
+        final cityName = _cell(r, 9);
+
+        final phone = _cleanPhoneNumber(rawPhone);
+        final parsedDate = _parseDate(dateStr);
+
+        // مطابقة الموظف تلقائياً: 1) من الـ Prefix لكود العقار. 2) بالاسم إن وجد.
+        String? userId;
+        final prefix = _extractPrefix(pCode);
+        if (prefix != null) {
+          userId = _findUserIdByPrefix(prefix);
+        }
+        if (userId == null && assignedToName != null && assignedToName.isNotEmpty) {
+          userId = _findUserId(assignedToName);
+        }
+
+        // مطابقة بقية الحقول
+        final platId = _findPlatformId(platformName);
+        final propId = _findPropertyTypeId(propTypeName);
+        final listId = _findListingTypeId(listTypeName);
+
+        // مطابقة المدينة: البحث في اسم المدينة، ثم البحث في اسم المنطقة الأصلية
+        int? cityId = _findCityId(cityName);
+        if (cityId == null && rawArea != null && rawArea.isNotEmpty) {
+          cityId = _findCityId(rawArea);
+        }
+
+        final assignedTo = (_role != 'manager' && _role != 'admin' && _role != 'ceo' && _role.isNotEmpty)
+            ? _userId
+            : userId;
+
+        newRows.add(EditableLeadRow(
+          id: '${_generateId()}_$i',
+          name: name,
+          phone: phone,
+          createdAt: parsedDate,
+          propertyCode: pCode,
+          areaName: rawArea,
+          platformId: platId,
+          unmappedPlatform: platId == null && platformName != null ? platformName : null,
+          propertyTypeId: propId,
+          unmappedPropertyType: propId == null && propTypeName != null ? propTypeName : null,
+          listingTypeId: listId,
+          unmappedListingType: listId == null && listTypeName != null ? listTypeName : null,
+          cityId: cityId,
+          unmappedCity: (cityId == null && (rawArea != null || cityName != null)) ? (rawArea ?? cityName) : null,
+          assignedTo: assignedTo,
+          unmappedAssignedTo: assignedTo == null ? (prefix != null ? 'Prefix: $prefix' : assignedToName) : null,
+          channelId: _findChannelId('مكالمة هاتفية') ?? _findChannelId('واتساب'),
+          statusId: _findId('lead_status', 'لم يتم التواصل معه') ??
+                    _findId('lead_status', 'لم يتم التواصل') ??
+                    _findId('lead_status', 'جديد') ??
+                    '460be748-7685-49ef-abcf-c4dd49511ab7',
+        ));
+      } else {
+        // القالب الكلاسيكي بـ 15 عموداً
+        final name = _cell(r, 0);
+        final phone = _cleanPhoneNumber(_cell(r, 1));
+        final cityName = _cell(r, 2);
+        final propTypeName = _cell(r, 3);
+        final listTypeName = _cell(r, 4);
+        final platformName = _cell(r, 5);
+        final channelName = _cell(r, 6);
+        final statusName = _cell(r, 7);
+        final assignedToName = _cell(r, 8);
+        final desc = _cell(r, 9);
+        final bFrom = _cell(r, 10);
+        final bTo = _cell(r, 11);
+        final notes = _cell(r, 12);
+        final pCode = _cell(r, 13)?.toUpperCase();
+        final dateStr = _cell(r, 14);
+
+        final cityId = _findCityId(cityName);
+        final propId = _findPropertyTypeId(propTypeName);
+        final listId = _findListingTypeId(listTypeName);
+        final platId = _findPlatformId(platformName);
+        final chanId = _findChannelId(channelName);
+        final statId = (statusName != null && statusName.isNotEmpty)
+            ? _findId('lead_status', statusName)
+            : (_findId('lead_status', 'لم يتم التواصل معه') ??
+               _findId('lead_status', 'لم يتم التواصل') ??
+               _findId('lead_status', 'جديد') ??
+               '460be748-7685-49ef-abcf-c4dd49511ab7');
+
+        String? userId;
+        final prefix = _extractPrefix(pCode);
+        if (prefix != null) {
+          userId = _findUserIdByPrefix(prefix);
+        }
+        if (userId == null) {
+          userId = _findUserId(assignedToName);
+        }
+
+        newRows.add(EditableLeadRow(
+          id: '${_generateId()}_$i',
+          name: name,
+          phone: phone,
+          budgetFrom: bFrom,
+          budgetTo: bTo,
+          notes: notes,
+          propertyCode: pCode,
+          descLeadNeed: desc,
+          createdAt: _parseDate(dateStr),
+          cityId: cityId,
+          unmappedCity: cityId == null && cityName != null ? cityName : null,
+          propertyTypeId: propId,
+          unmappedPropertyType: propId == null && propTypeName != null ? propTypeName : null,
+          listingTypeId: listId,
+          unmappedListingType: listId == null && listTypeName != null ? listTypeName : null,
+          platformId: platId,
+          unmappedPlatform: platId == null && platformName != null ? platformName : null,
+          channelId: chanId,
+          unmappedChannel: chanId == null && channelName != null ? channelName : null,
+          statusId: statId,
+          unmappedStatus: statId == null && statusName != null ? statusName : null,
+          assignedTo: (_role != 'manager' && _role != 'admin' && _role != 'ceo' && _role.isNotEmpty) ? _userId : userId,
+          unmappedAssignedTo: userId == null ? (prefix != null ? 'Prefix: $prefix' : assignedToName) : null,
+        ));
+      }
+    }
+
+    if (newRows.isEmpty) {
+      newRows.add(_createEmptyRow());
+    }
+
+    final unmappedLocations = _collectUnmappedLocations(newRows);
+    _emitLoaded(newRows, unmappedLocations: unmappedLocations);
+  }
+
+  // --- محركات المطابقة الذكية واستخراج الـ Prefix ---
+
+  String? _cell(List<String> row, int index) {
+    if (index >= row.length) return null;
+    final v = row[index].trim();
+    return v.isEmpty ? null : v;
+  }
+
+  String? _cleanPhoneNumber(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    var cleaned = raw.replaceAll(RegExp(r'[^0-9+]'), '');
+    return cleaned.isEmpty ? null : cleaned;
+  }
+
+  DateTime? _parseDate(String? text) {
+    if (text == null || text.trim().isEmpty) return null;
+    final clean = text.trim();
+    final d = DateTime.tryParse(clean);
+    if (d != null) return d;
+    final parts = clean.split(RegExp(r'[-/ ]'));
+    if (parts.length >= 3) {
+      int? p1 = int.tryParse(parts[0]);
+      int? p2 = int.tryParse(parts[1]);
+      int? p3 = int.tryParse(parts[2]);
+      if (p1 != null && p2 != null && p3 != null) {
+        if (p1 > 1000) return DateTime(p1, p2, p3);
+        if (p3 > 1000) return (p2 > 12 && p1 <= 12) ? DateTime(p3, p1, p2) : DateTime(p3, p2, p1);
+      }
+    }
+    return null;
+  }
+
+  String? _extractPrefix(String? propertyCode) {
+    if (propertyCode == null || propertyCode.trim().isEmpty) return null;
+    final code = propertyCode.trim().toUpperCase();
+    final match = RegExp(r'^([A-Z0-9]+)-').firstMatch(code);
+    if (match != null) {
+      return match.group(1);
+    }
+    return null;
+  }
+
+  String? _findUserIdByPrefix(String? prefix) {
+    if (prefix == null || prefix.isEmpty) return null;
+    final upperPrefix = prefix.toUpperCase();
+    for (var u in _dataManager.employees) {
+      if (u.propertyPrefix != null && u.propertyPrefix!.toUpperCase().trim() == upperPrefix) {
+        return u.id;
+      }
+    }
+    return null;
+  }
+
+  String? _findUserId(String? name) {
+    if (name == null || name.isEmpty) return null;
+    final cleanName = name.trim().toLowerCase();
+    for (var u in _dataManager.employees) {
+      final fullName = '${u.firstName ?? ''} ${u.lastName ?? ''}'.trim().toLowerCase();
+      final firstName = (u.firstName ?? '').trim().toLowerCase();
+      if (fullName == cleanName || firstName == cleanName || fullName.contains(cleanName) || cleanName.contains(fullName)) {
+        return u.id;
+      }
+    }
+    return null;
+  }
+
+  String? _findPlatformId(String? name) {
+    if (name == null || name.isEmpty) return null;
+    final clean = name.trim().toLowerCase();
+    for (var opt in _dataManager.getOptionModels('platform')) {
+      final optName = opt.nameAr.trim().toLowerCase();
+      if (optName == clean || optName.contains(clean) || clean.contains(optName)) {
+        return opt.id;
+      }
+    }
+    if (clean.contains('aqar') || clean.contains('عقار')) {
+      return _dataManager.getOptionModels('platform').where((o) => o.nameAr.toLowerCase().contains('aqar') || o.nameAr.contains('عقار')).firstOrNull?.id;
+    }
+    if (clean.contains('bayut') || clean.contains('بايوت')) {
+      return _dataManager.getOptionModels('platform').where((o) => o.nameAr.toLowerCase().contains('bayut') || o.nameAr.contains('بايوت')).firstOrNull?.id;
+    }
+    if (clean.contains('property') || clean.contains('فايندر')) {
+      return _dataManager.getOptionModels('platform').where((o) => o.nameAr.toLowerCase().contains('property') || o.nameAr.contains('فايندر')).firstOrNull?.id;
+    }
+    if (clean.contains('dubiz') || clean.contains('دوبيزل')) {
+      return _dataManager.getOptionModels('platform').where((o) => o.nameAr.toLowerCase().contains('dub') || o.nameAr.contains('دوبيزل')).firstOrNull?.id;
+    }
+    return _findId('platform', name);
+  }
+
+  String? _findPropertyTypeId(String? name) {
+    if (name == null || name.isEmpty) return null;
+    final clean = name.trim().toLowerCase();
+    for (var opt in _dataManager.getOptionModels('property_type')) {
+      final oName = opt.nameAr.trim().toLowerCase();
+      if (oName == clean || clean.contains(oName) || oName.contains(clean)) {
+        return opt.id;
+      }
+    }
+    if (clean.contains('شقة') || clean.contains('apartment')) {
+      return _dataManager.getOptionModels('property_type').where((o) => o.nameAr.contains('شقة')).firstOrNull?.id;
+    }
+    if (clean.contains('فيلا') || clean.contains('villa')) {
+      return _dataManager.getOptionModels('property_type').where((o) => o.nameAr.contains('فيلا')).firstOrNull?.id;
+    }
+    if (clean.contains('دوبليكس') || clean.contains('duplex')) {
+      return _dataManager.getOptionModels('property_type').where((o) => o.nameAr.contains('دوبليكس')).firstOrNull?.id;
+    }
+    if (clean.contains('محل') || clean.contains('commercial') || clean.contains('retail')) {
+      return _dataManager.getOptionModels('property_type').where((o) => o.nameAr.contains('محل')).firstOrNull?.id;
+    }
+    if (clean.contains('مكتب') || clean.contains('office') || clean.contains('إداري')) {
+      return _dataManager.getOptionModels('property_type').where((o) => o.nameAr.contains('مكتب') || o.nameAr.contains('إداري')).firstOrNull?.id;
+    }
+    if (clean.contains('مبنى') || clean.contains('building')) {
+      return _dataManager.getOptionModels('property_type').where((o) => o.nameAr.contains('مبنى')).firstOrNull?.id;
+    }
+    if (clean.contains('استوديو') || clean.contains('studio')) {
+      return _dataManager.getOptionModels('property_type').where((o) => o.nameAr.contains('استوديو')).firstOrNull?.id;
+    }
+    if (clean.contains('بنتهاوس') || clean.contains('penthouse')) {
+      return _dataManager.getOptionModels('property_type').where((o) => o.nameAr.contains('بنتهاوس')).firstOrNull?.id;
+    }
+    if (clean.contains('روف') || clean.contains('roof')) {
+      return _dataManager.getOptionModels('property_type').where((o) => o.nameAr.contains('روف')).firstOrNull?.id;
+    }
+    if (clean.contains('مخزن') || clean.contains('warehouse')) {
+      return _dataManager.getOptionModels('property_type').where((o) => o.nameAr.contains('مخزن')).firstOrNull?.id;
+    }
+    return _findId('property_type', name);
+  }
+
+  String? _findListingTypeId(String? name) {
+    if (name == null || name.isEmpty) return null;
+    final clean = name.trim().toLowerCase();
+    if (clean.contains('بيع') || clean.contains('sale')) {
+      return _dataManager.getOptionModels('listing_type').where((o) => o.nameAr.contains('بيع')).firstOrNull?.id;
+    }
+    if (clean.contains('إيجار') || clean.contains('ايجار') || clean.contains('rent')) {
+      return _dataManager.getOptionModels('listing_type').where((o) => o.nameAr.contains('إيجار') || o.nameAr.contains('ايجار')).firstOrNull?.id;
+    }
+    return _findId('listing_type', name);
+  }
+
+  int? _findCityId(String? name) {
+    if (name == null || name.trim().isEmpty) return null;
+    final clean = name.trim().toLowerCase();
+    for (var c in _dataManager.allCities) {
+      final cName = c.name.trim().toLowerCase();
+      if (cName == clean || clean.contains(cName) || cName.contains(clean)) {
+        return c.id;
+      }
+    }
+    if (clean.contains('تجمع') || clean.contains('settlement') || clean.contains('new cairo') || clean.contains('القاهرة الجديدة')) {
+      return _dataManager.allCities.where((c) => c.name.contains('التجمع') || c.name.contains('القاهرة الجديدة')).firstOrNull?.id;
+    }
+    if (clean.contains('مدينة نصر') || clean.contains('nasr city')) {
+      return _dataManager.allCities.where((c) => c.name.contains('مدينة نصر')).firstOrNull?.id;
+    }
+    if (clean.contains('زايد') || clean.contains('zayed')) {
+      return _dataManager.allCities.where((c) => c.name.contains('الشيخ زايد')).firstOrNull?.id;
+    }
+    if (clean.contains('مصر الجديدة') || clean.contains('heliopolis')) {
+      return _dataManager.allCities.where((c) => c.name.contains('مصر الجديدة')).firstOrNull?.id;
+    }
+    if (clean.contains('شروق') || clean.contains('shorouk')) {
+      return _dataManager.allCities.where((c) => c.name.contains('الشروق')).firstOrNull?.id;
+    }
+    return null;
+  }
+
+  String? _findChannelId(String? name) {
+    if (name == null || name.isEmpty) return null;
+    final clean = name.trim().toLowerCase();
+    for (var opt in _dataManager.getOptionModels('communication_channel')) {
+      if (opt.nameAr.toLowerCase().contains(clean) || clean.contains(opt.nameAr.toLowerCase())) {
+        return opt.id;
+      }
+    }
+    return _findId('communication_channel', name);
+  }
+
+  String? _findId(String tableName, String? name) {
+    if (name == null || name.isEmpty) return null;
+    return _dataManager.getIdByName(tableName, name);
+  }
+
+  // --- الحفظ النهائي (Batch Insert) ---
+
   Future<void> saveAll(String creatorId) async {
     if (state is! BulkAddLeadsLoaded) return;
     
@@ -155,16 +711,17 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
         } else if (r.phone!.contains(',') || r.phone!.contains(' ')) {
           missing.add('رقم الهاتف (يجب ألا يحتوي على مسافات)');
         }
-        if (r.cityId == null) missing.add('المدينة');
-        if (r.propertyTypeId == null) missing.add('نوع العقار');
-        if (r.listingTypeId == null) missing.add('نوع الإعلان');
+        final bool pf = r.isPropertyFinder;
+        if (!pf && r.cityId == null) missing.add('المدينة');
+        if (!pf && r.propertyTypeId == null) missing.add('نوع العقار');
+        if (!pf && r.listingTypeId == null) missing.add('نوع الإعلان');
         if (r.platformId == null) missing.add('المنصة');
-        if (r.assignedTo == null) missing.add('الموظف');
+        if (r.assignedTo == null) missing.add('الموظف المسند إليه');
         
         errorMessages.add('الصف $index: ينقصه (${missing.join('، ')})');
       }
       
-      emit(BulkAddLeadsError('يرجى تصحيح الأخطاء التالية:\n${errorMessages.join('\n')}'));
+      emit(BulkAddLeadsError('يرجى تصحيح الأخطاء التالية قبل الحفظ:\n${errorMessages.take(10).join('\n')}${errorMessages.length > 10 ? '\n...وغيرها' : ''}'));
       _emitLoaded(allRows); 
       return;
     }
@@ -173,7 +730,10 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
     for (var row in validRows) {
       String? statusId = row.statusId;
       if (statusId == null) {
-        statusId = '460be748-7685-49ef-abcf-c4dd49511ab7'; // تم التواصل اول مرة
+        statusId = _findId('lead_status', 'لم يتم التواصل معه') ??
+                   _findId('lead_status', 'لم يتم التواصل') ??
+                   _findId('lead_status', 'جديد') ??
+                   '460be748-7685-49ef-abcf-c4dd49511ab7';
       }
 
       num? bFrom;
@@ -198,6 +758,7 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
         channelId: row.channelId,
         statusId: statusId,
         propertyCode: row.propertyCode,
+        areaName: row.areaName,
         descLeadNeed: row.descLeadNeed,
         budgetFrom: bFrom,
         budgetTo: bTo,
@@ -211,7 +772,8 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
     try {
       emit(BulkAddLeadsProgress(0, leadsToInsert.length));
       
-      await _leadService.bulkInsertLeads(leadsToInsert, (processed, total) {
+      // استخدام خدمة Batch Insert السريعة
+      await _leadService.batchInsertUnifiedLeads(leadsToInsert, (processed, total) {
         emit(BulkAddLeadsProgress(processed, total));
       });
 
@@ -221,182 +783,58 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
       }
 
       if (invalidRows.isNotEmpty) {
-        emit(BulkAddLeadsError('تم حفظ ${validRows.length} عميل. يرجى إكمال باقي الصفوف الناقصة.'));
+        emit(BulkAddLeadsError('تم حفظ ${validRows.length} عميل بنجاح. يرجى إكمال باقي الصفوف الناقصة.'));
       } else {
         emit(BulkAddLeadsSuccess());
       }
       
-      _emitLoaded(remainingRows);
+      _emitLoaded(remainingRows, selectedRowIds: const {});
     } catch (e) {
       emit(BulkAddLeadsError('حدث خطأ أثناء الحفظ: $e'));
       _emitLoaded(allRows);
     }
   }
 
-  void uploadExcelFile() {
-    final uploadInput = html.FileUploadInputElement();
-    uploadInput.accept = '.xlsx';
-    uploadInput.click();
+  Future<void> saveLeadsList(List<LeadModel> leadsToInsert) async {
+    if (leadsToInsert.isEmpty) {
+      emit(BulkAddLeadsError('لا توجد بيانات صالحة للحفظ'));
+      return;
+    }
 
-    uploadInput.onChange.listen((e) async {
-      final files = uploadInput.files;
-      if (files != null && files.isNotEmpty) {
-        final file = files[0];
-        final reader = html.FileReader();
-        reader.readAsArrayBuffer(file);
-        reader.onLoadEnd.listen((e) async {
-          final bytes = reader.result as Uint8List;
-          _parseExcelBytes(bytes);
-        });
-      }
-    });
-  }
-
-  void _parseExcelBytes(Uint8List bytes) {
     try {
-      emit(BulkAddLeadsLoading('جاري قراءة الملف...'));
-      final excel = Excel.decodeBytes(bytes);
-      final sheet = excel.tables.values.first; 
-      final rows = sheet.rows;
+      emit(BulkAddLeadsProgress(0, leadsToInsert.length));
       
-      if (rows.length < 2) {
-        emit(BulkAddLeadsError('الملف فارغ أو لا يحتوي على بيانات صحيحة'));
-        _emitLoaded([_createEmptyRow()]);
-        return;
-      }
+      await _leadService.batchInsertUnifiedLeads(leadsToInsert, (processed, total) {
+        emit(BulkAddLeadsProgress(processed, total));
+      });
 
-      List<EditableLeadRow> newRows = [];
-      
-      for (int i = 1; i < rows.length; i++) {
-        final r = rows[i];
-        if (r.isEmpty) continue;
-        
-        bool allEmpty = r.every((cell) => cell == null || cell.value.toString().trim().isEmpty);
-        if (allEmpty) continue;
-
-        final name = _val(r, 0);
-        final phone = _val(r, 1);
-        final cityName = _val(r, 2);
-        final propTypeName = _val(r, 3);
-        final listTypeName = _val(r, 4);
-        final platformName = _val(r, 5);
-        final channelName = _val(r, 6);
-        final statusName = _val(r, 7);
-        final assignedToName = _val(r, 8);
-        final desc = _val(r, 9);
-        final bFrom = _val(r, 10);
-        final bTo = _val(r, 11);
-        final notes = _val(r, 12);
-        final pCode = _val(r, 13);
-        final dateStr = _val(r, 14);
-
-        final cityId = _findCityId(cityName);
-        final propId = _findId('property_type', propTypeName);
-        final listId = _findId('listing_type', listTypeName);
-        final platId = _findId('platform', platformName);
-        final chanId = _findId('communication_channel', channelName);
-        final statId = _findId('lead_status', statusName);
-        final userId = _findUserId(assignedToName);
-
-        DateTime? parsedDate;
-        if (dateStr != null && dateStr.isNotEmpty) {
-          parsedDate = DateTime.tryParse(dateStr);
-        }
-
-        newRows.add(EditableLeadRow(
-          id: _generateId() + i.toString(),
-          name: name,
-          phone: phone,
-          budgetFrom: bFrom,
-          budgetTo: bTo,
-          notes: notes,
-          propertyCode: pCode,
-          descLeadNeed: desc,
-          createdAt: parsedDate,
-          
-          cityId: cityId,
-          unmappedCity: cityId == null && cityName != null ? cityName : null,
-
-          propertyTypeId: propId,
-          unmappedPropertyType: propId == null && propTypeName != null ? propTypeName : null,
-
-          listingTypeId: listId,
-          unmappedListingType: listId == null && listTypeName != null ? listTypeName : null,
-
-          platformId: platId,
-          unmappedPlatform: platId == null && platformName != null ? platformName : null,
-
-          channelId: chanId,
-          unmappedChannel: chanId == null && channelName != null ? channelName : null,
-
-          statusId: statId,
-          unmappedStatus: statId == null && statusName != null ? statusName : null,
-
-          assignedTo: (_role != 'manager' && _role != 'admin' && _role != 'ceo' && _role.isNotEmpty) ? _userId : userId,
-          unmappedAssignedTo: (_role != 'manager' && _role != 'admin' && _role != 'ceo' && _role.isNotEmpty) ? null : (userId == null && assignedToName != null ? assignedToName : null),
-        ));
-      }
-
-      if (newRows.isEmpty) {
-        newRows.add(_createEmptyRow());
-      }
-
-      _emitLoaded(newRows);
-
+      emit(BulkAddLeadsSuccess());
+      _emitLoaded([_createEmptyRow()], selectedRowIds: const {});
     } catch (e) {
-      emit(BulkAddLeadsError('خطأ في قراءة الملف: $e'));
-      emit(BulkAddLeadsLoaded([_createEmptyRow()]));
+      emit(BulkAddLeadsError('حدث خطأ أثناء الحفظ: $e'));
+      if (state is BulkAddLeadsLoaded) {
+        _emitLoaded((state as BulkAddLeadsLoaded).rows);
+      }
     }
   }
 
-  String? _val(List<Data?> row, int index) {
-    if (index >= row.length || row[index] == null) return null;
-    final v = row[index]!.value.toString().trim();
-    return v.isEmpty ? null : v;
-  }
-
-  String? _findId(String tableName, String? name) {
-    if (name == null || name.isEmpty) return null;
-    return _dataManager.getIdByName(tableName, name);
-  }
-
-  int? _findCityId(String? name) {
-    if (name == null || name.isEmpty) return null;
-    for (var c in _dataManager.allCities) {
-      if (c.name == name) return c.id;
-    }
-    return null;
-  }
-
-  String? _findUserId(String? name) {
-    if (name == null || name.isEmpty) return null;
-    for (var u in _dataManager.employees) {
-      final fullName = '${u.firstName} ${u.lastName}'.trim();
-      if (fullName == name || u.firstName == name) return u.id;
-    }
-    return null;
-  }
+  // --- تحميل القالب الموحد ---
 
   void downloadTemplate() {
     final excel = Excel.createExcel();
     final sheet = excel.tables[excel.getDefaultSheet()]!;
     
     sheet.appendRow([
+      TextCellValue('التاريخ (YYYY-MM-DD HH:MM:SS)'),
+      TextCellValue('اسم المنصة (aqar map, bayut, property finder)'),
       TextCellValue('اسم العميل'),
-      TextCellValue('رقم الهاتف (إجباري)'),
-      TextCellValue('المدينة (إجباري)'),
-      TextCellValue('نوع العقار (إجباري)'),
-      TextCellValue('نوع الإعلان (إجباري)'),
-      TextCellValue('المنصة القادم منها (إجباري)'),
-      TextCellValue('طريقة التواصل'),
-      TextCellValue('حالة العميل'),
-      TextCellValue('الموظف المسند إليه (إجباري)'),
-      TextCellValue('وصف / متطلبات العميل'),
-      TextCellValue('الميزانية من'),
-      TextCellValue('الميزانية إلى'),
-      TextCellValue('ملاحظات'),
-      TextCellValue('كود العقار'),
-      TextCellValue('تاريخ الإضافة (مثال: 2024-01-01)'),
+      TextCellValue('رقم العميل (إجباري)'),
+      TextCellValue('اسم الموظف (أو يُستخرج آلياً من كود العقار)'),
+      TextCellValue('كود العقار (مثال: HG-601)'),
+      TextCellValue('نوع العقار (شقة، فيلا، محل...)'),
+      TextCellValue('نوع الاعلان (بيع، إيجار)'),
+      TextCellValue('المنطقة الأصلية (اسم الكمبوند أو الشارع)'),
+      TextCellValue('المدينة (المدينة الرئيسية إن عُرفت)'),
     ]);
 
     final bytes = excel.encode();
@@ -404,7 +842,7 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
       final blob = html.Blob([bytes]);
       final url = html.Url.createObjectUrlFromBlob(blob);
       html.AnchorElement(href: url)
-        ..setAttribute('download', 'Leads_Template.xlsx')
+        ..setAttribute('download', 'unified_leads_template.xlsx')
         ..click();
       html.Url.revokeObjectUrl(url);
     }

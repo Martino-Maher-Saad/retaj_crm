@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../../../core/widgets/retaj_shared_fields.dart';
@@ -36,8 +37,11 @@ class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
     final text = _noteController.text.trim();
     if (text.isEmpty || _isAddingNote) return;
     setState(() => _isAddingNote = true);
-    _noteController.clear();
-    context.read<LeadCubit>().addNote(lead.id!, text);
+    final String? newStatus = (lead.statusId == AppConstants.leadStatusNoContact ||
+            (lead.leadStatus ?? '').contains('لم يتم'))
+        ? AppConstants.leadStatusWhatsAppContacted
+        : null;
+    context.read<LeadCubit>().addNote(lead.id!, text, newStatusId: newStatus);
   }
 
   @override

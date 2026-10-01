@@ -10,6 +10,7 @@ import '../../../data/models/profile_model.dart';
 import '../cubit/dashboard_cubit.dart';
 import '../cubit/dashboard_state.dart';
 import '../widgets/dashboard_leads_table.dart';
+import '../widgets/monthly_leads_feedback_card.dart';
 import 'dashboard_screen.dart';
 
 class EmployeeDashboardView extends StatelessWidget {
@@ -166,6 +167,15 @@ class EmployeeDashboardView extends StatelessWidget {
                   fontSize: 16.sp,
                   fontFamily: 'Cairo',
                 ),
+              ),
+              SizedBox(height: 20.h),
+
+              // ─── كارت متابعة عملاء الشهر الحالي والفيدباك ───
+              MonthlyLeadsFeedbackCard(
+                role: 'sales',
+                userId: currentUserId,
+                employeeId: currentUserId,
+                employeeName: managedView ? managerViewEmployeeName : user.firstName,
               ),
               SizedBox(height: 24.h),
 

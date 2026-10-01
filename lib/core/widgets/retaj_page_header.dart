@@ -18,6 +18,9 @@ class RetajPageHeader extends StatelessWidget {
   /// شريط فلاتر سريع — يُعرض في المنتصف بين العنوان وأزرار الإجراءات
   final Widget? filterBar;
 
+  /// فلاتر سريعة بجانب زر الفلاتر المتقدمة
+  final Widget? quickFilters;
+
   const RetajPageHeader({
     super.key,
     required this.title,
@@ -30,6 +33,7 @@ class RetajPageHeader extends StatelessWidget {
     this.searchBar,
     this.extraAction,
     this.filterBar,
+    this.quickFilters,
   });
 
   @override
@@ -100,6 +104,12 @@ class RetajPageHeader extends StatelessWidget {
                 SizedBox(width: 20.w),
               ] else
                 const Spacer(),
+
+              // ─── أزرار الفلاتر السريعة بجانب زر فلاتر متقدمة مباشرة ───
+              if (quickFilters != null) ...[
+                quickFilters!,
+                SizedBox(width: 12.w),
+              ],
 
               // ─── أزرار الإجراءات ───
               if (onFilter != null) ...[

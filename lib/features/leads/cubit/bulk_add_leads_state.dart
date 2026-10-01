@@ -1,4 +1,6 @@
 import 'package:equatable/equatable.dart';
+import '../../../core/di/injection_container.dart';
+import '../../../core/utils/static_data_manager.dart';
 
 class EditableLeadRow extends Equatable {
   final String id; // Unique ID for the row in UI
@@ -8,6 +10,7 @@ class EditableLeadRow extends Equatable {
   final String? budgetTo;
   final String? notes;
   final String? propertyCode;
+  final String? areaName;
   final String? descLeadNeed;
   final DateTime? createdAt;
   
@@ -37,6 +40,7 @@ class EditableLeadRow extends Equatable {
     this.budgetTo,
     this.notes,
     this.propertyCode,
+    this.areaName,
     this.descLeadNeed,
     this.createdAt,
     this.cityId,
@@ -59,17 +63,38 @@ class EditableLeadRow extends Equatable {
     return (name == null || name!.trim().isEmpty) &&
            (phone == null || phone!.trim().isEmpty) &&
            (propertyCode == null || propertyCode!.trim().isEmpty) &&
+           (areaName == null || areaName!.trim().isEmpty) &&
            (notes == null || notes!.trim().isEmpty) &&
            (descLeadNeed == null || descLeadNeed!.trim().isEmpty) &&
            (budgetFrom == null || budgetFrom!.trim().isEmpty) &&
            (budgetTo == null || budgetTo!.trim().isEmpty);
   }
 
+  bool get isPropertyFinder {
+    if (unmappedPlatform != null) {
+      final p = unmappedPlatform!.toLowerCase();
+      if (p.contains('property') || p.contains('فايندر') || p == 'pf') return true;
+    }
+    if (platformId != null) {
+      try {
+        if (sl.isRegistered<StaticDataManager>()) {
+          final opt = sl<StaticDataManager>().getOptionModels('platform').where((o) => o.id == platformId).firstOrNull;
+          if (opt != null) {
+            final p = opt.nameAr.toLowerCase();
+            if (p.contains('property') || p.contains('فايندر') || p == 'pf') return true;
+          }
+        }
+      } catch (_) {}
+    }
+    return false;
+  }
+
   bool get isValid {
     final hasValidPhone = phone != null && phone!.trim().isNotEmpty && !phone!.contains(',') && !phone!.contains(' ');
-    final hasRequiredDropdowns = cityId != null && 
-                                 propertyTypeId != null && 
-                                 listingTypeId != null && 
+    final bool pf = isPropertyFinder;
+    final hasRequiredDropdowns = (pf || cityId != null) && 
+                                 (pf || propertyTypeId != null) && 
+                                 (pf || listingTypeId != null) && 
                                  platformId != null && 
                                  assignedTo != null;
     return hasValidPhone && hasRequiredDropdowns;
@@ -83,9 +108,10 @@ class EditableLeadRow extends Equatable {
       errs.add('رقم هاتف واحد فقط بدون مسافات');
     }
     
-    if (cityId == null) errs.add('المدينة مطلوبة');
-    if (propertyTypeId == null) errs.add('نوع العقار مطلوب');
-    if (listingTypeId == null) errs.add('نوع الإعلان مطلوب');
+    final bool pf = isPropertyFinder;
+    if (!pf && cityId == null) errs.add('المدينة مطلوبة');
+    if (!pf && propertyTypeId == null) errs.add('نوع العقار مطلوب');
+    if (!pf && listingTypeId == null) errs.add('نوع الإعلان مطلوب');
     if (platformId == null) errs.add('المنصة مطلوبة');
     if (assignedTo == null) errs.add('الموظف المسند مطلوب');
     return errs;
@@ -98,6 +124,7 @@ class EditableLeadRow extends Equatable {
     String? budgetTo,
     String? notes,
     String? propertyCode,
+    String? areaName,
     String? descLeadNeed,
     DateTime? createdAt,
     int? cityId,
@@ -123,6 +150,7 @@ class EditableLeadRow extends Equatable {
       budgetTo: budgetTo ?? this.budgetTo,
       notes: notes ?? this.notes,
       propertyCode: propertyCode ?? this.propertyCode,
+      areaName: areaName ?? this.areaName,
       descLeadNeed: descLeadNeed ?? this.descLeadNeed,
       createdAt: createdAt ?? this.createdAt,
       cityId: cityId != null ? (cityId == -1 ? null : cityId) : this.cityId,
@@ -144,7 +172,7 @@ class EditableLeadRow extends Equatable {
 
   @override
   List<Object?> get props => [
-        id, name, phone, budgetFrom, budgetTo, notes, propertyCode, descLeadNeed, createdAt,
+        id, name, phone, budgetFrom, budgetTo, notes, propertyCode, areaName, descLeadNeed, createdAt,
         cityId, propertyTypeId, listingTypeId, platformId, channelId, statusId, assignedTo,
         unmappedCity, unmappedPropertyType, unmappedListingType, unmappedPlatform, unmappedChannel, unmappedStatus, unmappedAssignedTo
       ];
@@ -170,31 +198,39 @@ class BulkAddLeadsLoaded extends BulkAddLeadsState {
   final List<EditableLeadRow> rows;
   final List<String> columnOrder;
   final Map<String, dynamic> pinnedValues;
+  final Set<String> selectedRowIds;
+  final Map<String, int> unmappedLocations;
 
   const BulkAddLeadsLoaded(
     this.rows, {
     this.columnOrder = const [
       'name', 'phone', 'cityId', 'propertyTypeId', 'listingTypeId', 'platformId',
-      'channelId', 'statusId', 'assignedTo', 'propertyCode', 'createdAt',
+      'channelId', 'statusId', 'assignedTo', 'propertyCode', 'areaName', 'createdAt',
       'descLeadNeed', 'budgetFrom', 'budgetTo', 'notes'
     ],
     this.pinnedValues = const {},
+    this.selectedRowIds = const {},
+    this.unmappedLocations = const {},
   });
 
   BulkAddLeadsLoaded copyWith({
     List<EditableLeadRow>? rows,
     List<String>? columnOrder,
     Map<String, dynamic>? pinnedValues,
+    Set<String>? selectedRowIds,
+    Map<String, int>? unmappedLocations,
   }) {
     return BulkAddLeadsLoaded(
       rows ?? this.rows,
       columnOrder: columnOrder ?? this.columnOrder,
       pinnedValues: pinnedValues ?? this.pinnedValues,
+      selectedRowIds: selectedRowIds ?? this.selectedRowIds,
+      unmappedLocations: unmappedLocations ?? this.unmappedLocations,
     );
   }
 
   @override
-  List<Object?> get props => [rows, columnOrder, pinnedValues];
+  List<Object?> get props => [rows, columnOrder, pinnedValues, selectedRowIds, unmappedLocations];
 }
 
 class BulkAddLeadsProgress extends BulkAddLeadsState {

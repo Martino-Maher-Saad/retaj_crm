@@ -65,7 +65,12 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
     _budgetFromController = TextEditingController(text: budgetFromStr);
     _budgetToController = TextEditingController(text: budgetToStr);
 
-    _selectedStatus = widget.lead?.leadStatus ?? 'تم التواصل اول مرة';
+    final dataManager = di.sl<StaticDataManager>();
+    final defaultStatus = dataManager.getOptions('lead_status').firstWhere(
+      (s) => s.contains('لم يتم التواصل') || s.contains('جديد'),
+      orElse: () => 'لم يتم التواصل معه',
+    );
+    _selectedStatus = widget.lead?.leadStatus ?? defaultStatus;
     _selectedEmployeeId = widget.lead?.assignedTo ?? widget.user.id;
     _selectedExclusionReason = widget.lead?.exclusionReasonName;
 
@@ -674,10 +679,13 @@ class _LeadFormScreenState extends State<LeadFormScreen> {
 
       if (widget.lead != null) {
         if (newAssignee != widget.lead!.assignedTo) {
-          // المدير قام بتغيير الموظف: نحتفظ بالموظف القديم ونجبر الحالة لتم التواصل أول مرة
-          transferredFrom = widget.lead!.assignedTo;
-          finalStatus = 'تم التواصل اول مرة';
-          finalStatusId = '460be748-7685-49ef-abcf-c4dd49511ab7';
+          final notContactedStatus = dataManager.getOptions('lead_status').firstWhere(
+            (s) => s.contains('لم يتم التواصل') || s.contains('جديد'),
+            orElse: () => 'لم يتم التواصل معه',
+          );
+          finalStatus = notContactedStatus;
+          finalStatusId = dataManager.getIdByName('lead_status', notContactedStatus) ??
+              '460be748-7685-49ef-abcf-c4dd49511ab7';
         } else if (_selectedStatus != widget.lead!.leadStatus) {
           // الموظف قام بتغيير الحالة: نزيل المحول منه لأنه أتم المهمة
           transferredFrom = null;

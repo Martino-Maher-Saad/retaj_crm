@@ -12,6 +12,7 @@ import '../cubit/dashboard_cubit.dart';
 import '../cubit/dashboard_state.dart';
 import 'dashboard_screen.dart';
 import '../widgets/dashboard_leads_table.dart';
+import '../widgets/monthly_leads_feedback_card.dart';
 import '../../../core/widgets/retaj_shared_fields.dart';
 
 class ManagerDashboardView extends StatefulWidget {
@@ -124,6 +125,15 @@ class _ManagerDashboardViewState extends State<ManagerDashboardView> {
                     employeeName: empName,
                   );
             },
+          ),
+          SizedBox(height: 20.h),
+
+          // ─── كارت متابعة عملاء الشهر الحالي والفيدباك ───
+          MonthlyLeadsFeedbackCard(
+            role: 'manager',
+            userId: widget.user.id,
+            employeeId: state.selectedEmployeeId,
+            employeeName: state.selectedEmployeeName,
           ),
           SizedBox(height: 24.h),
 
