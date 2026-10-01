@@ -398,7 +398,10 @@ class LeadService {
     });
 
     await _supabase.from('leads').update({
-      'transferred_from': lead.transferredFrom
+      'transferred_from': lead.transferredFrom,
+      'budget_from': lead.budgetFrom,
+      'budget_to': lead.budgetTo,
+      'desc_lead_need': lead.descLeadNeed,
     }).eq('id', id);
 
     final updatedLead = await getLeadById(id);

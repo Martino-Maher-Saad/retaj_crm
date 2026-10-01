@@ -1005,7 +1005,11 @@ class LeadCubit extends Cubit<LeadState> {
         old.cityId != updated.cityId ||
         old.propertyCode != updated.propertyCode ||
         old.descLeadNeed != updated.descLeadNeed ||
-        old.assignedTo != updated.assignedTo;
+        old.assignedTo != updated.assignedTo ||
+        old.budgetFrom != updated.budgetFrom ||
+        old.budgetTo != updated.budgetTo ||
+        old.exclusionReasonId != updated.exclusionReasonId ||
+        old.isPinned != updated.isPinned;
   }
 
   bool _havePhonesChanged(

@@ -1101,25 +1101,32 @@ class _LeadCardState extends State<LeadCard> {
                 widget.lead.propertyCode!.isNotEmpty))
           SizedBox(height: 6.h),
 
-        Row(
-          children: [
-            Text(
-              'الميزانية: ',
-              style: TextStyle(
-                fontSize: 18.sp,
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            Text(
-              '${widget.lead.budgetFrom != null ? NumberFormat.decimalPattern().format(widget.lead.budgetFrom) : '0'} - ${widget.lead.budgetTo != null ? NumberFormat.decimalPattern().format(widget.lead.budgetTo) : 'غير محدد'}',
-              style: TextStyle(
-                fontSize: 20.sp,
-                fontWeight: FontWeight.bold,
-                color: Colors.green[700],
-              ),
-            ),
-          ],
+        Builder(
+          builder: (context) {
+            final currentBudgetFrom = _isEditing ? _inlineBudgetFrom : widget.lead.budgetFrom;
+            final currentBudgetTo = _isEditing ? _inlineBudgetTo : widget.lead.budgetTo;
+
+            return Row(
+              children: [
+                Text(
+                  'الميزانية: ',
+                  style: TextStyle(
+                    fontSize: 18.sp,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  '${currentBudgetFrom != null ? NumberFormat.decimalPattern('en').format(currentBudgetFrom) : '0'} - ${currentBudgetTo != null ? NumberFormat.decimalPattern('en').format(currentBudgetTo) : 'غير محدد'}',
+                  style: TextStyle(
+                    fontSize: 20.sp,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green[700],
+                  ),
+                ),
+              ],
+            );
+          },
         ),
 
         SizedBox(height: 8.h),
@@ -1399,6 +1406,18 @@ class _LeadCardState extends State<LeadCard> {
     );
   }
 
+  num? _parseBudget(String? text) {
+    if (text == null || text.trim().isEmpty) return null;
+    String clean = text.trim();
+    const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    const englishDigits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    for (int i = 0; i < 10; i++) {
+      clean = clean.replaceAll(arabicDigits[i], englishDigits[i]);
+    }
+    clean = clean.replaceAll(RegExp(r'[^\d.]'), '');
+    return num.tryParse(clean);
+  }
+
   void _editNeedsDialog() {
     final TextEditingController needController = TextEditingController(
       text: _isEditing
@@ -1414,12 +1433,12 @@ class _LeadCardState extends State<LeadCard> {
 
     final TextEditingController budgetFromController = TextEditingController(
       text: currentBudgetFrom != null
-          ? NumberFormat.decimalPattern().format(currentBudgetFrom)
+          ? NumberFormat.decimalPattern('en').format(currentBudgetFrom)
           : '',
     );
     final TextEditingController budgetToController = TextEditingController(
       text: currentBudgetTo != null
-          ? NumberFormat.decimalPattern().format(currentBudgetTo)
+          ? NumberFormat.decimalPattern('en').format(currentBudgetTo)
           : '',
     );
     bool isSaving = false;
@@ -1548,19 +1567,16 @@ class _LeadCardState extends State<LeadCard> {
               onPressed: isSaving
                   ? null
                   : () async {
+                      final parsedBudgetFrom = _parseBudget(budgetFromController.text);
+                      final parsedBudgetTo = _parseBudget(budgetToController.text);
+
                       if (_isEditing) {
                         setState(() {
-                          _inlineNeedsController.text = needController.text
-                              .trim();
-                          _inlineBudgetFrom = int.tryParse(
-                            budgetFromController.text
-                                .replaceAll(',', '')
-                                .trim(),
-                          );
-                          _inlineBudgetTo = int.tryParse(
-                            budgetToController.text.replaceAll(',', '').trim(),
-                          );
+                          _inlineNeedsController.text = needController.text.trim();
+                          _inlineBudgetFrom = parsedBudgetFrom;
+                          _inlineBudgetTo = parsedBudgetTo;
                         });
+                        _scheduleDividerUpdate(resetFirst: true);
                         Navigator.pop(ctx);
                         return;
                       }
@@ -1590,14 +1606,8 @@ class _LeadCardState extends State<LeadCard> {
                           lastComment: widget.lead.lastComment,
                           propertyCode: widget.lead.propertyCode,
                           notes: widget.lead.notes,
-                          budgetFrom: int.tryParse(
-                            budgetFromController.text
-                                .replaceAll(',', '')
-                                .trim(),
-                          ),
-                          budgetTo: int.tryParse(
-                            budgetToController.text.replaceAll(',', '').trim(),
-                          ),
+                          budgetFrom: parsedBudgetFrom,
+                          budgetTo: parsedBudgetTo,
                           statusId: widget.lead.statusId,
                           platformId: widget.lead.platformId,
                           propertyTypeId: widget.lead.propertyTypeId,
@@ -1614,8 +1624,9 @@ class _LeadCardState extends State<LeadCard> {
                         );
                         if (mounted) {
                           Navigator.pop(ctx);
+                          _scheduleDividerUpdate(resetFirst: true);
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
+                            const SnackBar(
                               content: Text('تم التحديث بنجاح'),
                               backgroundColor: Colors.green,
                             ),
@@ -2195,7 +2206,8 @@ class _LeadCardState extends State<LeadCard> {
       }
     }
 
-    final newLead = widget.lead.copyWith(
+    final newLead = LeadModel(
+      id: widget.lead.id,
       clientName: finalName,
       leadStatus: _inlineSelectedStatus,
       statusId: statusId,
@@ -2205,10 +2217,15 @@ class _LeadCardState extends State<LeadCard> {
       listingTypeId: listingTypeId,
       platform: _inlineSelectedPlatform,
       platformId: platformId,
-      assignedTo: _inlineSelectedEmployeeId,
+      assignedTo: _inlineSelectedEmployeeId ?? widget.lead.assignedTo,
+      assignedToName: widget.lead.assignedToName,
+      createdBy: widget.lead.createdBy,
+      createdByName: widget.lead.createdByName,
+      transferredFrom: widget.lead.transferredFrom,
+      transferredFromName: widget.lead.transferredFromName,
+      createdAt: widget.lead.createdAt,
       cityId: _inlineSelectedCityId,
-      city:
-          di
+      city: di
               .sl<StaticDataManager>()
               .allCities
               .where((c) => c.id == _inlineSelectedCityId)
@@ -2219,6 +2236,17 @@ class _LeadCardState extends State<LeadCard> {
       descLeadNeed: _inlineNeedsController.text.trim(),
       budgetFrom: _inlineBudgetFrom,
       budgetTo: _inlineBudgetTo,
+      lastComment: widget.lead.lastComment,
+      lastCommentId: widget.lead.lastCommentId,
+      lastCommentDate: widget.lead.lastCommentDate,
+      lastCallAt: widget.lead.lastCallAt,
+      lastWhatsappAt: widget.lead.lastWhatsappAt,
+      communicationChannel: widget.lead.communicationChannel,
+      channelId: widget.lead.channelId,
+      exclusionReasonId: widget.lead.exclusionReasonId,
+      exclusionReasonName: widget.lead.exclusionReasonName,
+      isPinned: widget.lead.isPinned,
+      notes: widget.lead.notes,
       phones: phones,
     );
 
@@ -2418,14 +2446,21 @@ class ThousandsSeparatorInputFormatter extends TextInputFormatter {
     }
     final int selectionIndexFromRight =
         newValue.text.length - newValue.selection.end;
-    final String digits = newValue.text.replaceAll(RegExp(r'\D'), '');
-    final String newString = NumberFormat.decimalPattern().format(
+    String clean = newValue.text;
+    const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    const englishDigits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    for (int i = 0; i < 10; i++) {
+      clean = clean.replaceAll(arabicDigits[i], englishDigits[i]);
+    }
+    final String digits = clean.replaceAll(RegExp(r'\D'), '');
+    final String newString = NumberFormat.decimalPattern('en').format(
       digits.isEmpty ? 0 : int.parse(digits),
     );
+    final offset = (newString.length - selectionIndexFromRight).clamp(0, newString.length);
     return TextEditingValue(
       text: newString,
       selection: TextSelection.collapsed(
-        offset: newString.length - selectionIndexFromRight,
+        offset: offset,
       ),
     );
   }
