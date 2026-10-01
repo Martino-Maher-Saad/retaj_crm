@@ -10,6 +10,7 @@ class LeadsTableView extends StatelessWidget {
   final bool isBulkSelectMode;
   final Set<String> selectedIds;
   final Function(String, bool?) onSelect;
+  final VoidCallback? onSelectAll;
 
   final ScrollController scrollController;
   final bool isLoadingMore;
@@ -21,6 +22,7 @@ class LeadsTableView extends StatelessWidget {
     required this.isBulkSelectMode,
     required this.selectedIds,
     required this.onSelect,
+    this.onSelectAll,
     required this.scrollController,
     this.isLoadingMore = false,
     this.blinkItemId,
@@ -44,7 +46,20 @@ class LeadsTableView extends StatelessWidget {
               padding: EdgeInsets.symmetric(vertical: 12.h),
               child: Row(
                 children: [
-                  if (isBulkSelectMode) SizedBox(width: 50.w), // Checkbox placeholder
+                  if (isBulkSelectMode)
+                    SizedBox(
+                      width: 50.w,
+                      child: Center(
+                        child: Checkbox(
+                          value: leads.isNotEmpty && leads.every((l) => selectedIds.contains(l.id)),
+                          tristate: leads.isNotEmpty &&
+                              leads.any((l) => selectedIds.contains(l.id)) &&
+                              !leads.every((l) => selectedIds.contains(l.id)),
+                          onChanged: (_) => onSelectAll?.call(),
+                          activeColor: AppColors.brandPrimary,
+                        ),
+                      ),
+                    ),
                   _buildHeaderCell('تاريخ الإضافة', 120.w),
                   _buildHeaderCell('رقم العميل', 120.w),
                   _buildHeaderCell('اسم العميل', 150.w),

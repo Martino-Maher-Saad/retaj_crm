@@ -9,9 +9,11 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/di/injection_container.dart' as di;
 import '../../../core/utils/static_data_manager.dart';
 import '../../../data/models/lead_model.dart';
+import '../../../data/services/dropdown_service.dart';
 import '../../auth/cubit/auth_cubit.dart';
 import '../../auth/cubit/auth_states.dart';
 import '../cubit/leads_cubit.dart';
@@ -55,8 +57,8 @@ class LeadCard extends StatefulWidget {
 
 class _LeadCardState extends State<LeadCard> {
   int _duplicateCount = 0;
-  bool _isLoadingDuplicates = false;
   List<LeadModel> _duplicates = [];
+  bool _isLoadingDuplicates = false;
 
   bool _isCommenting = false;
   final TextEditingController _commentController = TextEditingController();
@@ -64,6 +66,64 @@ class _LeadCardState extends State<LeadCard> {
   bool _isCommentExpanded = false;
   bool _isNeedExpanded = false;
   bool _isNameExpanded = false;
+  List<LookupOptionModel> _cannedComments = [];
+  bool _isLoadingCannedComments = false;
+  LookupOptionModel? _selectedCannedComment;
+  bool _isCustomComment = false;
+
+  bool _isOptionOther(LookupOptionModel? opt) {
+    if (opt == null) return false;
+    final ar = opt.nameAr.trim().toLowerCase();
+    final en = opt.nameEn.trim().toLowerCase();
+    return opt.id == 'other' ||
+        opt.id == 'd5aa95b4-834f-44ff-94f0-f5b31862c1f0' ||
+        ar.contains('أخرى') ||
+        ar.contains('اخرى') ||
+        ar.contains('أخري') ||
+        ar.contains('اخري') ||
+        en.contains('other');
+  }
+
+  Future<void> _fetchCannedComments() async {
+    if (_cannedComments.isNotEmpty) return;
+    setState(() => _isLoadingCannedComments = true);
+    try {
+      final dataManager = di.sl<StaticDataManager>();
+      var list = dataManager.getOptionModels('lead_status');
+      if (list.isEmpty) {
+        list = await context.read<LeadCubit>().getQuickComments();
+      }
+      if (mounted) {
+        final processed = list
+            .where((s) {
+              final name = s.nameAr.trim();
+              return !name.contains('لم يتم التواصل') &&
+                  !name.contains('لم يتم اتلواصل') &&
+                  s.id != AppConstants.leadStatusNoContact &&
+                  s.isActive;
+            })
+            .toList();
+
+        final hasOther = processed.any((c) => _isOptionOther(c));
+        if (!hasOther) {
+          processed.add(
+            const LookupOptionModel(
+              id: 'other',
+              nameAr: 'أخرى (كتابة تعليق حر)',
+              nameEn: 'other',
+              listOrder: 999,
+            ),
+          );
+        }
+        setState(() {
+          _cannedComments = processed;
+          _isLoadingCannedComments = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingCannedComments = false);
+    }
+  }
 
   // ─── Inline Edit State ───
   late bool _isEditing;
@@ -133,7 +193,10 @@ class _LeadCardState extends State<LeadCard> {
         .toSet()
         .toList();
     if (widget.isAddingMode) {
-      _inlineSelectedStatus = null;
+      _inlineSelectedStatus = statusOptions.firstWhere(
+        (s) => s.contains('لم يتم التواصل') || s.contains('جديد'),
+        orElse: () => statusOptions.isNotEmpty ? statusOptions.first : 'لم يتم التواصل معه',
+      );
     } else {
       _inlineSelectedStatus = widget.lead.leadStatus;
       if (_inlineSelectedStatus == null ||
@@ -419,8 +482,10 @@ class _LeadCardState extends State<LeadCard> {
 
                 Expanded(flex: 3, child: _buildThirdColumn(context)),
 
-                SizedBox(width: 16.w),
-                _buildActions(isManagerOrAdmin),
+                if (widget.role != 'sales' && widget.role != 'marketing') ...[
+                  SizedBox(width: 16.w),
+                  _buildActions(isManagerOrAdmin),
+                ],
               ],
             ),
           ],
@@ -438,17 +503,6 @@ class _LeadCardState extends State<LeadCard> {
         widget.role == 'manager' ||
         widget.role == 'admin' ||
         widget.role == 'ceo';
-
-    DateTime? lastNoteDate;
-    if (widget.lead.notes.isNotEmpty) {
-      final sortedNotes = List<LeadNoteModel>.from(widget.lead.notes);
-      sortedNotes.sort(
-        (a, b) => (b.createdAt ?? DateTime.now()).compareTo(
-          a.createdAt ?? DateTime.now(),
-        ),
-      );
-      lastNoteDate = sortedNotes.first.createdAt;
-    }
 
     final bool isNameLong = widget.lead.clientName.length > 20;
 
@@ -738,12 +792,11 @@ class _LeadCardState extends State<LeadCard> {
           ],
         ),
 
-        SizedBox(height: 12.h),
-
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (_isEditing && isManagerOrAdmin)
+        if (_isEditing && isManagerOrAdmin) ...[
+          SizedBox(height: 8.h),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Expanded(
                 child: BlocBuilder<LeadCubit, LeadState>(
                   builder: (context, state) {
@@ -786,38 +839,10 @@ class _LeadCardState extends State<LeadCard> {
                     return const SizedBox.shrink();
                   },
                 ),
-              )
-            else if (!_isEditing) ...[
-              if (widget.lead.assignedTo == widget.lead.createdBy)
-                Expanded(
-                  child: _infoRowSmall(
-                    'المسؤول والمُنشئ:',
-                    widget.lead.assignedToName ?? 'غير محدد',
-                  ),
-                )
-              else ...[
-                Expanded(
-                  child: _infoRowSmall(
-                    'المُنشئ:',
-                    widget.lead.createdByName ?? 'غير محدد',
-                  ),
-                ),
-                Container(
-                  width: 1.w,
-                  height: 35.h,
-                  color: Colors.grey[300],
-                  margin: EdgeInsets.symmetric(horizontal: 16.w),
-                ),
-                Expanded(
-                  child: _infoRowSmall(
-                    'المسؤول:',
-                    widget.lead.assignedToName ?? 'غير محدد',
-                  ),
-                ),
-              ],
+              ),
             ],
-          ],
-        ),
+          ),
+        ],
       ],
     );
   }
@@ -1285,6 +1310,9 @@ class _LeadCardState extends State<LeadCard> {
                     setState(() {
                       _isCommenting = !_isCommenting;
                     });
+                    if (_isCommenting) {
+                      _fetchCannedComments();
+                    }
                     _scheduleDividerUpdate(resetFirst: willCollapse);
                   },
                 ),
@@ -1630,78 +1658,174 @@ class _LeadCardState extends State<LeadCard> {
 
   Widget _buildCommentInputField() {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+      padding: EdgeInsets.all(10.w),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: Colors.grey[300]!, width: 1.5),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _commentController,
-              textDirection: ui.TextDirection.rtl,
-              style: TextStyle(fontSize: 24.sp, fontWeight: FontWeight.bold),
-              decoration: InputDecoration(
-                hintText: 'اكتب تعليقك هنا...',
-                hintStyle: TextStyle(fontSize: 24.sp, color: Colors.grey[400]),
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 8.w,
-                  vertical: 8.h,
-                ),
-              ),
-            ),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(color: AppColors.brandPrimary.withValues(alpha: 0.4), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
-          _isSubmittingComment
-              ? SizedBox(
-                  width: 28.w,
-                  height: 28.w,
-                  child: const CircularProgressIndicator(strokeWidth: 2),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _isLoadingCannedComments && _cannedComments.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8.h),
+                    child: SizedBox(
+                      width: 20.w,
+                      height: 20.w,
+                      child: const CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
                 )
-              : IconButton(
-                  icon: const Icon(Icons.send),
-                  color: AppColors.brandPrimary,
-                  iconSize: 28.sp,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  onPressed: () async {
-                    final text = _commentController.text.trim();
-                    if (text.isEmpty) return;
-                    setState(() => _isSubmittingComment = true);
-                    try {
-                      await context.read<LeadCubit>().addNote(
-                        widget.lead.id!,
-                        text,
-                      );
-                      if (mounted) {
-                        setState(() {
-                          _isSubmittingComment = false;
-                          _isCommenting = false;
-                          _commentController.clear();
-                        });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('تم إضافة التعليق بنجاح'),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
+              : DropdownButtonFormField<LookupOptionModel>(
+                  value: _selectedCannedComment,
+                  isDense: true,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: 'اختر تعليقاً جاهزاً أو اختر "أخرى"',
+                    labelStyle: TextStyle(fontSize: 13.sp, color: Colors.grey[700]),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.r)),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
+                  ),
+                  items: _cannedComments.map((c) => DropdownMenuItem(
+                    value: c,
+                    child: Text(c.nameAr, style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold)),
+                  )).toList(),
+                  onChanged: (val) {
+                    setState(() {
+                      _selectedCannedComment = val;
+                      if (_isOptionOther(val)) {
+                        _isCustomComment = true;
+                        _commentController.clear();
+                      } else {
+                        _isCustomComment = false;
+                        _commentController.text = val?.nameAr ?? '';
                       }
-                    } catch (e) {
-                      if (mounted) {
-                        setState(() => _isSubmittingComment = false);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('خطأ: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
+                    });
+                    _scheduleDividerUpdate();
+                  },
+                ),
+          SizedBox(height: 8.h),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _commentController,
+                  enabled: true,
+                  autofocus: _isCustomComment,
+                  maxLines: 2,
+                  minLines: 1,
+                  textDirection: ui.TextDirection.rtl,
+                  style: TextStyle(
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.bold,
+                    color: _isCustomComment ? AppColors.textPrimary : AppColors.brandPrimary,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: (_isCustomComment ||
+                            _isOptionOther(_selectedCannedComment) ||
+                            _selectedCannedComment == null)
+                        ? 'التعليق الحر (اكتب ما تشاء)'
+                        : 'التعليق المختار (يمكنك التعديل عليه)',
+                    hintText: 'اكتب التعليق هنا بحرية...',
+                    hintStyle: TextStyle(fontSize: 15.sp, color: Colors.grey[400]),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.r)),
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 10.w,
+                      vertical: 8.h,
+                    ),
+                  ),
+                  onChanged: (text) {
+                    if (!_isCustomComment && text != _selectedCannedComment?.nameAr) {
+                      setState(() {
+                        _isCustomComment = true;
+                      });
                     }
                   },
                 ),
+              ),
+              SizedBox(width: 8.w),
+              _isSubmittingComment
+                  ? SizedBox(
+                      width: 28.w,
+                      height: 28.w,
+                      child: const CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : ElevatedButton.icon(
+                      icon: const Icon(Icons.send_rounded, size: 18),
+                      label: const Text('إرسال'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.brandPrimary,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+                      ),
+                      onPressed: () async {
+                        final text = _commentController.text.trim();
+                        if (text.isEmpty) return;
+                        setState(() => _isSubmittingComment = true);
+                        try {
+                          final isCustom = _isCustomComment ||
+                              _isOptionOther(_selectedCannedComment) ||
+                              _selectedCannedComment == null ||
+                              _selectedCannedComment!.id.startsWith('fallback_');
+
+                          String statusIdToApply;
+                          if (isCustom) {
+                            // إذا كتب الموظف تعليقاً حراً أو اختار أخرى، تتحول حالة العميل تلقائياً إلى "تم التواصل"
+                            statusIdToApply = AppConstants.leadStatusContacted;
+                          } else {
+                            // تم اختيار حالة من جدول حالات العميل (مهتم، غير مهتم، لم يرد، VIP، بروكر، إلخ)
+                            statusIdToApply = _selectedCannedComment!.id;
+                          }
+
+                          await context.read<LeadCubit>().addNote(
+                            widget.lead.id!,
+                            text,
+                            quickCommentId: statusIdToApply,
+                            newStatusId: statusIdToApply,
+                          );
+                          if (mounted) {
+                            setState(() {
+                              _isSubmittingComment = false;
+                              _isCommenting = false;
+                              _commentController.clear();
+                              _selectedCannedComment = null;
+                              _isCustomComment = false;
+                            });
+                            _scheduleDividerUpdate(resetFirst: true);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('تم حفظ التعليق بنجاح'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            setState(() => _isSubmittingComment = false);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('خطأ: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                    ),
+            ],
+          ),
         ],
       ),
     );
@@ -1760,7 +1884,6 @@ class _LeadCardState extends State<LeadCard> {
 
     String? rawComment = latestNoteText ?? widget.lead.lastComment?.trim();
     
-    // إخفاء كل رسائل النظام التلقائية حتى لا تظهر في UI كتعليق أخير
     final systemLogs = [
       'تم إنشاء العميل في النظام',
       'تم نقل العميل إلى سلة المهملات',
@@ -1777,9 +1900,41 @@ class _LeadCardState extends State<LeadCard> {
     final comment = rawComment ?? 'لم يتم إضافة أي تعليق أو إجراء بعد';
     final bool hasComment = rawComment != null;
 
+    if (!hasComment) {
+      return Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF9FAFB),
+          borderRadius: BorderRadius.circular(6.r),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.chat_bubble_outline_rounded,
+              size: 16.sp,
+              color: Colors.grey[400],
+            ),
+            SizedBox(width: 6.w),
+            Text(
+              'لا يوجد تعليق بعد',
+              style: TextStyle(
+                fontSize: 14.sp,
+                color: Colors.grey[500],
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final bool isLong = comment.length > 50;
+
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
       decoration: BoxDecoration(
         color: const Color(0xFFF9FAFB),
         borderRadius: BorderRadius.circular(8.r),
@@ -1804,7 +1959,7 @@ class _LeadCardState extends State<LeadCard> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              if (latestNoteDate != null && hasComment) ...[
+              if (latestNoteDate != null) ...[
                 const Spacer(),
                 Text(
                   DateFormat(
@@ -1812,8 +1967,8 @@ class _LeadCardState extends State<LeadCard> {
                     'ar',
                   ).format(latestNoteDate),
                   style: TextStyle(
-                    fontSize: 16.sp,
-                    color: Colors.grey[700],
+                    fontSize: 13.sp,
+                    color: Colors.grey[600],
                     fontWeight: FontWeight.bold,
                   ),
                   textDirection: ui.TextDirection.ltr,
@@ -1821,67 +1976,55 @@ class _LeadCardState extends State<LeadCard> {
               ],
             ],
           ),
-          SizedBox(height: 6.h),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final textWidget = SelectableText(
-                comment,
-                textDirection: ui.TextDirection.rtl,
-                style: TextStyle(
-                  fontSize: 24.sp,
-                  color: hasComment ? Colors.black87 : Colors.grey[500],
-                  fontWeight: hasComment ? FontWeight.w800 : FontWeight.normal,
-                  height: 1.3,
-                ),
-                maxLines: _isCommentExpanded ? null : 3,
-              );
-
-              final bool isLong = comment.length > 80;
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  textWidget,
-                  if (isLong)
-                    SelectionContainer.disabled(
-                      child: TextButton(
-                        onPressed: () {
-                          final willCollapse = _isCommentExpanded;
-                          setState(() {
-                            _isCommentExpanded = !_isCommentExpanded;
-                          });
-                          _scheduleDividerUpdate(resetFirst: willCollapse);
-                        },
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 8.w,
-                            vertical: 4.h,
-                          ),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          _isCommentExpanded
-                              ? 'إخفاء التعليق'
-                              : 'عرض المزيد...',
-                          style: TextStyle(
-                            fontSize: 14.sp,
-                            color: AppColors.brandPrimary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              );
-            },
+          SizedBox(height: 4.h),
+          SelectableText(
+            comment,
+            textDirection: ui.TextDirection.rtl,
+            style: TextStyle(
+              fontSize: 22.sp,
+              color: Colors.black87,
+              fontWeight: FontWeight.w800,
+              height: 1.25,
+            ),
+            maxLines: _isCommentExpanded ? null : 2,
           ),
+          if (isLong)
+            SelectionContainer.disabled(
+              child: TextButton(
+                onPressed: () {
+                  final willCollapse = _isCommentExpanded;
+                  setState(() {
+                    _isCommentExpanded = !_isCommentExpanded;
+                  });
+                  _scheduleDividerUpdate(resetFirst: willCollapse);
+                },
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 0,
+                    vertical: 2.h,
+                  ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  _isCommentExpanded ? 'إخفاء' : 'عرض المزيد...',
+                  style: TextStyle(
+                    fontSize: 13.sp,
+                    color: AppColors.brandPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 
   Widget _buildActions(bool isManagerOrAdmin) {
+    if (widget.role == 'sales' || widget.role == 'marketing') {
+      return const SizedBox.shrink();
+    }
     return SelectionContainer.disabled(
       child: Column(
         children: [

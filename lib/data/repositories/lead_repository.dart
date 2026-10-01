@@ -4,6 +4,7 @@ import '../models/profile_model.dart';
 import '../../../core/di/injection_container.dart' as di;
 import '../services/ai_service.dart';
 import '../services/lead_service.dart';
+import '../services/dropdown_service.dart';
 
 class LeadRepository {
   final LeadService _leadService;
@@ -246,9 +247,19 @@ class LeadRepository {
     }
   }
 
-  Future<LeadModel> addNote(String leadId, String noteText) async {
+  Future<LeadModel> addNote(
+    String leadId,
+    String noteText, {
+    String? quickCommentId,
+    String? newStatusId,
+  }) async {
     try {
-      return await _leadService.addNote(leadId, noteText);
+      return await _leadService.addNote(
+        leadId,
+        noteText,
+        quickCommentId: quickCommentId,
+        newStatusId: newStatusId,
+      );
     } catch (e) {
       throw 'فشل إضافة التعليق، حاول مرة أخرى';
     }
@@ -261,6 +272,37 @@ class LeadRepository {
       throw _handlePostgrestError(e);
     } catch (e) {
       throw 'لم يتم الحذف، حدث خطأ تقني';
+    }
+  }
+
+  Future<void> bulkDeleteLeads(List<String> ids) async {
+    try {
+      await _leadService.bulkDeleteLeads(ids);
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
+    } catch (e) {
+      throw 'فشل حذف العملاء المحددين، حدث خطأ تقني';
+    }
+  }
+
+  Future<Map<String, int>> getMonthlyFeedbackStats({
+    required String role,
+    required String userId,
+    String? employeeId,
+  }) async {
+    try {
+      return await _leadService.getMonthlyFeedbackStats(
+        role: role,
+        userId: userId,
+        employeeId: employeeId,
+      );
+    } catch (e) {
+      return {
+        'total': 0,
+        'with_feedback': 0,
+        'without_feedback': 0,
+        'remaining': 0,
+      };
     }
   }
 
@@ -311,6 +353,10 @@ class LeadRepository {
     } catch (e) {
       return [];
     }
+  }
+
+  Future<List<LookupOptionModel>> getQuickComments() async {
+    return await _leadService.fetchQuickComments();
   }
 
   String _handlePostgrestError(PostgrestException e) {

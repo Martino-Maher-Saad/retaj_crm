@@ -27,10 +27,13 @@ class LookupOptionModel {
   factory LookupOptionModel.fromJson(Map<String, dynamic> json) {
     return LookupOptionModel(
       id: json['id']?.toString() ?? '',
-      // يدعم name_ar (lookup tables) و name (governorates/cities)
-      nameAr: json['name_ar']?.toString() ?? json['name']?.toString() ?? '',
+      // يدعم name_ar (lookup tables) و comment_text و name (governorates/cities)
+      nameAr: json['name_ar']?.toString() ??
+          json['comment_text']?.toString() ??
+          json['name']?.toString() ??
+          '',
       nameEn: json['name_en']?.toString() ?? '',
-      listOrder: json['list_order'] ?? 0,
+      listOrder: json['list_order'] ?? json['display_order'] ?? 0,
       isActive: _parseBool(json['is_active']),
     );
   }
@@ -90,6 +93,60 @@ class DropdownService {
   Future<List<LookupOptionModel>> fetchPropertyApprovalStatuses() => _fetchFromTable('property_approval_statuses');
   Future<List<LookupOptionModel>> fetchDesignRoomTypes() => _fetchFromTable('design_room_types');
   Future<List<LookupOptionModel>> fetchDesignStyles() => _fetchFromTable('design_styles');
+  Future<List<LookupOptionModel>> fetchLeadQuickComments() async {
+    try {
+      final response = await _client
+          .from('lead_quick_comments')
+          .select('id, name_ar, comment_text, name_en, list_order, is_active')
+          .eq('is_active', true)
+          .order('list_order', ascending: true);
+      final list = (response as List)
+          .map((e) => LookupOptionModel.fromJson(e))
+          .where((m) => m.nameAr.isNotEmpty)
+          .toList();
+      if (list.isNotEmpty) {
+        final hasOther = list.any((c) =>
+            c.id == 'other' ||
+            c.nameAr.trim().contains('أخرى') ||
+            c.nameAr.trim().contains('اخرى') ||
+            c.nameAr.trim().contains('أخري') ||
+            c.nameAr.trim().contains('اخري') ||
+            c.nameEn.toLowerCase().contains('other'));
+        if (!hasOther) {
+          list.add(const LookupOptionModel(
+            id: 'other',
+            nameAr: 'أخرى (كتابة تعليق حر)',
+            nameEn: 'other',
+            listOrder: 999,
+          ));
+        }
+        return list;
+      }
+    } catch (_) {}
+
+    const defaults = [
+      'لم يرد على الهاتف',
+      'الهاتف مغلق / غير متاح',
+      'تم التواصل على الواتس',
+      'تم إرسال العروض والتفاصيل على الواتساب',
+      'مهتم ومطلوب المتابعة لاحقاً',
+      'تم تحديد موعد مقابلة / معاينة',
+      'السعر خارج الميزانية',
+      'يبحث في منطقة أو كمبوند آخر',
+      'غير مهتم حالياً',
+      'طلب الاتصال به في وقت لاحق',
+      'أخرى (كتابة تعليق يدوي)',
+    ];
+
+    return List.generate(
+      defaults.length,
+      (i) => LookupOptionModel(
+        id: 'fallback_$i',
+        nameAr: defaults[i],
+        listOrder: i + 1,
+      ),
+    );
+  }
 
   // ────────────────────────────────────────────────
   //  للـ Admin Screen: كل القيم (Active + Inactive)

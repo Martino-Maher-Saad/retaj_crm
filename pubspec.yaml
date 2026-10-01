@@ -67,7 +67,7 @@ dependencies:
   intl_phone_field: ^3.2.0
   dropdown_search: ^7.0.0
   crypto: ^3.0.7
-
+  trina_grid: ^2.3.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

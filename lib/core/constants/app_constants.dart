@@ -46,11 +46,23 @@ class AppConstants {
   ];
 
   // --- [ LEAD STATUS IDs ] ---
-  static const String leadStatusFirstContact = "460be748-7685-49ef-abcf-c4dd49511ab7";
-  static const String leadStatusSecondContact = "03453446-08ca-4061-ba50-ff915fcdf43a";
-  static const String leadStatusThirdContact = "7bd8af5e-fb5b-41d1-955a-e5e5e1751d82";
-  static const String leadStatusExcluded = "34f6f48c-3179-4b83-b34e-edc3fdc2e3d4";
-  static const String leadStatusContracted = "6d5c7b17-9ef7-48ee-a9f6-0575cc390278";
+  static const String leadStatusNoContact = "460be748-7685-49ef-abcf-c4dd49511ab7"; // لم يتم اتلواصل معه
+  static const String leadStatusContacted = "70b82352-ab4e-420e-a235-425911e9ca78"; // تم التواصل
+  static const String leadStatusNotInterested = "03453446-08ca-4061-ba50-ff915fcdf43a"; // غير مهتم
+  static const String leadStatusInterested = "ba0025b6-2bbd-437c-b3b7-784d3be32d33"; // مهتم
+  static const String leadStatusInterestedClient = "6d5c7b17-9ef7-48ee-a9f6-0575cc390278"; // عميل مهتم
+  static const String leadStatusNoReply = "7bd8af5e-fb5b-41d1-955a-e5e5e1751d82"; // لم يتم الرد
+  static const String leadStatusImportant = "34f6f48c-3179-4b83-b34e-edc3fdc2e3d4"; // VIP
+  static const String leadStatusBroker = "edd485bf-e3d9-44f0-acc8-71287bbefced"; // بروكر
+  static const String leadStatusOther = "3de7942d-8562-4774-88ce-9f84eed8f615"; // اخري
+  static const String leadStatusWhatsAppContacted = leadStatusContacted; // تم التواصل
+
+  // للتوافق مع الأكواد السابقة
+  static const String leadStatusFirstContact = leadStatusNoContact;
+  static const String leadStatusSecondContact = leadStatusNotInterested;
+  static const String leadStatusThirdContact = leadStatusNoReply;
+  static const String leadStatusExcluded = leadStatusImportant;
+  static const String leadStatusContracted = leadStatusInterested;
 
   // --- [ PROPERTY APPROVAL STATUS IDs ] ---
   static const String propertyStatusPending = "634f7e69-6161-4535-b409-d1ea1bbbdcd3";

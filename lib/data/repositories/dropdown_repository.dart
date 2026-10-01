@@ -26,6 +26,7 @@ class DropdownRepository {
       _service.fetchPropertyApprovalStatuses(),  // 10
       _service.fetchDesignRoomTypes(),           // 11
       _service.fetchDesignStyles(),              // 12
+      _service.fetchLeadQuickComments(),         // 13
     ]);
 
     final govRaw = results[0] as List<Map<String, dynamic>>;
@@ -55,6 +56,7 @@ class DropdownRepository {
         'property_approval_statuses': results[10] as List<LookupOptionModel>,
         'design_room_types':          results[11] as List<LookupOptionModel>,
         'design_styles':              results[12] as List<LookupOptionModel>,
+        'lead_quick_comments':        results[13] as List<LookupOptionModel>,
       },
     );
   }

@@ -62,7 +62,8 @@ class StaticDataManagerImpl implements StaticDataManager {
     final tables = [
       'governorates', 'cities', 'lead_statuses', 'property_types', 'listing_types',
       'lead_platforms', 'communication_channels', 'property_sources', 'advertising_platforms',
-      'lead_exclusion_reasons', 'property_approval_statuses', 'design_room_types', 'design_styles'
+      'lead_exclusion_reasons', 'property_approval_statuses', 'design_room_types', 'design_styles',
+      'lead_quick_comments'
     ];
 
     for (final table in tables) {
