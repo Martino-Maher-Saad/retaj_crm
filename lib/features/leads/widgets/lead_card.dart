@@ -141,6 +141,10 @@ class _LeadCardState extends State<LeadCard> {
   String? _inlineSelectedEmployeeId;
   num? _inlineBudgetFrom;
   num? _inlineBudgetTo;
+  final TextEditingController _inlineBudgetFromController =
+      TextEditingController();
+  final TextEditingController _inlineBudgetToController =
+      TextEditingController();
 
   // قياس ارتفاع الكارت لجعل الفواصل مرنة
   final GlobalKey _mainRowKey = GlobalKey();
@@ -185,6 +189,12 @@ class _LeadCardState extends State<LeadCard> {
     _inlineNeedsController.text = widget.lead.descLeadNeed ?? '';
     _inlineBudgetFrom = widget.lead.budgetFrom;
     _inlineBudgetTo = widget.lead.budgetTo;
+    _inlineBudgetFromController.text = widget.lead.budgetFrom != null
+        ? NumberFormat.decimalPattern('en').format(widget.lead.budgetFrom)
+        : '';
+    _inlineBudgetToController.text = widget.lead.budgetTo != null
+        ? NumberFormat.decimalPattern('en').format(widget.lead.budgetTo)
+        : '';
 
     final dataManager = di.sl<StaticDataManager>();
 
@@ -244,6 +254,8 @@ class _LeadCardState extends State<LeadCard> {
     _inlineNameController.dispose();
     _inlinePhoneController.dispose();
     _inlineNeedsController.dispose();
+    _inlineBudgetFromController.dispose();
+    _inlineBudgetToController.dispose();
     super.dispose();
   }
 
@@ -460,7 +472,7 @@ class _LeadCardState extends State<LeadCard> {
               children: [
                 // عمود الاسم والرقم
                 Expanded(
-                  flex: 3,
+                  flex: 7,
                   child: _buildFirstColumn(context, sColor, hasPlatform),
                 ),
 
@@ -471,7 +483,7 @@ class _LeadCardState extends State<LeadCard> {
                   color: Colors.grey[300],
                 ),
 
-                Expanded(flex: 4, child: _buildSecondColumn(context)),
+                Expanded(flex: 12, child: _buildSecondColumn(context)),
 
                 Container(
                   width: 1.w,
@@ -480,7 +492,7 @@ class _LeadCardState extends State<LeadCard> {
                   color: Colors.grey[300],
                 ),
 
-                Expanded(flex: 3, child: _buildThirdColumn(context)),
+                Expanded(flex: 6, child: _buildThirdColumn(context)),
 
                 if (widget.role != 'sales' && widget.role != 'marketing') ...[
                   SizedBox(width: 16.w),
@@ -503,8 +515,9 @@ class _LeadCardState extends State<LeadCard> {
         widget.role == 'manager' ||
         widget.role == 'admin' ||
         widget.role == 'ceo';
+    final bool canEditPhone = widget.isAddingMode || isManagerOrAdmin;
 
-    final bool isNameLong = widget.lead.clientName.length > 20;
+    final bool isNameLong = widget.lead.clientName.trim().length > 15;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -518,7 +531,7 @@ class _LeadCardState extends State<LeadCard> {
                 children: [
                   if (_isEditing)
                     Container(
-                      margin: EdgeInsets.only(bottom: 12.h, top: 4.h),
+                      margin: EdgeInsets.only(bottom: 4.h, top: 2.h),
                       decoration: BoxDecoration(
                         color: Colors.grey[100],
                         borderRadius: BorderRadius.circular(8.r),
@@ -536,8 +549,8 @@ class _LeadCardState extends State<LeadCard> {
                           border: InputBorder.none,
                           isDense: true,
                           contentPadding: EdgeInsets.symmetric(
-                            vertical: 12.h,
-                            horizontal: 12.w,
+                            vertical: 8.h,
+                            horizontal: 10.w,
                           ),
                         ),
                       ),
@@ -555,28 +568,35 @@ class _LeadCardState extends State<LeadCard> {
                     ),
                     if (isNameLong)
                       SelectionContainer.disabled(
-                        child: TextButton(
-                          onPressed: () {
+                        child: InkWell(
+                          onTap: () {
                             final willCollapse = _isNameExpanded;
                             setState(() {
                               _isNameExpanded = !_isNameExpanded;
                             });
                             _scheduleDividerUpdate(resetFirst: willCollapse);
                           },
-                          style: TextButton.styleFrom(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 0,
-                              vertical: 4.h,
-                            ),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: Text(
-                            _isNameExpanded ? 'إخفاء' : 'عرض المزيد...',
-                            style: TextStyle(
-                              fontSize: 12.sp,
-                              color: AppColors.brandPrimary,
-                              fontWeight: FontWeight.bold,
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 2.h),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  _isNameExpanded ? 'إخفاء' : 'عرض المزيد...',
+                                  style: TextStyle(
+                                    fontSize: 14.sp,
+                                    color: AppColors.brandPrimary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Icon(
+                                  _isNameExpanded
+                                      ? Icons.keyboard_arrow_up_rounded
+                                      : Icons.keyboard_arrow_down_rounded,
+                                  size: 16.sp,
+                                  color: AppColors.brandPrimary,
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -616,14 +636,15 @@ class _LeadCardState extends State<LeadCard> {
         ),
         if (_isEditing)
           Container(
-            margin: EdgeInsets.only(bottom: 12.h, top: 4.h),
+            margin: EdgeInsets.only(bottom: 4.h, top: 2.h),
             decoration: BoxDecoration(
-              color: Colors.grey[100],
+              color: canEditPhone ? Colors.grey[100] : Colors.grey[200],
               borderRadius: BorderRadius.circular(8.r),
               border: Border.all(color: Colors.grey[300]!),
             ),
             child: TextFormField(
               controller: _inlinePhoneController,
+              enabled: canEditPhone,
               keyboardType: TextInputType.phone,
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
@@ -631,15 +652,25 @@ class _LeadCardState extends State<LeadCard> {
               style: TextStyle(
                 fontSize: 22.sp,
                 fontWeight: FontWeight.bold,
-                color: AppColors.brandPrimary,
+                color: canEditPhone ? AppColors.brandPrimary : Colors.grey[600],
               ),
               decoration: InputDecoration(
                 hintText: 'رقم الهاتف *',
+                prefixIcon: canEditPhone
+                    ? null
+                    : Tooltip(
+                        message: 'لا يمكن تعديل رقم الهاتف',
+                        child: Icon(
+                          Icons.lock_outline,
+                          size: 20.sp,
+                          color: Colors.grey[600],
+                        ),
+                      ),
                 border: InputBorder.none,
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(
-                  vertical: 12.h,
-                  horizontal: 12.w,
+                  vertical: 8.h,
+                  horizontal: 10.w,
                 ),
               ),
             ),
@@ -843,6 +874,16 @@ class _LeadCardState extends State<LeadCard> {
             ],
           ),
         ],
+        if (isManagerOrAdmin && !_isEditing) ...[
+          SizedBox(height: 6.h),
+          _infoRowSmall(
+            'المسؤول:',
+            (widget.lead.assignedToName != null && widget.lead.assignedToName!.trim().isNotEmpty)
+                ? widget.lead.assignedToName!
+                : 'غير محدد',
+            valueColor: AppColors.brandPrimary,
+          ),
+        ],
       ],
     );
   }
@@ -877,7 +918,7 @@ class _LeadCardState extends State<LeadCard> {
 
   Widget _bulletSeparator() {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 6.w),
+      padding: EdgeInsets.symmetric(horizontal: 10.w),
       child: Icon(Icons.circle, size: 5.sp, color: Colors.grey[400]),
     );
   }
@@ -888,423 +929,210 @@ class _LeadCardState extends State<LeadCard> {
         widget.lead.descLeadNeed!.trim().isNotEmpty;
 
     Widget? editFields;
-    List<Widget> metaItems = [];
+    Widget? summaryHeader;
 
     if (_isEditing) {
-      editFields = Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      editFields = Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'المدينة *:',
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(height: 4.h),
-                    _buildInlineDropdownMenu<int>(
-                      'المدينة',
-                      _inlineSelectedCityId,
-                      di
-                          .sl<StaticDataManager>()
-                          .allCities
-                          .map(
-                            (c) =>
-                                DropdownMenuEntry(value: c.id, label: c.name),
-                          )
-                          .toList(),
-                      (val) => setState(() => _inlineSelectedCityId = val),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(width: 8.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'نوع العقار *:',
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(height: 4.h),
-                    _buildInlineDropdownMenu<String>(
-                      'نوع العقار',
-                      _inlineSelectedPropertyType,
-                      di
-                          .sl<StaticDataManager>()
-                          .getOptions('property_type')
-                          .toSet()
-                          .map((s) => DropdownMenuEntry(value: s, label: s))
-                          .toList(),
-                      (val) =>
-                          setState(() => _inlineSelectedPropertyType = val),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          Expanded(
+            child: _buildInlineDropdownMenu<int>(
+              'المدينة',
+              _inlineSelectedCityId,
+              di
+                  .sl<StaticDataManager>()
+                  .allCities
+                  .map(
+                    (c) => DropdownMenuEntry(value: c.id, label: c.name),
+                  )
+                  .toList(),
+              (val) => setState(() => _inlineSelectedCityId = val),
+            ),
           ),
-          SizedBox(height: 12.h),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'نوع الإعلان *:',
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(height: 4.h),
-                    _buildInlineDropdownMenu<String>(
-                      'نوع الإعلان',
-                      _inlineSelectedListingType,
-                      di
-                          .sl<StaticDataManager>()
-                          .getOptions('listing_type')
-                          .toSet()
-                          .map((s) => DropdownMenuEntry(value: s, label: s))
-                          .toList(),
-                      (val) => setState(() => _inlineSelectedListingType = val),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(width: 8.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'كود العقار (اختياري):',
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(height: 4.h),
-                    _buildInlineTextField(
-                      _inlinePropertyCodeController,
-                      'كود العقار',
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          SizedBox(width: 8.w),
+          Expanded(
+            child: _buildInlineDropdownMenu<String>(
+              'نوع العقار',
+              _inlineSelectedPropertyType,
+              di
+                  .sl<StaticDataManager>()
+                  .getOptions('property_type')
+                  .toSet()
+                  .map((s) => DropdownMenuEntry(value: s, label: s))
+                  .toList(),
+              (val) =>
+                  setState(() => _inlineSelectedPropertyType = val),
+            ),
+          ),
+          SizedBox(width: 8.w),
+          Expanded(
+            child: _buildInlineDropdownMenu<String>(
+              'نوع الإعلان',
+              _inlineSelectedListingType,
+              di
+                  .sl<StaticDataManager>()
+                  .getOptions('listing_type')
+                  .toSet()
+                  .map((s) => DropdownMenuEntry(value: s, label: s))
+                  .toList(),
+              (val) => setState(() => _inlineSelectedListingType = val),
+            ),
+          ),
+          SizedBox(width: 8.w),
+          Expanded(
+            child: _buildInlineTextField(
+              _inlinePropertyCodeController,
+              'كود العقار',
+            ),
           ),
         ],
       );
     } else {
-      if (widget.lead.city != null && widget.lead.city!.isNotEmpty) {
-        metaItems.add(
-          SelectableText(
-            widget.lead.city!,
-            style: TextStyle(
-              fontSize: 18.sp,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
-            ),
-          ),
-        );
-      }
-      if (widget.lead.propertyType != null &&
-          widget.lead.propertyType!.isNotEmpty) {
-        if (metaItems.isNotEmpty) metaItems.add(_bulletSeparator());
-        metaItems.add(
-          SelectableText(
-            widget.lead.propertyType!,
-            style: TextStyle(
-              fontSize: 18.sp,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
-            ),
-          ),
-        );
-      }
-      if (widget.lead.listingType != null &&
-          widget.lead.listingType!.isNotEmpty) {
-        if (metaItems.isNotEmpty) metaItems.add(_bulletSeparator());
-        metaItems.add(
-          SelectableText(
-            widget.lead.listingType!,
-            style: TextStyle(
-              fontSize: 18.sp,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
-            ),
-          ),
-        );
-      }
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (editFields != null)
-          editFields
-        else
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (metaItems.isNotEmpty)
-                Expanded(
-                  child: Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: metaItems,
-                  ),
+      summaryHeader = Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // 1) كود العقار على اليمين (لو موجود)
+          if (widget.lead.propertyCode != null &&
+              widget.lead.propertyCode!.trim().isNotEmpty) ...[
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: 10.w,
+                vertical: 4.h,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.brandPrimary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6.r),
+                border: Border.all(
+                  color: AppColors.brandPrimary.withValues(alpha: 0.2),
                 ),
-              if (widget.lead.propertyCode != null &&
-                  widget.lead.propertyCode!.isNotEmpty) ...[
-                if (metaItems.isNotEmpty) SizedBox(width: 8.w),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-                  decoration: BoxDecoration(
-                    color: AppColors.brandPrimary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6.r),
-                    border: Border.all(
-                      color: AppColors.brandPrimary.withValues(alpha: 0.2),
+              ),
+              child: SelectableText(
+                'كود: ${widget.lead.propertyCode!}',
+                style: TextStyle(
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.brandPrimary,
+                ),
+              ),
+            ),
+            Container(
+              width: 1.2.w,
+              height: 22.h,
+              margin: EdgeInsets.symmetric(horizontal: 14.w),
+              color: Colors.grey[300],
+            ),
+          ],
+
+          // 2) نوع العقار • نوع الإعلان • المدينة
+          Expanded(
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12.w,
+              runSpacing: 6.h,
+              children: [
+                if (widget.lead.propertyType != null &&
+                    widget.lead.propertyType!.trim().isNotEmpty)
+                  SelectableText(
+                    widget.lead.propertyType!,
+                    style: TextStyle(
+                      fontSize: 20.sp,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[850],
                     ),
                   ),
-                  child: SelectableText(
-                    'كود: ${widget.lead.propertyCode!}',
+                if (widget.lead.propertyType != null &&
+                    widget.lead.propertyType!.trim().isNotEmpty &&
+                    widget.lead.listingType != null &&
+                    widget.lead.listingType!.trim().isNotEmpty)
+                  _bulletSeparator(),
+                if (widget.lead.listingType != null &&
+                    widget.lead.listingType!.trim().isNotEmpty)
+                  SelectableText(
+                    widget.lead.listingType!,
+                    style: TextStyle(
+                      fontSize: 20.sp,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[850],
+                    ),
+                  ),
+                if (((widget.lead.propertyType != null &&
+                            widget.lead.propertyType!.trim().isNotEmpty) ||
+                        (widget.lead.listingType != null &&
+                            widget.lead.listingType!.trim().isNotEmpty)) &&
+                    widget.lead.city != null &&
+                    widget.lead.city!.trim().isNotEmpty)
+                  _bulletSeparator(),
+                if (widget.lead.city != null &&
+                    widget.lead.city!.trim().isNotEmpty)
+                  SelectableText(
+                    widget.lead.city!,
+                    style: TextStyle(
+                      fontSize: 20.sp,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[850],
+                    ),
+                  ),
+                if ((widget.lead.city == null ||
+                        widget.lead.city!.trim().isEmpty) &&
+                    (widget.lead.propertyType == null ||
+                        widget.lead.propertyType!.trim().isEmpty) &&
+                    (widget.lead.listingType == null ||
+                        widget.lead.listingType!.trim().isEmpty))
+                  Text(
+                    'البيانات غير محددة',
+                    style: TextStyle(
+                      fontSize: 16.sp,
+                      color: Colors.grey[400],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Directionality(
+      textDirection: ui.TextDirection.rtl,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (editFields != null)
+            editFields
+          else if (summaryHeader != null)
+            summaryHeader,
+
+          SizedBox(height: 8.h),
+
+          if (hasNeed || _isEditing)
+            _buildNeedsDescBox()
+          else
+            Text(
+              'لا يوجد وصف للاحتياجات',
+              style: TextStyle(fontSize: 18.sp, color: Colors.grey[400]),
+            ),
+
+          SizedBox(height: 6.h),
+          SelectionContainer.disabled(
+            child: Wrap(
+              spacing: 8.w,
+              runSpacing: 6.h,
+              children: [
+                OutlinedButton.icon(
+                  icon: Icon(Icons.edit_note, size: 24.sp),
+                  label: Text(
+                    'تعديل الوصف والميزانية',
                     style: TextStyle(
                       fontSize: 18.sp,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.brandPrimary,
                     ),
                   ),
-                ),
-              ],
-            ],
-          ),
-
-        if (editFields != null ||
-            metaItems.isNotEmpty ||
-            (widget.lead.propertyCode != null &&
-                widget.lead.propertyCode!.isNotEmpty))
-          SizedBox(height: 6.h),
-
-        Builder(
-          builder: (context) {
-            final currentBudgetFrom = _isEditing ? _inlineBudgetFrom : widget.lead.budgetFrom;
-            final currentBudgetTo = _isEditing ? _inlineBudgetTo : widget.lead.budgetTo;
-
-            return Row(
-              children: [
-                Text(
-                  'الميزانية: ',
-                  style: TextStyle(
-                    fontSize: 18.sp,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  '${currentBudgetFrom != null ? NumberFormat.decimalPattern('en').format(currentBudgetFrom) : '0'} - ${currentBudgetTo != null ? NumberFormat.decimalPattern('en').format(currentBudgetTo) : 'غير محدد'}',
-                  style: TextStyle(
-                    fontSize: 20.sp,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green[700],
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-
-        SizedBox(height: 8.h),
-
-        if (hasNeed)
-          _buildNeedsDescBox()
-        else
-          Text(
-            'لا يوجد وصف للاحتياجات',
-            style: TextStyle(fontSize: 24.sp, color: Colors.grey[400]),
-          ),
-
-        SizedBox(height: 8.h),
-        SelectionContainer.disabled(
-          child: Wrap(
-            spacing: 8.w,
-            runSpacing: 6.h,
-            children: [
-              OutlinedButton.icon(
-                icon: Icon(Icons.edit_note, size: 28.sp),
-                label: Text(
-                  'تعديل الوصف والميزانية',
-                  style: TextStyle(
-                    fontSize: 20.sp,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 20.w,
-                    vertical: 14.h,
-                  ),
-                  minimumSize: Size.zero,
-                  foregroundColor: AppColors.brandPrimary,
-                  side: BorderSide(
-                    color: AppColors.brandPrimary.withValues(alpha: 0.5),
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(6.r),
-                  ),
-                ),
-                onPressed: _editNeedsDialog,
-              ),
-              if (hasNeed)
-                ElevatedButton.icon(
-                  icon: Icon(Icons.auto_awesome, size: 28.sp),
-                  label: Text(
-                    'المطابقة الذكية',
-                    style: TextStyle(
-                      fontSize: 20.sp,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
+                  style: OutlinedButton.styleFrom(
                     padding: EdgeInsets.symmetric(
-                      horizontal: 20.w,
+                      horizontal: 16.w,
                       vertical: 14.h,
                     ),
                     minimumSize: Size.zero,
-                    backgroundColor: AppColors.brandPrimary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6.r),
-                    ),
-                  ),
-                  onPressed: () {
-                    final authState = context.read<AuthCubit>().state;
-                    final currentUser = (authState as dynamic).user;
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => SmartMatchScreen(
-                          lead: widget.lead,
-                          currentUser: currentUser,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildThirdColumn(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildLastComment(),
-        SizedBox(height: 8.h),
-        SelectionContainer.disabled(
-          child: _isEditing
-              ? Row(
-                  children: [
-                    ElevatedButton.icon(
-                      icon: _isSavingInline
-                          ? SizedBox(
-                              width: 16.sp,
-                              height: 16.sp,
-                              child: const CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Icon(Icons.save, size: 28.sp),
-                      label: Text(
-                        'حفظ',
-                        style: TextStyle(
-                          fontSize: 20.sp,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 20.w,
-                          vertical: 14.h,
-                        ),
-                        minimumSize: Size.zero,
-                        backgroundColor: AppColors.brandPrimary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6.r),
-                        ),
-                      ),
-                      onPressed: _isSavingInline ? null : _saveInlineLead,
-                    ),
-                    SizedBox(width: 8.w),
-                    OutlinedButton(
-                      onPressed: () {
-                        if (widget.isAddingMode) {
-                          if (widget.onCancelAdd != null) widget.onCancelAdd!();
-                        } else {
-                          setState(() => _isEditing = false);
-                          _scheduleDividerUpdate(resetFirst: true);
-                        }
-                      },
-                      style: OutlinedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 20.w,
-                          vertical: 14.h,
-                        ),
-                        minimumSize: Size.zero,
-                        foregroundColor: Colors.grey[600],
-                        side: BorderSide(color: Colors.grey[300]!),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6.r),
-                        ),
-                      ),
-                      child: Text(
-                        'إلغاء',
-                        style: TextStyle(
-                          fontSize: 18.sp,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              : ElevatedButton.icon(
-                  icon: Icon(Icons.add_comment, size: 28.sp),
-                  label: Text(
-                    'إضافة تعليق',
-                    style: TextStyle(
-                      fontSize: 20.sp,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 20.w,
-                      vertical: 14.h,
-                    ),
-                    minimumSize: Size.zero,
-                    backgroundColor: Colors.white,
                     foregroundColor: AppColors.brandPrimary,
-                    elevation: 0,
                     side: BorderSide(
                       color: AppColors.brandPrimary.withValues(alpha: 0.5),
                     ),
@@ -1312,97 +1140,283 @@ class _LeadCardState extends State<LeadCard> {
                       borderRadius: BorderRadius.circular(6.r),
                     ),
                   ),
-                  onPressed: () {
-                    final willCollapse = _isCommenting;
-                    setState(() {
-                      _isCommenting = !_isCommenting;
-                    });
-                    if (_isCommenting) {
-                      _fetchCannedComments();
-                    }
-                    _scheduleDividerUpdate(resetFirst: willCollapse);
-                  },
+                  onPressed: _editNeedsDialog,
                 ),
-        ),
-        if (_isCommenting) ...[
-          SizedBox(height: 6.h),
-          _buildCommentInputField(),
+                if (hasNeed)
+                  ElevatedButton.icon(
+                    icon: Icon(Icons.auto_awesome, size: 24.sp),
+                    label: Text(
+                      'المطابقة الذكية',
+                      style: TextStyle(
+                        fontSize: 18.sp,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16.w,
+                        vertical: 14.h,
+                      ),
+                      minimumSize: Size.zero,
+                      backgroundColor: AppColors.brandPrimary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6.r),
+                      ),
+                    ),
+                    onPressed: () {
+                      final authState = context.read<AuthCubit>().state;
+                      final currentUser = (authState as dynamic).user;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SmartMatchScreen(
+                            lead: widget.lead,
+                            currentUser: currentUser,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+              ],
+            ),
+          ),
         ],
-      ],
+      ),
+    );
+}
+
+  Widget _buildThirdColumn(BuildContext context) {
+    return Directionality(
+      textDirection: ui.TextDirection.rtl,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_isCommenting)
+            _buildCommentInputField()
+          else ...[
+            _buildLastComment(),
+            SizedBox(height: 8.h),
+            SelectionContainer.disabled(
+              child: _isEditing
+                  ? Row(
+                      children: [
+                        ElevatedButton.icon(
+                          icon: _isSavingInline
+                              ? SizedBox(
+                                  width: 16.sp,
+                                  height: 16.sp,
+                                  child: const CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Icon(Icons.save, size: 28.sp),
+                          label: Text(
+                            'حفظ',
+                            style: TextStyle(
+                              fontSize: 20.sp,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 20.w,
+                              vertical: 14.h,
+                            ),
+                            minimumSize: Size.zero,
+                            backgroundColor: AppColors.brandPrimary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6.r),
+                            ),
+                          ),
+                          onPressed: _isSavingInline ? null : _saveInlineLead,
+                        ),
+                        SizedBox(width: 8.w),
+                        OutlinedButton(
+                          onPressed: () {
+                            if (widget.isAddingMode) {
+                              if (widget.onCancelAdd != null) widget.onCancelAdd!();
+                            } else {
+                              setState(() => _isEditing = false);
+                              _scheduleDividerUpdate(resetFirst: true);
+                            }
+                          },
+                          style: OutlinedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 20.w,
+                              vertical: 14.h,
+                            ),
+                            minimumSize: Size.zero,
+                            foregroundColor: Colors.grey[600],
+                            side: BorderSide(color: Colors.grey[300]!),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6.r),
+                            ),
+                          ),
+                          child: Text(
+                            'إلغاء',
+                            style: TextStyle(
+                              fontSize: 18.sp,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            icon: Icon(Icons.add_comment, size: 22.sp),
+                            label: Text(
+                              'إضافة تعليق',
+                              style: TextStyle(
+                                fontSize: 17.sp,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 10.w,
+                                vertical: 18.h,
+                              ),
+                              minimumSize: Size.zero,
+                              backgroundColor: Colors.white,
+                              foregroundColor: AppColors.brandPrimary,
+                              elevation: 0,
+                              side: BorderSide(
+                                color: AppColors.brandPrimary.withValues(alpha: 0.5),
+                                width: 1.5,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8.r),
+                              ),
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _isCommenting = true;
+                              });
+                              _fetchCannedComments();
+                              _scheduleDividerUpdate(resetFirst: true);
+                            },
+                          ),
+                        ),
+                        SizedBox(width: 8.w),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            icon: Icon(Icons.edit_rounded, size: 24.sp),
+                            label: Text(
+                              'تعديل العميل',
+                              style: TextStyle(
+                                fontSize: 18.sp,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 10.w,
+                                vertical: 18.h,
+                              ),
+                              minimumSize: Size.zero,
+                              backgroundColor: Colors.white,
+                              foregroundColor: AppColors.brandPrimary,
+                              elevation: 0,
+                              side: BorderSide(
+                                color: AppColors.brandPrimary.withValues(alpha: 0.5),
+                                width: 1.5,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8.r),
+                              ),
+                            ),
+                            onPressed: () {
+                              _initInlineEditData();
+                              setState(() => _isEditing = true);
+                              _scheduleDividerUpdate(resetFirst: true);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
   Widget _buildNeedsDescBox() {
-    final need = widget.lead.descLeadNeed!.trim();
-    final bool isLong = need.length > 80;
+    final need = (widget.lead.descLeadNeed ?? '').trim();
+    final bool isLong = need.length > 50 || need.contains('\n') || need.split('\n').length > 2;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (_isEditing)
-              TextFormField(
-                controller: _inlineNeedsController,
-                maxLines: 4,
-                minLines: 1,
-                textDirection: ui.TextDirection.rtl,
-                style: TextStyle(
-                  fontSize: 24.sp,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                  height: 1.3,
-                ),
-                decoration: const InputDecoration(
-                  hintText: 'وصف احتياجات العميل',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.all(8),
-                ),
-              )
-            else ...[
-              SelectableText(
-                need,
-                textDirection: ui.TextDirection.rtl,
-                style: TextStyle(
-                  fontSize: 24.sp,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                  height: 1.3,
-                ),
-                maxLines: _isNeedExpanded ? null : 2,
-              ),
-              if (isLong)
-                SelectionContainer.disabled(
-                  child: TextButton(
-                    onPressed: () {
-                      final willCollapse = _isNeedExpanded;
-                      setState(() {
-                        _isNeedExpanded = !_isNeedExpanded;
-                      });
-                      _scheduleDividerUpdate(resetFirst: willCollapse);
-                    },
-                    style: TextButton.styleFrom(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 8.w,
-                        vertical: 4.h,
-                      ),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    child: Text(
-                      _isNeedExpanded ? 'إخفاء' : 'عرض المزيد...',
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        color: AppColors.brandPrimary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+    if (_isEditing) {
+      return TextFormField(
+        controller: _inlineNeedsController,
+        maxLines: 2,
+        minLines: 2,
+        textDirection: ui.TextDirection.rtl,
+        style: TextStyle(
+          fontSize: 18.sp,
+          fontWeight: FontWeight.bold,
+          color: Colors.black87,
+        ),
+        decoration: InputDecoration(
+          hintText: 'وصف احتياجات العميل',
+          hintStyle: TextStyle(fontSize: 15.sp, color: Colors.grey[400]),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(6.r),
+          ),
+          isDense: true,
+          contentPadding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
+        ),
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: SelectableText(
+            need.isNotEmpty ? need : 'لا يوجد وصف للاحتياجات',
+            textDirection: ui.TextDirection.rtl,
+            style: TextStyle(
+              fontSize: 21.sp,
+              fontWeight: FontWeight.bold,
+              color: need.isNotEmpty ? Colors.black87 : Colors.grey[400],
+              height: 1.35,
+            ),
+            maxLines: _isNeedExpanded ? null : 2,
+          ),
+        ),
+        if (isLong) ...[
+          SizedBox(width: 8.w),
+          SelectionContainer.disabled(
+            child: InkWell(
+              onTap: () {
+                final willCollapse = _isNeedExpanded;
+                setState(() {
+                  _isNeedExpanded = !_isNeedExpanded;
+                });
+                _scheduleDividerUpdate(resetFirst: willCollapse);
+              },
+              borderRadius: BorderRadius.circular(4.r),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
+                child: Text(
+                  _isNeedExpanded ? 'إخفاء' : 'عرض المزيد...',
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    color: AppColors.brandPrimary,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-            ],
-          ],
-        );
-      },
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -1417,6 +1431,7 @@ class _LeadCardState extends State<LeadCard> {
     clean = clean.replaceAll(RegExp(r'[^\d.]'), '');
     return num.tryParse(clean);
   }
+
 
   void _editNeedsDialog() {
     final TextEditingController needController = TextEditingController(
@@ -1575,6 +1590,12 @@ class _LeadCardState extends State<LeadCard> {
                           _inlineNeedsController.text = needController.text.trim();
                           _inlineBudgetFrom = parsedBudgetFrom;
                           _inlineBudgetTo = parsedBudgetTo;
+                          _inlineBudgetFromController.text = parsedBudgetFrom != null
+                              ? NumberFormat.decimalPattern('en').format(parsedBudgetFrom)
+                              : '';
+                          _inlineBudgetToController.text = parsedBudgetTo != null
+                              ? NumberFormat.decimalPattern('en').format(parsedBudgetTo)
+                              : '';
                         });
                         _scheduleDividerUpdate(resetFirst: true);
                         Navigator.pop(ctx);
@@ -1669,10 +1690,10 @@ class _LeadCardState extends State<LeadCard> {
 
   Widget _buildCommentInputField() {
     return Container(
-      padding: EdgeInsets.all(10.w),
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10.r),
+        borderRadius: BorderRadius.circular(8.r),
         border: Border.all(color: AppColors.brandPrimary.withValues(alpha: 0.4), width: 1.5),
         boxShadow: [
           BoxShadow(
@@ -1688,29 +1709,59 @@ class _LeadCardState extends State<LeadCard> {
           _isLoadingCannedComments && _cannedComments.isEmpty
               ? Center(
                   child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8.h),
+                    padding: EdgeInsets.symmetric(vertical: 4.h),
                     child: SizedBox(
-                      width: 20.w,
-                      height: 20.w,
+                      width: 18.w,
+                      height: 18.w,
                       child: const CircularProgressIndicator(strokeWidth: 2),
                     ),
                   ),
                 )
-              : DropdownButtonFormField<LookupOptionModel>(
-                  value: _selectedCannedComment,
-                  isDense: true,
-                  isExpanded: true,
-                  decoration: InputDecoration(
-                    labelText: 'اختر تعليقاً جاهزاً أو اختر "أخرى"',
-                    labelStyle: TextStyle(fontSize: 13.sp, color: Colors.grey[700]),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.r)),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
+              : DropdownMenu<LookupOptionModel>(
+                  key: ValueKey(_selectedCannedComment?.id),
+                  initialSelection: _selectedCannedComment,
+                  enableFilter: true,
+                  requestFocusOnTap: true,
+                  expandedInsets: EdgeInsets.zero,
+                  menuHeight: 280.h,
+                  hintText: 'اختر تعليقاً جاهزاً أو ابحث...',
+                  textStyle: TextStyle(
+                    fontSize: 15.sp,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[850],
                   ),
-                  items: _cannedComments.map((c) => DropdownMenuItem(
-                    value: c,
-                    child: Text(c.nameAr, style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold)),
-                  )).toList(),
-                  onChanged: (val) {
+                  inputDecorationTheme: InputDecorationTheme(
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 10.w,
+                      vertical: 6.h,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6.r),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6.r),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6.r),
+                      borderSide: BorderSide(color: AppColors.brandPrimary),
+                    ),
+                  ),
+                  dropdownMenuEntries: _cannedComments.map((c) {
+                    return DropdownMenuEntry<LookupOptionModel>(
+                      value: c,
+                      label: c.nameAr,
+                      style: MenuItemButton.styleFrom(
+                        textStyle: TextStyle(
+                          fontSize: 15.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                  onSelected: (val) {
                     setState(() {
                       _selectedCannedComment = val;
                       if (_isOptionOther(val)) {
@@ -1724,118 +1775,172 @@ class _LeadCardState extends State<LeadCard> {
                     _scheduleDividerUpdate();
                   },
                 ),
-          SizedBox(height: 8.h),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _commentController,
-                  enabled: true,
-                  autofocus: _isCustomComment,
-                  maxLines: 2,
-                  minLines: 1,
-                  textDirection: ui.TextDirection.rtl,
-                  style: TextStyle(
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.bold,
-                    color: _isCustomComment ? AppColors.textPrimary : AppColors.brandPrimary,
-                  ),
-                  decoration: InputDecoration(
-                    labelText: (_isCustomComment ||
-                            _isOptionOther(_selectedCannedComment) ||
-                            _selectedCannedComment == null)
-                        ? 'التعليق الحر (اكتب ما تشاء)'
-                        : 'التعليق المختار (يمكنك التعديل عليه)',
-                    hintText: 'اكتب التعليق هنا بحرية...',
-                    hintStyle: TextStyle(fontSize: 15.sp, color: Colors.grey[400]),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.r)),
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 10.w,
-                      vertical: 8.h,
+          SizedBox(height: 6.h),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _commentController,
+                    enabled: true,
+                    autofocus: _isCustomComment,
+                    maxLines: 4,
+                    minLines: 3,
+                    textDirection: ui.TextDirection.rtl,
+                    style: TextStyle(
+                      fontSize: 21.sp,
+                      fontWeight: FontWeight.bold,
+                      color: _isCustomComment ? AppColors.textPrimary : AppColors.brandPrimary,
+                      height: 1.3,
                     ),
-                  ),
-                  onChanged: (text) {
-                    if (!_isCustomComment && text != _selectedCannedComment?.nameAr) {
-                      setState(() {
-                        _isCustomComment = true;
-                      });
-                    }
-                  },
-                ),
-              ),
-              SizedBox(width: 8.w),
-              _isSubmittingComment
-                  ? SizedBox(
-                      width: 28.w,
-                      height: 28.w,
-                      child: const CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : ElevatedButton.icon(
-                      icon: const Icon(Icons.send_rounded, size: 18),
-                      label: const Text('إرسال'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.brandPrimary,
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
-                      ),
-                      onPressed: () async {
-                        final text = _commentController.text.trim();
-                        if (text.isEmpty) return;
-                        setState(() => _isSubmittingComment = true);
-                        try {
-                          final isCustom = _isCustomComment ||
+                    decoration: InputDecoration(
+                      labelText: (_isCustomComment ||
                               _isOptionOther(_selectedCannedComment) ||
-                              _selectedCannedComment == null ||
-                              _selectedCannedComment!.id.startsWith('fallback_');
+                              _selectedCannedComment == null)
+                          ? 'التعليق الحر'
+                          : 'التعليق المختار',
+                      labelStyle: TextStyle(fontSize: 16.sp),
+                      hintText: 'اكتب التعليق هنا بحرية...',
+                      hintStyle: TextStyle(fontSize: 16.sp, color: Colors.grey[400]),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(6.r)),
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12.w,
+                        vertical: 8.h,
+                      ),
+                    ),
+                    onChanged: (text) {
+                      if (!_isCustomComment && text != _selectedCannedComment?.nameAr) {
+                        setState(() {
+                          _isCustomComment = true;
+                        });
+                      }
+                    },
+                  ),
+                ),
+                SizedBox(width: 8.w),
+                SizedBox(
+                  width: 90.w,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _isSubmittingComment
+                            ? const Center(
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              )
+                            : ElevatedButton.icon(
+                                icon: const Icon(Icons.send_rounded, size: 16),
+                                label: Text(
+                                  'إرسال',
+                                  style: TextStyle(
+                                    fontSize: 15.sp,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.brandPrimary,
+                                  foregroundColor: Colors.white,
+                                  padding: EdgeInsets.symmetric(horizontal: 8.w),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(6.r),
+                                  ),
+                                ),
+                                onPressed: () async {
+                                  final text = _commentController.text.trim();
+                                  if (text.isEmpty) return;
+                                  setState(() => _isSubmittingComment = true);
+                                  try {
+                                    final isCustom = _isCustomComment ||
+                                        _isOptionOther(_selectedCannedComment) ||
+                                        _selectedCannedComment == null ||
+                                        _selectedCannedComment!.id.startsWith('fallback_');
 
-                          String statusIdToApply;
-                          if (isCustom) {
-                            // إذا كتب الموظف تعليقاً حراً أو اختار أخرى، تتحول حالة العميل تلقائياً إلى "تم التواصل"
-                            statusIdToApply = AppConstants.leadStatusContacted;
-                          } else {
-                            // تم اختيار حالة من جدول حالات العميل (مهتم، غير مهتم، لم يرد، VIP، بروكر، إلخ)
-                            statusIdToApply = _selectedCannedComment!.id;
-                          }
+                                    String statusIdToApply;
+                                    if (isCustom) {
+                                      // إذا كتب الموظف تعليقاً حراً أو اختار أخرى، تتحول حالة العميل تلقائياً إلى "تم التواصل"
+                                      statusIdToApply = AppConstants.leadStatusContacted;
+                                    } else {
+                                      // تم اختيار حالة من جدول حالات العميل (مهتم، غير مهتم، لم يرد، VIP، بروكر، إلخ)
+                                      statusIdToApply = _selectedCannedComment!.id;
+                                    }
 
-                          await context.read<LeadCubit>().addNote(
-                            widget.lead.id!,
-                            text,
-                            quickCommentId: statusIdToApply,
-                            newStatusId: statusIdToApply,
-                          );
-                          if (mounted) {
+                                    await context.read<LeadCubit>().addNote(
+                                      widget.lead.id!,
+                                      text,
+                                      quickCommentId: statusIdToApply,
+                                      newStatusId: statusIdToApply,
+                                    );
+                                    if (mounted) {
+                                      setState(() {
+                                        _isSubmittingComment = false;
+                                        _isCommenting = false;
+                                        _commentController.clear();
+                                        _selectedCannedComment = null;
+                                        _isCustomComment = false;
+                                      });
+                                      _scheduleDividerUpdate(resetFirst: true);
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('تم حفظ التعليق بنجاح'),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (mounted) {
+                                      setState(() => _isSubmittingComment = false);
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('خطأ: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                              ),
+                      ),
+                      SizedBox(height: 6.h),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: Icon(Icons.close_rounded, size: 16.sp),
+                          label: Text(
+                            'إلغاء',
+                            style: TextStyle(
+                              fontSize: 15.sp,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red[700],
+                            side: BorderSide(color: Colors.red.withValues(alpha: 0.4)),
+                            padding: EdgeInsets.symmetric(horizontal: 8.w),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6.r),
+                            ),
+                          ),
+                          onPressed: () {
                             setState(() {
-                              _isSubmittingComment = false;
                               _isCommenting = false;
                               _commentController.clear();
                               _selectedCannedComment = null;
                               _isCustomComment = false;
                             });
                             _scheduleDividerUpdate(resetFirst: true);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('تم حفظ التعليق بنجاح'),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          if (mounted) {
-                            setState(() => _isSubmittingComment = false);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('خطأ: $e'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        }
-                      },
-                    ),
-            ],
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -2185,8 +2290,10 @@ class _LeadCardState extends State<LeadCard> {
         ? dataManager.getIdByName('platform', _inlineSelectedPlatform!)
         : null;
 
+    final bool canEditPhone = widget.isAddingMode || isManagerOrAdmin;
+
     List<LeadPhoneModel> phones = widget.lead.phones.toList();
-    if (phoneStr.isNotEmpty) {
+    if (canEditPhone && phoneStr.isNotEmpty) {
       // Clean phone
       String rawPhone = phoneStr;
       const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
@@ -2205,6 +2312,13 @@ class _LeadCardState extends State<LeadCard> {
         phones.add(LeadPhoneModel(phoneNumber: rawPhone, isPrimary: true));
       }
     }
+
+    final parsedBudgetFrom = _inlineBudgetFromController.text.trim().isNotEmpty
+        ? _parseBudget(_inlineBudgetFromController.text)
+        : _inlineBudgetFrom;
+    final parsedBudgetTo = _inlineBudgetToController.text.trim().isNotEmpty
+        ? _parseBudget(_inlineBudgetToController.text)
+        : _inlineBudgetTo;
 
     final newLead = LeadModel(
       id: widget.lead.id,
@@ -2234,8 +2348,8 @@ class _LeadCardState extends State<LeadCard> {
           widget.lead.city,
       propertyCode: _inlinePropertyCodeController.text.trim(),
       descLeadNeed: _inlineNeedsController.text.trim(),
-      budgetFrom: _inlineBudgetFrom,
-      budgetTo: _inlineBudgetTo,
+      budgetFrom: parsedBudgetFrom,
+      budgetTo: parsedBudgetTo,
       lastComment: widget.lead.lastComment,
       lastCommentId: widget.lead.lastCommentId,
       lastCommentDate: widget.lead.lastCommentDate,
@@ -2368,7 +2482,7 @@ class _LeadCardState extends State<LeadCard> {
         ),
         inputDecorationTheme: const InputDecorationTheme(
           isDense: true,
-          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
@@ -2404,8 +2518,8 @@ class _LeadCardState extends State<LeadCard> {
           hintText: hint,
           isDense: true,
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 11,
+            horizontal: 8,
+            vertical: 8,
           ),
         ),
       ),

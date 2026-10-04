@@ -169,22 +169,20 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                     RetajPageHeader(
                       title: 'العملاء المحتملين',
                       subtitle: 'تتبع وإدارة وتحويل فرص الاستثمار العقاري',
-                      addLabel: _isManagerRole ? 'إضافة عميل' : null,
-                      onAdd: _isManagerRole
-                          ? () {
-                              setState(() {
-                                _isAddingNewLead = true;
-                                // سكرول لأعلى القائمة لرؤية الكارت الجديد
-                                if (_scrollController.hasClients) {
-                                  _scrollController.animateTo(
-                                    0,
-                                    duration: const Duration(milliseconds: 300),
-                                    curve: Curves.easeOut,
-                                  );
-                                }
-                              });
-                            }
-                          : null,
+                      addLabel: 'إضافة عميل',
+                      onAdd: () {
+                        setState(() {
+                          _isAddingNewLead = true;
+                          // سكرول لأعلى القائمة لرؤية الكارت الجديد
+                          if (_scrollController.hasClients) {
+                            _scrollController.animateTo(
+                              0,
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeOut,
+                            );
+                          }
+                        });
+                      },
                       totalCount: total,
                       onFilter: () => _openFilterDialog(context),
                       filterLabel: 'فلاتر متقدمة',
