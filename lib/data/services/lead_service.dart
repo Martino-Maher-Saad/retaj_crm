@@ -398,6 +398,10 @@ class LeadService {
     });
 
     await _supabase.from('leads').update({
+      'client_name': lead.clientName,
+      'city_id': lead.cityId,
+      'property_type_id': lead.propertyTypeId,
+      'listing_type_id': lead.listingTypeId,
       'transferred_from': lead.transferredFrom,
       'budget_from': lead.budgetFrom,
       'budget_to': lead.budgetTo,
