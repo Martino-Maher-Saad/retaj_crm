@@ -1,97 +1,102 @@
 import 'package:flutter/material.dart';
 import 'package:dropdown_search/dropdown_search.dart';
-import '../../../data/models/location_model.dart';
+import '../../../data/models/profile_model.dart';
 import '../../../core/utils/static_data_manager.dart';
 import '../../../core/di/injection_container.dart';
 
-class DistinctMappingDialog extends StatefulWidget {
-  final Map<String, int> unmappedLocations;
-  final Function(Map<String, int> mapping) onApply;
+class DistinctEmployeeMappingDialog extends StatefulWidget {
+  final Map<String, int> unmappedEmployees;
+  final Function(Map<String, String> mapping) onApply;
 
-  const DistinctMappingDialog({
+  const DistinctEmployeeMappingDialog({
     super.key,
-    required this.unmappedLocations,
+    required this.unmappedEmployees,
     required this.onApply,
   });
 
   static Future<void> show(
     BuildContext context, {
-    required Map<String, int> unmappedLocations,
-    required Function(Map<String, int> mapping) onApply,
+    required Map<String, int> unmappedEmployees,
+    required Function(Map<String, String> mapping) onApply,
   }) {
     return showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => DistinctMappingDialog(
-        unmappedLocations: unmappedLocations,
+      builder: (ctx) => DistinctEmployeeMappingDialog(
+        unmappedEmployees: unmappedEmployees,
         onApply: onApply,
       ),
     );
   }
 
   @override
-  State<DistinctMappingDialog> createState() => _DistinctMappingDialogState();
+  State<DistinctEmployeeMappingDialog> createState() => _DistinctEmployeeMappingDialogState();
 }
 
-class _DistinctMappingDialogState extends State<DistinctMappingDialog> {
-  final Map<String, int?> _selectedMappings = {};
-  late List<City> _cities;
+class _DistinctEmployeeMappingDialogState extends State<DistinctEmployeeMappingDialog> {
+  final Map<String, String?> _selectedMappings = {};
+  late List<ProfileModel> _employees;
 
   @override
   void initState() {
     super.initState();
     final dataManager = sl<StaticDataManager>();
-    _cities = dataManager.allCities.where((c) => c.isActive).toList();
+    _employees = dataManager.employees.where((e) => e.isActive).toList();
 
-    // محاولة مطابقة أولية ذكية إن وُجدت
-    widget.unmappedLocations.forEach((loc, _) {
-      final matchedCity = _guessCity(loc);
-      _selectedMappings[loc] = matchedCity?.id;
+    // محاولة مطابقة أولية بالاسم أو بالبادئة إن أمكن
+    widget.unmappedEmployees.forEach((rawKey, _) {
+      final matchedEmp = _guessEmployee(rawKey);
+      _selectedMappings[rawKey] = matchedEmp?.id;
     });
   }
 
-  City? _guessCity(String location) {
-    final clean = location.toLowerCase();
-    for (var c in _cities) {
-      final name = c.name.toLowerCase();
-      if (clean.contains(name) || name.contains(clean)) return c;
+  ProfileModel? _guessEmployee(String rawKey) {
+    final clean = rawKey.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+    
+    // فحص لو كان مفتاح كود مثل "كود: HG"
+    String prefix = clean;
+    if (clean.startsWith('كود:')) {
+      prefix = clean.replaceFirst('كود:', '').trim();
+    } else if (clean.startsWith('prefix:')) {
+      prefix = clean.replaceFirst('prefix:', '').trim();
     }
-    if (clean.contains('تجمع') || clean.contains('settlement') || clean.contains('new cairo') || clean.contains('فانتدج') || clean.contains('سنشري')) {
-      return _cities.where((c) => c.name.contains('التجمع')).firstOrNull;
-    }
-    if (clean.contains('زايد') || clean.contains('zayed')) {
-      return _cities.where((c) => c.name.contains('الشيخ زايد')).firstOrNull;
-    }
-    if (clean.contains('نصر') || clean.contains('nasr')) {
-      return _cities.where((c) => c.name.contains('مدينة نصر')).firstOrNull;
+
+    for (var e in _employees) {
+      if (e.propertyPrefix != null && e.propertyPrefix!.trim().toLowerCase() == prefix.toLowerCase()) {
+        return e;
+      }
+      final fullName = '${e.firstName ?? ''} ${e.lastName ?? ''}'.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+      if (fullName == clean) {
+        return e;
+      }
     }
     return null;
   }
 
   @override
   Widget build(BuildContext context) {
-    final int totalLeads = widget.unmappedLocations.values.fold(0, (sum, count) => sum + count);
+    final int totalLeads = widget.unmappedEmployees.values.fold(0, (sum, count) => sum + count);
 
     return AlertDialog(
       title: Row(
         children: [
-          const Icon(Icons.hub_outlined, color: Colors.indigo),
+          const Icon(Icons.badge_outlined, color: Colors.indigo),
           const SizedBox(width: 8),
           const Expanded(
             child: Text(
-              'مطابقة المناطق والكمبوندات غير المعرفة',
+              'مطابقة الموظفين وأكواد العقارات غير المسجلة',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.amber.shade100,
+              color: Colors.blue.shade100,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              '${widget.unmappedLocations.length} منطقة فريدة ($totalLeads عميل)',
-              style: TextStyle(color: Colors.amber.shade900, fontWeight: FontWeight.bold, fontSize: 13),
+              '${widget.unmappedEmployees.length} اسم/كود ($totalLeads عميل)',
+              style: TextStyle(color: Colors.blue.shade900, fontWeight: FontWeight.bold, fontSize: 13),
             ),
           ),
         ],
@@ -103,19 +108,19 @@ class _DistinctMappingDialogState extends State<DistinctMappingDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'اختر المدينة التابعة لكل منطقة فريدة من القائمة. بمجرد الاختيار، ستُطبق المدينة آلياً على كافة صفوف الملف:',
+              'اختر الموظف المسند لكل اسم موظف أو كود عقار غير معروف. بمجرد الاختيار، سيتم تطبيق الموظف على كافة عملاء هذا الكود/الاسم دفعة واحدة:',
               style: TextStyle(fontSize: 13, color: Colors.black54),
             ),
             const SizedBox(height: 12),
             const Divider(),
             Expanded(
               child: ListView.separated(
-                itemCount: widget.unmappedLocations.length,
+                itemCount: widget.unmappedEmployees.length,
                 separatorBuilder: (ctx, i) => const Divider(height: 1),
                 itemBuilder: (ctx, i) {
-                  final key = widget.unmappedLocations.keys.elementAt(i);
-                  final count = widget.unmappedLocations[key]!;
-                  final currentCityId = _selectedMappings[key];
+                  final key = widget.unmappedEmployees.keys.elementAt(i);
+                  final count = widget.unmappedEmployees[key]!;
+                  final currentUserId = _selectedMappings[key];
 
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
@@ -131,7 +136,7 @@ class _DistinctMappingDialogState extends State<DistinctMappingDialog> {
                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                               ),
                               Text(
-                                '$count عملاء مرتبطين بهذا الاسم',
+                                '$count عملاء مرتبطين بهذا الكود/الاسم',
                                 style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                               ),
                             ],
@@ -142,15 +147,25 @@ class _DistinctMappingDialogState extends State<DistinctMappingDialog> {
                         const SizedBox(width: 12),
                         Expanded(
                           flex: 4,
-                          child: DropdownSearch<City>(
+                          child: DropdownSearch<ProfileModel>(
                             items: (filter, infiniteScrollProps) {
                               final query = filter.trim().toLowerCase();
-                              if (query.isEmpty) return _cities;
-                              return _cities.where((city) => city.name.toLowerCase().contains(query)).toList();
+                              if (query.isEmpty) return _employees;
+                              return _employees.where((emp) {
+                                final name = '${emp.firstName ?? ''} ${emp.lastName ?? ''}'.toLowerCase();
+                                final prefix = emp.propertyPrefix?.toLowerCase() ?? '';
+                                return name.contains(query) || prefix.contains(query);
+                              }).toList();
                             },
-                            selectedItem: _cities.where((c) => c.id == currentCityId).firstOrNull,
-                            itemAsString: (city) => city.name,
-                            compareFn: (c1, c2) => c1.id == c2.id,
+                            selectedItem: _employees.where((emp) => emp.id == currentUserId).firstOrNull,
+                            itemAsString: (emp) {
+                              final name = '${emp.firstName ?? ''} ${emp.lastName ?? ''}'.trim();
+                              final prefixDisplay = (emp.propertyPrefix != null && emp.propertyPrefix!.isNotEmpty)
+                                  ? ' (${emp.propertyPrefix})'
+                                  : '';
+                              return '$name$prefixDisplay';
+                            },
+                            compareFn: (i1, i2) => i1.id == i2.id,
                             onSelected: (val) {
                               setState(() {
                                 _selectedMappings[key] = val?.id;
@@ -162,7 +177,7 @@ class _DistinctMappingDialogState extends State<DistinctMappingDialog> {
                               searchFieldProps: TextFieldProps(
                                 autofocus: true,
                                 decoration: InputDecoration(
-                                  hintText: 'ابحث عن اسم المدينة...',
+                                  hintText: 'ابحث عن اسم الموظف أو الكود...',
                                   prefixIcon: const Icon(Icons.search, size: 20),
                                   isDense: true,
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -175,7 +190,7 @@ class _DistinctMappingDialogState extends State<DistinctMappingDialog> {
                                 isDense: true,
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                hintText: 'اختر المدينة...',
+                                hintText: 'اختر الموظف...',
                               ),
                             ),
                           ),
@@ -203,10 +218,10 @@ class _DistinctMappingDialogState extends State<DistinctMappingDialog> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           ),
           onPressed: () {
-            final Map<String, int> validMappings = {};
-            _selectedMappings.forEach((key, cityId) {
-              if (cityId != null) {
-                validMappings[key] = cityId;
+            final Map<String, String> validMappings = {};
+            _selectedMappings.forEach((key, userId) {
+              if (userId != null && userId.isNotEmpty) {
+                validMappings[key] = userId;
               }
             });
             widget.onApply(validMappings);

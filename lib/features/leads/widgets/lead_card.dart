@@ -56,10 +56,6 @@ class LeadCard extends StatefulWidget {
 }
 
 class _LeadCardState extends State<LeadCard> {
-  int _duplicateCount = 0;
-  List<LeadModel> _duplicates = [];
-  bool _isLoadingDuplicates = false;
-
   bool _isCommenting = false;
   final TextEditingController _commentController = TextEditingController();
   bool _isSubmittingComment = false;
@@ -97,12 +93,27 @@ class _LeadCardState extends State<LeadCard> {
         final processed = list
             .where((s) {
               final name = s.nameAr.trim();
+              final nameEn = (s.nameEn ?? '').trim().toLowerCase();
               return !name.contains('لم يتم التواصل') &&
                   !name.contains('لم يتم اتلواصل') &&
+                  !name.contains('متكرر') &&
+                  !nameEn.contains('duplicate') &&
                   s.id != AppConstants.leadStatusNoContact &&
                   s.isActive;
             })
             .toList();
+
+        final hasDealDone = processed.any((c) => c.id == AppConstants.leadStatusDealDone || c.nameAr.contains('تم التعاقد'));
+        if (!hasDealDone) {
+          processed.add(
+            const LookupOptionModel(
+              id: AppConstants.leadStatusDealDone,
+              nameAr: 'تم التعاقد',
+              nameEn: 'deal done',
+              listOrder: 8,
+            ),
+          );
+        }
 
         final hasOther = processed.any((c) => _isOptionOther(c));
         if (!hasOther) {
@@ -177,7 +188,6 @@ class _LeadCardState extends State<LeadCard> {
     if (_isEditing) {
       _initInlineEditData();
     }
-    _checkDuplicates();
     _scheduleDividerUpdate();
   }
 
@@ -257,80 +267,6 @@ class _LeadCardState extends State<LeadCard> {
     _inlineBudgetFromController.dispose();
     _inlineBudgetToController.dispose();
     super.dispose();
-  }
-
-  void _checkDuplicates() async {
-    final bool isAllowed =
-        widget.role == 'manager' ||
-        widget.role == 'admin' ||
-        widget.role == 'ceo' ||
-        (widget.role == 'sales' || widget.role == 'marketing');
-    if (!isAllowed || widget.lead.phones.isEmpty) return;
-
-    if (mounted) setState(() => _isLoadingDuplicates = true);
-
-    try {
-      final phones = widget.lead.phones.map((e) => e.phoneNumber).toList();
-      final duplicates = await context.read<LeadCubit>().checkDuplicates(
-        phones,
-      );
-      if (mounted) {
-        setState(() {
-          _duplicateCount = duplicates.length;
-          _duplicates = duplicates;
-          _isLoadingDuplicates = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _isLoadingDuplicates = false);
-    }
-  }
-
-  void _showDuplicatesModal() {
-    if (_duplicates.isEmpty) return;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-      ),
-      builder: (context) {
-        return Container(
-          padding: EdgeInsets.all(20.w),
-          height: MediaQuery.of(context).size.height * 0.7,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'التكرارات لهذا العميل',
-                style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 16.h),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _duplicates.length,
-                  itemBuilder: (ctx, i) {
-                    final l = _duplicates[i];
-                    return Card(
-                      margin: EdgeInsets.only(bottom: 10.h),
-                      child: ListTile(
-                        title: Text(l.clientName),
-                        subtitle: Text(
-                          l.phones.isNotEmpty
-                              ? l.phones.first.phoneNumber
-                              : 'بدون هاتف',
-                        ),
-                        trailing: Text(l.leadStatus ?? ''),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   LeadPhoneModel? get _primaryPhone {
@@ -421,46 +357,6 @@ class _LeadCardState extends State<LeadCard> {
                     Icons.push_pin_rounded,
                     color: AppColors.brandPrimary,
                     size: 16.sp,
-                  ),
-                ),
-              ),
-
-            if (_duplicateCount > 1)
-              Positioned(
-                top: -20.h,
-                left: -16.w,
-                child: GestureDetector(
-                  onTap: _showDuplicatesModal,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 8.w,
-                      vertical: 4.h,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(20.r),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.red.withValues(alpha: 0.3),
-                          blurRadius: 4,
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.copy, color: Colors.white, size: 12.sp),
-                        SizedBox(width: 4.w),
-                        Text(
-                          "مكرر $_duplicateCount",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10.sp,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
                 ),
               ),
@@ -620,7 +516,7 @@ class _LeadCardState extends State<LeadCard> {
                   ),
                   Text(
                     DateFormat(
-                      'dd/MM/yyyy',
+                      isManagerOrAdmin ? 'dd/MM/yyyy' : 'MM/dd',
                       'ar',
                     ).format(widget.lead.createdAt!),
                     style: TextStyle(
@@ -1947,41 +1843,6 @@ class _LeadCardState extends State<LeadCard> {
     );
   }
 
-  Widget _buildBadge({
-    required String label,
-    required Color color,
-    required IconData icon,
-    required double iconSize,
-    bool isOutlined = false,
-  }) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-      decoration: BoxDecoration(
-        color: isOutlined ? Colors.transparent : color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(30.r),
-        border: Border.all(
-          color: color.withValues(alpha: isOutlined ? 0.5 : 0.2),
-          width: 1.0,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: iconSize.sp, color: color),
-          SizedBox(width: 4.w),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildLastComment() {
     String? latestNoteText;
     DateTime? latestNoteDate;
@@ -2364,9 +2225,11 @@ class _LeadCardState extends State<LeadCard> {
       phones: phones,
     );
 
+    final cubit = context.read<LeadCubit>();
+
     try {
       // ─── Duplicate Check ───
-      final duplicates = await context.read<LeadCubit>().checkDuplicates(
+      final duplicates = await cubit.checkDuplicates(
         phones.map((p) => p.phoneNumber).toList(),
       );
       if (duplicates.isNotEmpty) {
@@ -2434,10 +2297,22 @@ class _LeadCardState extends State<LeadCard> {
       }
 
       if (widget.isAddingMode) {
-        await context.read<LeadCubit>().addLead(newLead, phones);
+        final isAscending = cubit.isSortAscending;
+        await cubit.addLead(newLead, phones);
         if (mounted && widget.onCancelAdd != null) widget.onCancelAdd!();
+        if (mounted) {
+          final msg = isAscending
+              ? 'تم إضافة العميل بنجاح، وتمت إضافته في آخر صف'
+              : 'تم إضافة العميل بنجاح';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(msg),
+              backgroundColor: const Color(0xFF16A34A),
+            ),
+          );
+        }
       } else {
-        await context.read<LeadCubit>().updateFullLead(newLead, phones);
+        await cubit.updateFullLead(newLead, phones);
         if (mounted) {
           setState(() {
             _isEditing = false;

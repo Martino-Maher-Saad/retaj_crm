@@ -2,10 +2,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/lead_model.dart';
 import '../models/profile_model.dart';
 import 'dropdown_service.dart';
-import '../../core/di/injection_container.dart' as di;
-import '../../core/utils/static_data_manager.dart';
-import 'realtime_service.dart';
-import '../models/crm_event.dart';
 
 class LeadService {
   final _supabase = Supabase.instance.client;
@@ -267,7 +263,7 @@ class LeadService {
       final String text = notesJson.last['note_text'] as String;
       await _supabase.from('leads').update({
         'last_comment': text,
-        'last_comment_date': DateTime.now().toUtc().toIso8601String(),
+        'last_comment_date': DateTime.now().toIso8601String(),
       }).eq('id', leadId);
     }
 
@@ -303,7 +299,7 @@ class LeadService {
           'client_name': lead.clientName,
           'created_by': lead.createdBy,
           'assigned_to': lead.assignedTo,
-          'created_at': (lead.createdAt ?? DateTime.now()).toUtc().toIso8601String(),
+          'created_at': (lead.createdAt ?? DateTime.now()).toIso8601String(),
           'city_id': lead.cityId,
           'property_type_id': lead.propertyTypeId,
           'listing_type_id': lead.listingTypeId,
@@ -316,7 +312,7 @@ class LeadService {
           'budget_from': lead.budgetFrom,
           'budget_to': lead.budgetTo,
           'last_comment': lastNote,
-          'last_comment_date': lastNote != null ? DateTime.now().toUtc().toIso8601String() : null,
+          'last_comment_date': lastNote != null ? DateTime.now().toIso8601String() : null,
         };
       }).toList();
 
@@ -711,4 +707,46 @@ class LeadService {
       ),
     );
   }
-}
+
+  /// استعلام لجلب بيانات العقارات (المدينة، نوع العقار، نوع الإعلان، المنطقة) المسجلة مسبقاً بالأكواد
+  Future<Map<String, Map<String, dynamic>>> lookupPropertiesByCodes(List<String> codes) async {
+    if (codes.isEmpty) return {};
+    try {
+      final cleanCodes = codes
+          .map((c) => c.trim().toUpperCase())
+          .where((c) => c.isNotEmpty)
+          .toSet()
+          .toList();
+      if (cleanCodes.isEmpty) return {};
+
+      final response = await _supabase
+          .from('leads')
+          .select('property_code, city_id, property_type_id, listing_type_id, area_name')
+          .filter('property_code', 'in', cleanCodes)
+          .not('property_code', 'is', null)
+          .order('created_at', ascending: false);
+
+      final Map<String, Map<String, dynamic>> catalog = {};
+      for (final item in response as List<dynamic>) {
+        final code = item['property_code']?.toString().trim().toUpperCase();
+        if (code != null && code.isNotEmpty && !catalog.containsKey(code)) {
+          final cityId = item['city_id'];
+          final propTypeId = item['property_type_id'];
+          final listTypeId = item['listing_type_id'];
+          final areaName = item['area_name'];
+          if (cityId != null || propTypeId != null || listTypeId != null || areaName != null) {
+            catalog[code] = {
+              'cityId': cityId,
+              'propertyTypeId': propTypeId,
+              'listingTypeId': listTypeId,
+              'areaName': areaName,
+            };
+          }
+        }
+      }
+      return catalog;
+    } catch (_) {
+      return {};
+    }
+  }
+}

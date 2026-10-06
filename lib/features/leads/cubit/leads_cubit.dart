@@ -27,6 +27,35 @@ class LeadCubit extends Cubit<LeadState> {
   }
 
   int _originalTotalCount = 0;
+  bool _isSortAscending = true; // الافتراضي: من الأقدم للأحدث
+  bool get isSortAscending => _isSortAscending;
+
+  List<LeadModel> _sortLeads(List<LeadModel> list) {
+    final sorted = List<LeadModel>.from(list);
+    sorted.sort((a, b) {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      final dtA = a.createdAt;
+      final dtB = b.createdAt;
+      if (dtA == null && dtB == null) return 0;
+      if (dtA == null) return 1;
+      if (dtB == null) return -1;
+      return _isSortAscending ? dtA.compareTo(dtB) : dtB.compareTo(dtA);
+    });
+    return sorted;
+  }
+
+  void toggleSortOrder() {
+    final currentState = state is LeadLoaded ? state as LeadLoaded : null;
+    if (currentState == null) return;
+    _isSortAscending = !_isSortAscending;
+    final sortedAll = _sortLeads(currentState.allLeads);
+    final sortedFiltered = _sortLeads(currentState.filteredLeads);
+    emit(currentState.copyWith(
+      allLeads: sortedAll,
+      filteredLeads: sortedFiltered,
+    ));
+  }
 
   void cancelFilters() {
     final currentState = state is LeadLoaded ? state as LeadLoaded : null;
@@ -103,9 +132,9 @@ class LeadCubit extends Cubit<LeadState> {
 
         final isMine = _myRecentActions.contains(event.id);
 
-        if (isMine) {
-            final newAll = List<LeadModel>.from(freshState.allLeads)..insert(0, newLead);
-            final newFiltered = filterLeadsByQuickFilter(newAll, _activeQuickFilter);
+        if (isMine || _isSortAscending) {
+            final newAll = _sortLeads(List<LeadModel>.from(freshState.allLeads)..add(newLead));
+            final newFiltered = _sortLeads(filterLeadsByQuickFilter(newAll, _activeQuickFilter));
             final newPending = freshState.pendingLeads.where((l) => l.id != event.id).toList();
             emit(freshState.copyWith(
               allLeads: newAll, 
@@ -163,7 +192,7 @@ class LeadCubit extends Cubit<LeadState> {
           final isMine = _myRecentActions.contains(event.id);
 
           if (isMine) {
-             final newAll = List<LeadModel>.from(freshState.allLeads)..insert(0, updatedLead);
+             final newAll = _sortLeads(List<LeadModel>.from(freshState.allLeads)..add(updatedLead));
              final newFiltered = filterLeadsByQuickFilter(newAll, _activeQuickFilter);
              final newPending = freshState.pendingLeads.where((l) => l.id != event.id).toList();
              emit(freshState.copyWith(
@@ -186,13 +215,14 @@ class LeadCubit extends Cubit<LeadState> {
         bool lostOwnership = !canView;
 
         if (indexAll != -1) newAll[indexAll] = updatedLead;
-        final newFiltered = filterLeadsByQuickFilter(newAll, _activeQuickFilter);
+        final sortedAll = _sortLeads(newAll);
+        final newFiltered = filterLeadsByQuickFilter(sortedAll, _activeQuickFilter);
 
         final newPending = List<LeadModel>.from(freshState.pendingLeads);
         if (indexPending != -1) newPending[indexPending] = updatedLead;
 
         emit(freshState.copyWith(
-          allLeads: newAll,
+          allLeads: sortedAll,
           filteredLeads: newFiltered,
           currentFilter: _activeQuickFilter,
           pendingLeads: newPending,
@@ -373,6 +403,10 @@ class LeadCubit extends Cubit<LeadState> {
     _currentIsStagnant = isStagnant;
     _currentIsForTasks = isForTasks;
 
+    DateTime? effectiveFromDate = fromDate;
+    DateTime? effectiveToDate = toDate;
+    final int fetchTo = 50000; // جلب كل عملاء الشهر دفعة واحدة لتمكين الفلترة والفرز الفوري
+
     try {
       final totalCount = await _repository.getLeadsCount(
         role: role,
@@ -384,8 +418,8 @@ class LeadCubit extends Cubit<LeadState> {
         listingTypeId: listingTypeId,
         governorateId: governorateId,
         cityId: cityId,
-        fromDate: fromDate,
-        toDate: toDate,
+        fromDate: effectiveFromDate,
+        toDate: effectiveToDate,
         lastCommentFromDate: lastCommentFromDate,
         lastCommentToDate: lastCommentToDate,
         isArchived: isArchived,
@@ -396,7 +430,7 @@ class LeadCubit extends Cubit<LeadState> {
         role: role,
         userId: userId,
         from: 0,
-        to: 24,
+        to: fetchTo,
         filterByEmployeeId: filterByEmployeeId,
         platformId: platformId,
         leadStatusId: leadStatusId,
@@ -404,8 +438,8 @@ class LeadCubit extends Cubit<LeadState> {
         listingTypeId: listingTypeId,
         governorateId: governorateId,
         cityId: cityId,
-        fromDate: fromDate,
-        toDate: toDate,
+        fromDate: effectiveFromDate,
+        toDate: effectiveToDate,
         lastCommentFromDate: lastCommentFromDate,
         lastCommentToDate: lastCommentToDate,
         isArchived: isArchived,
@@ -423,8 +457,9 @@ class LeadCubit extends Cubit<LeadState> {
         _originalTotalCount = totalCount;
       }
 
-      final allList = (hasFilters && currentState != null) ? currentState.allLeads : leads;
-      final filteredList = filterLeadsByQuickFilter(leads, _activeQuickFilter);
+      final sortedLeads = _sortLeads(leads);
+      final allList = sortedLeads;
+      final filteredList = filterLeadsByQuickFilter(sortedLeads, _activeQuickFilter);
 
       emit(LeadLoaded(
         allLeads: allList,
@@ -587,9 +622,7 @@ class LeadCubit extends Cubit<LeadState> {
           isStagnant: _currentIsStagnant,
           isForTasks: _currentIsForTasks,
         );
-        final hasFilters = _currentFilterByEmployeeId != null || _currentPlatformId != null || _currentLeadStatusId != null || _currentPropertyTypeId != null || _currentListingTypeId != null || _currentGovernorateId != null || _currentCityId != null || _currentFromDate != null || _currentToDate != null || _currentLastCommentFromDate != null || _currentLastCommentToDate != null || _currentIsArchived == true || _currentIsStagnant == true || _currentIsForTasks == true;
-
-        final updatedAll = [...currentState.allLeads, ...nextLeads];
+        final updatedAll = _sortLeads([...currentState.allLeads, ...nextLeads]);
         final updatedFiltered = filterLeadsByQuickFilter(updatedAll, _activeQuickFilter);
 
         emit(currentState.copyWith(
@@ -620,8 +653,7 @@ class LeadCubit extends Cubit<LeadState> {
         
         final freshState = state is LeadLoaded ? state as LeadLoaded : null;
         if (freshState != null) {
-          if (freshState.allLeads.any((l) => l.id == addedLead.id)) return;
-          final updatedAll = [addedLead, ...freshState.allLeads];
+          final updatedAll = _sortLeads([addedLead, ...freshState.allLeads]);
           final updatedFiltered = filterLeadsByQuickFilter(updatedAll, _activeQuickFilter);
           emit(freshState.copyWith(
             allLeads: updatedAll,
@@ -648,9 +680,10 @@ class LeadCubit extends Cubit<LeadState> {
         if (index != -1) {
           final updatedList = List<LeadModel>.from(currentState.allLeads);
           updatedList[index] = updatedLead;
-          final updatedFiltered = filterLeadsByQuickFilter(updatedList, _activeQuickFilter);
+          final updatedAll = _sortLeads(updatedList);
+          final updatedFiltered = filterLeadsByQuickFilter(updatedAll, _activeQuickFilter);
           emit(currentState.copyWith(
-            allLeads: updatedList,
+            allLeads: updatedAll,
             filteredLeads: updatedFiltered,
             currentFilter: _activeQuickFilter,
           ));
@@ -672,9 +705,10 @@ class LeadCubit extends Cubit<LeadState> {
         if (index != -1) {
           final updatedList = List<LeadModel>.from(currentState.allLeads);
           updatedList[index] = updatedLead;
-          final updatedFiltered = filterLeadsByQuickFilter(updatedList, _activeQuickFilter);
+          final updatedAll = _sortLeads(updatedList);
+          final updatedFiltered = filterLeadsByQuickFilter(updatedAll, _activeQuickFilter);
           emit(currentState.copyWith(
-            allLeads: updatedList,
+            allLeads: updatedAll,
             filteredLeads: updatedFiltered,
             currentFilter: _activeQuickFilter,
           ));
@@ -722,20 +756,13 @@ class LeadCubit extends Cubit<LeadState> {
         if (index != -1) {
           final updatedList = List<LeadModel>.from(currentState.allLeads);
           updatedList[index] = updatedLead;
-          
-          // إعادة الترتيب حتى يظهر المثبت في الأعلى
-          updatedList.sort((a, b) {
-            if (a.isPinned && !b.isPinned) return -1;
-            if (!a.isPinned && b.isPinned) return 1;
-            // إذا كانا متساويين، نرتب بالأحدث
-            final dateA = a.createdAt ?? DateTime.now();
-            final dateB = b.createdAt ?? DateTime.now();
-            return dateB.compareTo(dateA);
-          });
+          final updatedAll = _sortLeads(updatedList);
+          final updatedFiltered = filterLeadsByQuickFilter(updatedAll, _activeQuickFilter);
 
           emit(currentState.copyWith(
-            allLeads: updatedList,
-            filteredLeads: updatedList,
+            allLeads: updatedAll,
+            filteredLeads: updatedFiltered,
+            currentFilter: _activeQuickFilter,
           ));
           _sync.notifyUpdated(updatedLead);
         }
@@ -777,11 +804,15 @@ class LeadCubit extends Cubit<LeadState> {
           newNote: newNote,
           updateEmbeddings: updateEmbeddings,
         );
-        final updatedAll = currentState.allLeads.map((l) {
+        final updatedAll = _sortLeads(currentState.allLeads.map((l) {
           return l.id == updatedLead.id ? newLead : l;
-        }).toList();
+        }).toList());
         final updatedFiltered = filterLeadsByQuickFilter(updatedAll, _activeQuickFilter);
-        emit(currentState.copyWith(allLeads: updatedAll, filteredLeads: updatedFiltered));
+        emit(currentState.copyWith(
+          allLeads: updatedAll,
+          filteredLeads: updatedFiltered,
+          currentFilter: _activeQuickFilter,
+        ));
         _sync.notifyUpdated(newLead);
       } catch (e) {
         emit(LeadError(e.toString()));
@@ -794,44 +825,81 @@ class LeadCubit extends Cubit<LeadState> {
   String get activeQuickFilter => _activeQuickFilter;
 
   List<LeadModel> filterLeadsByQuickFilter(List<LeadModel> list, String filter) {
-    if (filter == 'الكل') return list;
-
-    // لم يتم التواصل: يشمل أي عميل ليس له تعليق حتى لو حالته مهتم + أي عميل حالته لم يتم التواصل (بالـ id أو الاسم)
-    if (filter == 'لم يتم التواصل' || filter == 'لم يتم التواصل معه' || filter == 'بدون تعليق') {
-      return list.where((l) {
-        final noComment = l.lastComment == null || l.lastComment!.trim().isEmpty;
-        final statusId = (l.statusId ?? '').trim();
-        final status = (l.leadStatus ?? '').trim();
-        final notContacted = statusId == AppConstants.leadStatusNoContact ||
-            status == 'لم يتم اتلواصل معه' ||
-            status == 'لم يتم التواصل معه' ||
-            status == 'لم يتم التواصل' ||
-            status == 'جديد' ||
-            status.isEmpty;
-        return noComment || notContacted;
+    // 1. ضمان حصر العملاء في نطاق الشهر المحدد للشاشة الحالية
+    if (_currentFromDate != null || _currentToDate != null) {
+      list = list.where((l) {
+        if (l.createdAt == null) return true;
+        final localCreated = l.createdAt!.toLocal();
+        if (_currentFromDate != null && localCreated.isBefore(_currentFromDate!)) return false;
+        if (_currentToDate != null && localCreated.isAfter(_currentToDate!)) return false;
+        return true;
       }).toList();
     }
 
-    if (filter == 'تم التواصل' || filter == 'تم التواصل على الواتس' || filter == 'واتساب' || filter == 'اخري' || filter == 'أخرى') {
-      return list.where((l) {
+    List<LeadModel> result;
+
+    if (filter == 'الكل') {
+      result = list;
+    } else if (filter == 'لم يتم التواصل' || filter == 'لم يتم التواصل معه' || filter == 'بدون تعليق') {
+      result = list.where((l) {
+        final hasComment = l.lastComment != null && l.lastComment!.trim().isNotEmpty;
+        if (hasComment) return false; // بمجرد كتابة تعليق يخرج فوراً من لم يتم التواصل
+
+        final statusId = (l.statusId ?? '').trim();
+        final status = (l.leadStatus ?? '').trim();
+
+        final isSpecificOtherStatus = statusId == AppConstants.leadStatusInterested ||
+            statusId == AppConstants.leadStatusNotInterested ||
+            statusId == AppConstants.leadStatusNoReply ||
+            statusId == AppConstants.leadStatusImportant ||
+            statusId == AppConstants.leadStatusBroker ||
+            statusId == AppConstants.leadStatusDealDone ||
+            statusId == AppConstants.leadStatusContacted ||
+            status == 'مهتم' ||
+            status == 'غير مهتم' ||
+            status == 'لم يرد' ||
+            status == 'VIP' ||
+            status == 'مهم' ||
+            status == 'بروكر' ||
+            status == 'تم التعاقد' ||
+            status == 'تم التواصل';
+        if (isSpecificOtherStatus) return false;
+
+        return true;
+      }).toList();
+    } else if (filter == 'تم التواصل' || filter == 'تم التواصل على الواتس' || filter == 'واتساب' || filter == 'اخري' || filter == 'أخرى') {
+      result = list.where((l) {
         final statusId = (l.statusId ?? '').trim();
         final status = (l.leadStatus ?? '').trim();
         final comment = (l.lastComment ?? '').trim();
-        return statusId == AppConstants.leadStatusContacted ||
+        final hasComment = comment.isNotEmpty;
+
+        final isExplicitContacted = statusId == AppConstants.leadStatusContacted ||
             statusId == AppConstants.leadStatusOther ||
             status == 'تم التواصل' ||
             status.contains('واتس') ||
             status.contains('اخري') ||
             status.contains('أخرى') ||
-            l.lastCommentId == AppConstants.leadStatusContacted ||
-            l.lastCommentId == AppConstants.leadStatusOther ||
-            comment.contains('واتس') ||
             l.lastWhatsappAt != null;
-      }).toList();
-    }
 
-    if (filter == 'مهتم' || filter == 'عميل مهتم') {
-      return list.where((l) {
+        final isOtherSpecificStatus = statusId == AppConstants.leadStatusInterested ||
+            statusId == AppConstants.leadStatusNotInterested ||
+            statusId == AppConstants.leadStatusNoReply ||
+            statusId == AppConstants.leadStatusImportant ||
+            statusId == AppConstants.leadStatusBroker ||
+            statusId == AppConstants.leadStatusDealDone ||
+            status == 'مهتم' ||
+            status == 'غير مهتم' ||
+            status == 'لم يرد' ||
+            status == 'VIP' ||
+            status == 'مهم' ||
+            status == 'بروكر' ||
+            status == 'تم التعاقد';
+
+        return isExplicitContacted || (hasComment && !isOtherSpecificStatus);
+      }).toList();
+    } else if (filter == 'مهتم' || filter == 'عميل مهتم') {
+      result = list.where((l) {
         final statusId = (l.statusId ?? '').trim();
         final status = (l.leadStatus ?? '').trim();
         return statusId == AppConstants.leadStatusInterested ||
@@ -840,19 +908,15 @@ class LeadCubit extends Cubit<LeadState> {
             status == 'مهتم' ||
             (status.contains('مهتم') && !status.contains('غير'));
       }).toList();
-    }
-
-    if (filter == 'غير مهتم') {
-      return list.where((l) {
+    } else if (filter == 'غير مهتم') {
+      result = list.where((l) {
         final statusId = (l.statusId ?? '').trim();
         final status = (l.leadStatus ?? '').trim();
         return statusId == AppConstants.leadStatusNotInterested ||
             status == 'غير مهتم';
       }).toList();
-    }
-
-    if (filter == 'لم يرد' || filter == 'لم يتم الرد') {
-      return list.where((l) {
+    } else if (filter == 'لم يرد' || filter == 'لم يتم الرد') {
+      result = list.where((l) {
         final statusId = (l.statusId ?? '').trim();
         final status = (l.leadStatus ?? '').trim();
         return statusId == AppConstants.leadStatusNoReply ||
@@ -860,29 +924,36 @@ class LeadCubit extends Cubit<LeadState> {
             status == 'لم يتم الرد' ||
             status == 'لا يرد';
       }).toList();
-    }
-
-    if (filter == 'VIP' || filter == 'مهم') {
-      return list.where((l) {
+    } else if (filter == 'VIP' || filter == 'مهم') {
+      result = list.where((l) {
         final statusId = (l.statusId ?? '').trim();
         final status = (l.leadStatus ?? '').trim();
         return statusId == AppConstants.leadStatusImportant ||
             status == 'مهم' ||
             status.toLowerCase() == 'vip';
       }).toList();
-    }
-
-    if (filter == 'بروكر' || filter == 'broker') {
-      return list.where((l) {
+    } else if (filter == 'بروكر' || filter == 'broker') {
+      result = list.where((l) {
         final statusId = (l.statusId ?? '').trim();
         final status = (l.leadStatus ?? '').trim();
         return statusId == AppConstants.leadStatusBroker ||
             status.contains('بروكر') ||
             status.toLowerCase().contains('broker');
       }).toList();
+    } else if (filter == 'تم التعاقد' || filter == 'deal done') {
+      result = list.where((l) {
+        final statusId = (l.statusId ?? '').trim();
+        final status = (l.leadStatus ?? '').trim();
+        return statusId == AppConstants.leadStatusDealDone ||
+            status == 'تم التعاقد' ||
+            status.contains('تعاقد') ||
+            status.toLowerCase() == 'deal done';
+      }).toList();
+    } else {
+      result = list.where((l) => (l.leadStatus ?? '').trim() == filter || (l.statusId ?? '').trim() == filter).toList();
     }
 
-    return list.where((l) => (l.leadStatus ?? '').trim() == filter || (l.statusId ?? '').trim() == filter).toList();
+    return _sortLeads(result);
   }
 
   void applyQuickFilter(String filter) {
@@ -911,9 +982,9 @@ class LeadCubit extends Cubit<LeadState> {
           quickCommentId: quickCommentId,
           newStatusId: newStatusId,
         );
-        final updatedAll = currentState.allLeads.map((l) {
+        final updatedAll = _sortLeads(currentState.allLeads.map((l) {
           return l.id == id ? updatedLead : l;
-        }).toList();
+        }).toList());
 
         // إعادة تطبيق الفلتر السريع النشط: إذا كان الفلتر "لم يتم التواصل"، سيختفي العميل من الشاشة فوراً
         final updatedFiltered = filterLeadsByQuickFilter(updatedAll, _activeQuickFilter);

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:excel/excel.dart';
+import 'package:archive/archive.dart';
 import 'package:universal_html/html.dart' as html;
 
 import 'bulk_add_leads_state.dart';
@@ -59,6 +60,9 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
     Map<String, dynamic>? pinned,
     Set<String>? selectedRowIds,
     Map<String, int>? unmappedLocations,
+    Map<String, int>? unmappedEmployees,
+    Map<String, int>? unmappedPropertyTypes,
+    Map<String, int>? unmappedListingTypes,
   }) {
     if (state is BulkAddLeadsLoaded) {
       final st = state as BulkAddLeadsLoaded;
@@ -67,6 +71,9 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
         pinnedValues: pinned ?? st.pinnedValues,
         selectedRowIds: selectedRowIds ?? st.selectedRowIds,
         unmappedLocations: unmappedLocations ?? st.unmappedLocations,
+        unmappedEmployees: unmappedEmployees ?? st.unmappedEmployees,
+        unmappedPropertyTypes: unmappedPropertyTypes ?? st.unmappedPropertyTypes,
+        unmappedListingTypes: unmappedListingTypes ?? st.unmappedListingTypes,
       ));
     } else {
       emit(BulkAddLeadsLoaded(
@@ -74,6 +81,9 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
         pinnedValues: pinned ?? const {},
         selectedRowIds: selectedRowIds ?? const {},
         unmappedLocations: unmappedLocations ?? const {},
+        unmappedEmployees: unmappedEmployees ?? const {},
+        unmappedPropertyTypes: unmappedPropertyTypes ?? const {},
+        unmappedListingTypes: unmappedListingTypes ?? const {},
       ));
     }
   }
@@ -235,9 +245,71 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
       return row;
     }).toList();
 
-    // إعادة حساب المناطق المتبقية غير المطابقة
     final remainingUnmapped = _collectUnmappedLocations(updatedRows);
     _emitLoaded(updatedRows, unmappedLocations: remainingUnmapped);
+  }
+
+  void applyDistinctEmployeeMapping(Map<String, String> mapping) {
+    if (state is! BulkAddLeadsLoaded) return;
+    final currentState = state as BulkAddLeadsLoaded;
+
+    final updatedRows = currentState.rows.map((row) {
+      if (row.assignedTo == null) {
+        final rawKey = row.unmappedAssignedTo;
+        if (rawKey != null && mapping.containsKey(rawKey)) {
+          return row.copyWith(
+            assignedTo: mapping[rawKey],
+            unmappedAssignedTo: null,
+          );
+        }
+      }
+      return row;
+    }).toList();
+
+    final remainingEmployees = _collectUnmappedEmployees(updatedRows);
+    _emitLoaded(updatedRows, unmappedEmployees: remainingEmployees);
+  }
+
+  void applyDistinctPropertyTypeMapping(Map<String, String> mapping) {
+    if (state is! BulkAddLeadsLoaded) return;
+    final currentState = state as BulkAddLeadsLoaded;
+
+    final updatedRows = currentState.rows.map((row) {
+      if (row.propertyTypeId == null) {
+        final rawKey = row.unmappedPropertyType;
+        if (rawKey != null && mapping.containsKey(rawKey)) {
+          return row.copyWith(
+            propertyTypeId: mapping[rawKey],
+            unmappedPropertyType: null,
+          );
+        }
+      }
+      return row;
+    }).toList();
+
+    final remaining = _collectUnmappedPropertyTypes(updatedRows);
+    _emitLoaded(updatedRows, unmappedPropertyTypes: remaining);
+  }
+
+  void applyDistinctListingTypeMapping(Map<String, String> mapping) {
+    if (state is! BulkAddLeadsLoaded) return;
+    final currentState = state as BulkAddLeadsLoaded;
+
+    final updatedRows = currentState.rows.map((row) {
+      if (row.listingTypeId == null) {
+        final rawKey = row.unmappedListingType;
+        if (rawKey != null && mapping.containsKey(rawKey)) {
+          return row.copyWith(
+            listingTypeId: mapping[rawKey],
+            unmappedListingType: null,
+          );
+        }
+      }
+      return row;
+    }).toList();
+
+    final remaining = _collectUnmappedListingTypes(updatedRows);
+    _emitLoaded(updatedRows, unmappedListingTypes: remaining);
   }
 
   Map<String, int> _collectUnmappedLocations(List<EditableLeadRow> rows) {
@@ -245,6 +317,45 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
     for (var r in rows) {
       if (r.cityId == null) {
         final key = (r.areaName?.isNotEmpty == true) ? r.areaName! : r.unmappedCity;
+        if (key != null && key.trim().isNotEmpty) {
+          counts[key] = (counts[key] ?? 0) + 1;
+        }
+      }
+    }
+    return counts;
+  }
+
+  Map<String, int> _collectUnmappedEmployees(List<EditableLeadRow> rows) {
+    final Map<String, int> counts = {};
+    for (var r in rows) {
+      if (r.assignedTo == null) {
+        final key = r.unmappedAssignedTo;
+        if (key != null && key.trim().isNotEmpty) {
+          counts[key] = (counts[key] ?? 0) + 1;
+        }
+      }
+    }
+    return counts;
+  }
+
+  Map<String, int> _collectUnmappedPropertyTypes(List<EditableLeadRow> rows) {
+    final Map<String, int> counts = {};
+    for (var r in rows) {
+      if (r.propertyTypeId == null) {
+        final key = r.unmappedPropertyType;
+        if (key != null && key.trim().isNotEmpty) {
+          counts[key] = (counts[key] ?? 0) + 1;
+        }
+      }
+    }
+    return counts;
+  }
+
+  Map<String, int> _collectUnmappedListingTypes(List<EditableLeadRow> rows) {
+    final Map<String, int> counts = {};
+    for (var r in rows) {
+      if (r.listingTypeId == null) {
+        final key = r.unmappedListingType;
         if (key != null && key.trim().isNotEmpty) {
           counts[key] = (counts[key] ?? 0) + 1;
         }
@@ -271,22 +382,22 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
           reader.readAsArrayBuffer(file);
           reader.onLoadEnd.listen((e) async {
             final bytes = reader.result as Uint8List;
-            _parseCsvBytes(bytes);
+            await _parseCsvBytes(bytes);
           });
         } else {
           reader.readAsArrayBuffer(file);
           reader.onLoadEnd.listen((e) async {
             final bytes = reader.result as Uint8List;
-            _parseExcelBytes(bytes);
+            await _parseExcelBytes(bytes);
           });
         }
       }
     });
   }
 
-  void _parseCsvBytes(Uint8List bytes) {
+  Future<void> _parseCsvBytes(Uint8List bytes) async {
     try {
-      emit(BulkAddLeadsLoading('جاري قراءة ومعالجة ملف CSV...'));
+      emit(BulkAddLeadsLoading('جاري قراءة ومعالجة ملف CSV والبحث في قاعدة البيانات...'));
       // معالجة الـ BOM والترميز العربي
       String content;
       try {
@@ -296,17 +407,61 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
       }
 
       final parsedGrid = CsvParser.parse(content);
-      processImportedGrid(parsedGrid);
+      await processImportedGrid(parsedGrid);
     } catch (e) {
       emit(BulkAddLeadsError('خطأ أثناء قراءة ملف CSV: $e'));
       _emitLoaded([_createEmptyRow()]);
     }
   }
 
-  void _parseExcelBytes(Uint8List bytes) {
+  Uint8List _sanitizeExcelBytes(Uint8List bytes) {
     try {
-      emit(BulkAddLeadsLoading('جاري قراءة ومعالجة ملف Excel...'));
-      final excel = Excel.decodeBytes(bytes);
+      final archive = ZipDecoder().decodeBytes(bytes);
+      bool modified = false;
+      final newArchive = Archive();
+
+      for (final file in archive) {
+        if (file.name == 'xl/_rels/workbook.xml.rels') {
+          final content = utf8.decode(file.content as List<int>);
+          if (content.contains('Target="/xl/') || content.contains("Target='/xl/")) {
+            final patched = content.replaceAll('Target="/xl/', 'Target="').replaceAll("Target='/xl/", "Target='");
+            final newBytes = utf8.encode(patched);
+            newArchive.addFile(ArchiveFile(file.name, newBytes.length, newBytes));
+            modified = true;
+            continue;
+          }
+        } else if (file.name.startsWith('xl/worksheets/') && file.name.endsWith('.xml')) {
+          final content = utf8.decode(file.content as List<int>);
+          if (content.contains('t="inlineStr"') || content.contains("t='inlineStr'")) {
+            final patched = content
+                .replaceAllMapped(RegExp(r'<c\s+([^>]*?)t="inlineStr"\s*>\s*</c>'), (m) => '<c ${m.group(1)}></c>')
+                .replaceAllMapped(RegExp(r'<c\s+([^>]*?)t="inlineStr"\s*/>'), (m) => '<c ${m.group(1)}/>')
+                .replaceAllMapped(RegExp(r"<c\s+([^>]*?)t='inlineStr'\s*>\s*</c>"), (m) => '<c ${m.group(1)}></c>')
+                .replaceAllMapped(RegExp(r"<c\s+([^>]*?)t='inlineStr'\s*/>"), (m) => '<c ${m.group(1)}/>');
+            if (patched != content) {
+              final newBytes = utf8.encode(patched);
+              newArchive.addFile(ArchiveFile(file.name, newBytes.length, newBytes));
+              modified = true;
+              continue;
+            }
+          }
+        }
+        newArchive.addFile(file);
+      }
+
+      if (modified) {
+        final encoder = ZipEncoder();
+        return Uint8List.fromList(encoder.encode(newArchive)!);
+      }
+    } catch (_) {}
+    return bytes;
+  }
+
+  Future<void> _parseExcelBytes(Uint8List bytes) async {
+    try {
+      emit(BulkAddLeadsLoading('جاري قراءة ومعالجة ملف Excel والبحث في قاعدة البيانات...'));
+      final sanitizedBytes = _sanitizeExcelBytes(bytes);
+      final excel = Excel.decodeBytes(sanitizedBytes);
       final sheet = excel.tables.values.first;
       final rawRows = sheet.rows;
 
@@ -321,14 +476,14 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
         grid.add(row.map((cell) => cell?.value?.toString().trim() ?? '').toList());
       }
 
-      processImportedGrid(grid);
+      await processImportedGrid(grid);
     } catch (e) {
       emit(BulkAddLeadsError('خطأ أثناء قراءة ملف الإكسيل: $e'));
       _emitLoaded([_createEmptyRow()]);
     }
   }
 
-  void processImportedGrid(List<List<String>> grid) {
+  Future<void> processImportedGrid(List<List<String>> grid) async {
     if (grid.length < 2) {
       emit(BulkAddLeadsError('الملف فارغ أو لا يحتوي على بيانات كافية'));
       _emitLoaded([_createEmptyRow()]);
@@ -348,49 +503,39 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
       if (r.isEmpty || r.every((c) => c.isEmpty)) continue;
 
       if (isUnifiedFile) {
-        // الأعمدة الـ 10 للملف الموحد:
-        // 0: التاريخ
-        // 1: اسم المنصة
-        // 2: اسم العميل
-        // 3: رقم العميل
-        // 4: اسم الموظف
-        // 5: كود العقار (UPPERCASE)
-        // 6: نوع العقار
-        // 7: نوع الاعلان
-        // 8: المنطقة الأصلية
-        // 9: المدينة
-        final dateStr = _cell(r, 0);
-        final platformName = _cell(r, 1);
-        final name = _cell(r, 2);
-        final rawPhone = _cell(r, 3);
-        final assignedToName = _cell(r, 4);
-        final pCode = _cell(r, 5)?.toUpperCase();
-        final propTypeName = _cell(r, 6);
-        final listTypeName = _cell(r, 7);
-        final rawArea = _cell(r, 8);
-        final cityName = _cell(r, 9);
+        // قراءة الأعمدة إما بناء على مكان الهيدر الفعلي أو الفهارس المعتادة:
+        final dateStr = _valByCol(r, headerRow, ['التاريخ', 'تاريخ', 'created_at']) ?? _cell(r, 0);
+        final platformName = _valByCol(r, headerRow, ['اسم المنصة', 'منصة', 'platform']) ?? _cell(r, 1);
+        final name = _valByCol(r, headerRow, ['اسم العميل', 'العميل', 'sender_name']) ?? _cell(r, 2);
+        final rawPhone = _valByCol(r, headerRow, ['رقم العميل', 'الهاتف', 'phone']) ?? _cell(r, 3);
+        final assignedToName = _valByCol(r, headerRow, ['اسم الموظف', 'الموظف', 'agent']) ?? _cell(r, 4);
+        final prefix = _valByCol(r, headerRow, ['prefix', 'البريفكس', 'كود الموظف']) ?? (headerRow.any((h) => h == 'prefix') ? _cell(r, 5) : null);
+        final pCode = (_valByCol(r, headerRow, ['كود العقار', 'كود_العقار', 'property_code', 'reference']) ?? (headerRow.any((h) => h == 'prefix') ? _cell(r, 6) : _cell(r, 5)))?.toUpperCase();
+        final propTypeName = _valByCol(r, headerRow, ['نوع العقار', 'نوع_العقار', 'property_type', 'unit_type']) ?? (headerRow.any((h) => h == 'prefix') ? _cell(r, 7) : _cell(r, 6));
+        final listTypeName = _valByCol(r, headerRow, ['نوع الاعلان', 'نوع_الاعلان', 'listing_type', 'القسم']) ?? (headerRow.any((h) => h == 'prefix') ? _cell(r, 8) : _cell(r, 7));
+        final rawArea = _valByCol(r, headerRow, ['المنطقة الأصلية', 'المنطقة_الأصلية', 'area_name', 'المنطقة']) ?? (headerRow.any((h) => h == 'prefix') ? _cell(r, 9) : _cell(r, 8));
+        final cityName = _valByCol(r, headerRow, ['المدينة', 'city']) ?? (headerRow.any((h) => h == 'prefix') ? _cell(r, 10) : _cell(r, 9));
 
         final phone = _cleanPhoneNumber(rawPhone);
         final parsedDate = _parseDate(dateStr);
 
-        // مطابقة الموظف تلقائياً: 1) من الـ Prefix لكود العقار. 2) بالاسم إن وجد.
+        // إسناد الموظف حصراً بالاسم الكامل الثنائي (أول + أخير):
         String? userId;
-        final prefix = _extractPrefix(pCode);
-        if (prefix != null) {
-          userId = _findUserIdByPrefix(prefix);
-        }
-        if (userId == null && assignedToName != null && assignedToName.isNotEmpty) {
+        if (assignedToName != null && assignedToName.trim().isNotEmpty) {
           userId = _findUserId(assignedToName);
         }
 
-        // مطابقة بقية الحقول
+        // مطابقة بقية الحقول (فقط إن كانت تحتوي على نص غير فارغ)
         final platId = _findPlatformId(platformName);
-        final propId = _findPropertyTypeId(propTypeName);
-        final listId = _findListingTypeId(listTypeName);
+        final propId = (propTypeName != null && propTypeName.trim().isNotEmpty) ? _findPropertyTypeId(propTypeName) : null;
+        final listId = (listTypeName != null && listTypeName.trim().isNotEmpty) ? _findListingTypeId(listTypeName) : null;
 
         // مطابقة المدينة: البحث في اسم المدينة، ثم البحث في اسم المنطقة الأصلية
-        int? cityId = _findCityId(cityName);
-        if (cityId == null && rawArea != null && rawArea.isNotEmpty) {
+        int? cityId;
+        if (cityName != null && cityName.trim().isNotEmpty) {
+          cityId = _findCityId(cityName);
+        }
+        if (cityId == null && rawArea != null && rawArea.trim().isNotEmpty) {
           cityId = _findCityId(rawArea);
         }
 
@@ -404,17 +549,23 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
           phone: phone,
           createdAt: parsedDate,
           propertyCode: pCode,
-          areaName: rawArea,
+          areaName: (rawArea != null && rawArea.trim().isNotEmpty) ? rawArea.trim() : null,
           platformId: platId,
-          unmappedPlatform: platId == null && platformName != null ? platformName : null,
+          unmappedPlatform: (platId == null && platformName != null && platformName.trim().isNotEmpty) ? platformName.trim() : null,
           propertyTypeId: propId,
-          unmappedPropertyType: propId == null && propTypeName != null ? propTypeName : null,
+          unmappedPropertyType: (propId == null && propTypeName != null && propTypeName.trim().isNotEmpty) ? propTypeName.trim() : null,
           listingTypeId: listId,
-          unmappedListingType: listId == null && listTypeName != null ? listTypeName : null,
+          unmappedListingType: (listId == null && listTypeName != null && listTypeName.trim().isNotEmpty) ? listTypeName.trim() : null,
           cityId: cityId,
-          unmappedCity: (cityId == null && (rawArea != null || cityName != null)) ? (rawArea ?? cityName) : null,
+          unmappedCity: (cityId == null && ((rawArea != null && rawArea.trim().isNotEmpty) || (cityName != null && cityName.trim().isNotEmpty)))
+              ? (cityName?.trim().isNotEmpty == true ? cityName!.trim() : rawArea!.trim())
+              : null,
           assignedTo: assignedTo,
-          unmappedAssignedTo: assignedTo == null ? (prefix != null ? 'Prefix: $prefix' : assignedToName) : null,
+          unmappedAssignedTo: assignedTo == null
+              ? (assignedToName?.isNotEmpty == true
+                  ? assignedToName
+                  : (prefix != null && prefix.trim().isNotEmpty ? 'كود: $prefix' : 'بدون موظف (غير محدد)'))
+              : null,
           channelId: _findChannelId('مكالمة هاتفية') ?? _findChannelId('واتساب'),
           statusId: _findId('lead_status', 'لم يتم التواصل معه') ??
                     _findId('lead_status', 'لم يتم التواصل') ??
@@ -453,11 +604,11 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
 
         String? userId;
         final prefix = _extractPrefix(pCode);
-        if (prefix != null) {
-          userId = _findUserIdByPrefix(prefix);
-        }
-        if (userId == null) {
+        if (assignedToName != null && assignedToName.trim().isNotEmpty) {
           userId = _findUserId(assignedToName);
+        }
+        if (userId == null && prefix != null) {
+          userId = _findUserIdByPrefix(prefix);
         }
 
         newRows.add(EditableLeadRow(
@@ -483,7 +634,11 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
           statusId: statId,
           unmappedStatus: statId == null && statusName != null ? statusName : null,
           assignedTo: (_role != 'manager' && _role != 'admin' && _role != 'ceo' && _role.isNotEmpty) ? _userId : userId,
-          unmappedAssignedTo: userId == null ? (prefix != null ? 'Prefix: $prefix' : assignedToName) : null,
+          unmappedAssignedTo: userId == null
+              ? (assignedToName?.isNotEmpty == true
+                  ? assignedToName
+                  : (prefix != null && prefix.trim().isNotEmpty ? 'كود: $prefix' : 'بدون موظف (غير محدد)'))
+              : null,
         ));
       }
     }
@@ -492,8 +647,75 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
       newRows.add(_createEmptyRow());
     }
 
+    // 1. الاستعلام السريع من قاعدة البيانات (Supabase) لإثراء بيانات العقارات بالأكواد
+    final codesToLookup = <String>{};
+    for (final row in newRows) {
+      final code = row.propertyCode?.trim().toUpperCase();
+      if (code != null && code.isNotEmpty) {
+        if (row.cityId == null || row.propertyTypeId == null || row.listingTypeId == null) {
+          codesToLookup.add(code);
+        }
+      }
+    }
+
+    if (codesToLookup.isNotEmpty) {
+      final dbCatalog = await _leadService.lookupPropertiesByCodes(codesToLookup.toList());
+      if (dbCatalog.isNotEmpty) {
+        newRows = newRows.map((row) {
+          final code = row.propertyCode?.trim().toUpperCase();
+          if (code != null && dbCatalog.containsKey(code)) {
+            final info = dbCatalog[code]!;
+            final enrichedCityId = row.cityId ?? info['cityId'] as int?;
+            final enrichedPropTypeId = row.propertyTypeId ?? info['propertyTypeId'] as String?;
+            final enrichedListTypeId = row.listingTypeId ?? info['listingTypeId'] as String?;
+            final enrichedAreaName = (row.areaName == null || row.areaName!.isEmpty) ? (info['areaName'] as String?) : row.areaName;
+
+            return row.copyWith(
+              cityId: enrichedCityId,
+              unmappedCity: enrichedCityId != null ? null : row.unmappedCity,
+              propertyTypeId: enrichedPropTypeId,
+              unmappedPropertyType: enrichedPropTypeId != null ? null : row.unmappedPropertyType,
+              listingTypeId: enrichedListTypeId,
+              unmappedListingType: enrichedListTypeId != null ? null : row.unmappedListingType,
+              areaName: enrichedAreaName,
+            );
+          }
+          return row;
+        }).toList();
+      }
+    }
+
+    // 2. إزالة التكرار داخل الشيت لنفس اليوم ونفس الموظف حتى لو من منصات مختلفة
+    final seenKeys = <String>{};
+    final deduplicatedRows = <EditableLeadRow>[];
+    for (final row in newRows) {
+      final phone = row.phone?.trim();
+      if (phone != null && phone.isNotEmpty) {
+        final dateKey = row.createdAt != null
+            ? '${row.createdAt!.year}-${row.createdAt!.month.toString().padLeft(2, '0')}-${row.createdAt!.day.toString().padLeft(2, '0')}'
+            : 'no_date';
+        final empKey = row.assignedTo ?? row.unmappedAssignedTo ?? '__unassigned__';
+        final key = '$phone|$dateKey|$empKey';
+        if (seenKeys.contains(key)) {
+          continue; // تخطي المكرر لنفس اليوم ونفس الموظف
+        }
+        seenKeys.add(key);
+      }
+      deduplicatedRows.add(row);
+    }
+    newRows = deduplicatedRows;
+
     final unmappedLocations = _collectUnmappedLocations(newRows);
-    _emitLoaded(newRows, unmappedLocations: unmappedLocations);
+    final unmappedEmployees = _collectUnmappedEmployees(newRows);
+    final unmappedPropertyTypes = _collectUnmappedPropertyTypes(newRows);
+    final unmappedListingTypes = _collectUnmappedListingTypes(newRows);
+    _emitLoaded(
+      newRows,
+      unmappedLocations: unmappedLocations,
+      unmappedEmployees: unmappedEmployees,
+      unmappedPropertyTypes: unmappedPropertyTypes,
+      unmappedListingTypes: unmappedListingTypes,
+    );
   }
 
   // --- محركات المطابقة الذكية واستخراج الـ Prefix ---
@@ -502,6 +724,24 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
     if (index >= row.length) return null;
     final v = row[index].trim();
     return v.isEmpty ? null : v;
+  }
+
+  String? _valByCol(List<String> row, List<String> headers, List<String> keywords) {
+    // 1. التطابق التام أولاً لمنع التداخل بين الأعمدة المتشابهة (Exact Match)
+    for (int i = 0; i < headers.length; i++) {
+      final h = headers[i].trim().toLowerCase();
+      if (keywords.any((kw) => h == kw.trim().toLowerCase())) {
+        return _cell(row, i);
+      }
+    }
+    // 2. فحص الاحتواء كبديل فقط في حال عدم وجود تطابق تام (Contains)
+    for (int i = 0; i < headers.length; i++) {
+      final h = headers[i].trim().toLowerCase();
+      if (keywords.any((kw) => h.contains(kw.trim().toLowerCase()))) {
+        return _cell(row, i);
+      }
+    }
+    return null;
   }
 
   String? _cleanPhoneNumber(String? raw) {
@@ -531,16 +771,18 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
   String? _extractPrefix(String? propertyCode) {
     if (propertyCode == null || propertyCode.trim().isEmpty) return null;
     final code = propertyCode.trim().toUpperCase();
-    final match = RegExp(r'^([A-Z0-9]+)-').firstMatch(code);
-    if (match != null) {
-      return match.group(1);
+    // يستخرج الحروف الإنجليزية الأولى سواء كان الفاصل شرطة أو نقطة أو مسافة أو بدون فواصل
+    final match = RegExp(r'^([A-Z]+)[\s._\-]*\d*').firstMatch(code);
+    if (match != null && match.group(1) != null) {
+      final prefix = match.group(1)!;
+      return prefix.isNotEmpty ? prefix : null;
     }
     return null;
   }
 
   String? _findUserIdByPrefix(String? prefix) {
     if (prefix == null || prefix.isEmpty) return null;
-    final upperPrefix = prefix.toUpperCase();
+    final upperPrefix = prefix.toUpperCase().trim();
     for (var u in _dataManager.employees) {
       if (u.propertyPrefix != null && u.propertyPrefix!.toUpperCase().trim() == upperPrefix) {
         return u.id;
@@ -550,12 +792,13 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
   }
 
   String? _findUserId(String? name) {
-    if (name == null || name.isEmpty) return null;
-    final cleanName = name.trim().toLowerCase();
+    if (name == null || name.trim().isEmpty) return null;
+    // تنظيف الاسم وإزالة المسافات المتعددة وتحويله بالكامل إلى lowercase
+    final cleanName = name.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
     for (var u in _dataManager.employees) {
-      final fullName = '${u.firstName ?? ''} ${u.lastName ?? ''}'.trim().toLowerCase();
-      final firstName = (u.firstName ?? '').trim().toLowerCase();
-      if (fullName == cleanName || firstName == cleanName || fullName.contains(cleanName) || cleanName.contains(fullName)) {
+      final fullName = '${u.firstName ?? ''} ${u.lastName ?? ''}'.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+      // مطابقة تامة وصارمة للاسم الكامل (الاسم الأول + الاسم الأخير معاً)
+      if (fullName == cleanName) {
         return u.id;
       }
     }
@@ -729,12 +972,10 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
     List<LeadModel> leadsToInsert = [];
     for (var row in validRows) {
       String? statusId = row.statusId;
-      if (statusId == null) {
-        statusId = _findId('lead_status', 'لم يتم التواصل معه') ??
+      statusId ??= _findId('lead_status', 'لم يتم التواصل معه') ??
                    _findId('lead_status', 'لم يتم التواصل') ??
                    _findId('lead_status', 'جديد') ??
                    '460be748-7685-49ef-abcf-c4dd49511ab7';
-      }
 
       num? bFrom;
       num? bTo;
@@ -795,7 +1036,7 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
     }
   }
 
-  Future<void> saveLeadsList(List<LeadModel> leadsToInsert) async {
+  Future<void> saveLeadsList(List<LeadModel> leadsToInsert, [List<EditableLeadRow>? remainingRows]) async {
     if (leadsToInsert.isEmpty) {
       emit(BulkAddLeadsError('لا توجد بيانات صالحة للحفظ'));
       return;
@@ -809,7 +1050,21 @@ class BulkAddLeadsCubit extends Cubit<BulkAddLeadsState> {
       });
 
       emit(BulkAddLeadsSuccess());
-      _emitLoaded([_createEmptyRow()], selectedRowIds: const {});
+      final toEmit = (remainingRows != null && remainingRows.isNotEmpty)
+          ? remainingRows
+          : [_createEmptyRow()];
+      final unmappedLocations = _collectUnmappedLocations(toEmit);
+      final unmappedEmployees = _collectUnmappedEmployees(toEmit);
+      final unmappedPropertyTypes = _collectUnmappedPropertyTypes(toEmit);
+      final unmappedListingTypes = _collectUnmappedListingTypes(toEmit);
+      _emitLoaded(
+        toEmit,
+        selectedRowIds: const {},
+        unmappedLocations: unmappedLocations,
+        unmappedEmployees: unmappedEmployees,
+        unmappedPropertyTypes: unmappedPropertyTypes,
+        unmappedListingTypes: unmappedListingTypes,
+      );
     } catch (e) {
       emit(BulkAddLeadsError('حدث خطأ أثناء الحفظ: $e'));
       if (state is BulkAddLeadsLoaded) {

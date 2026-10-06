@@ -54,6 +54,7 @@ class AppConstants {
   static const String leadStatusNoReply = "7bd8af5e-fb5b-41d1-955a-e5e5e1751d82"; // لم يتم الرد
   static const String leadStatusImportant = "34f6f48c-3179-4b83-b34e-edc3fdc2e3d4"; // VIP
   static const String leadStatusBroker = "edd485bf-e3d9-44f0-acc8-71287bbefced"; // بروكر
+  static const String leadStatusDealDone = "ea13aa96-bc1e-4d8a-ba03-7ca0d4fc2253"; // تم التعاقد
   static const String leadStatusOther = "3de7942d-8562-4774-88ce-9f84eed8f615"; // اخري
   static const String leadStatusWhatsAppContacted = leadStatusContacted; // تم التواصل
 
