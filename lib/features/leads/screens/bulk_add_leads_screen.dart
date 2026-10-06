@@ -11,6 +11,8 @@ import '../../auth/cubit/auth_states.dart';
 import '../cubit/bulk_add_leads_cubit.dart';
 import '../cubit/bulk_add_leads_state.dart';
 import '../widgets/distinct_mapping_dialog.dart';
+import '../widgets/distinct_employee_mapping_dialog.dart';
+import '../widgets/distinct_lookup_mapping_dialog.dart';
 
 class BulkAddLeadsScreen extends StatelessWidget {
   const BulkAddLeadsScreen({super.key});
@@ -64,6 +66,7 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
 
   late List<TrinaColumn> _columns;
   bool _isGridInitialized = false;
+  int _lastSkippedNoEmployeeCount = 0;
 
   @override
   void initState() {
@@ -442,7 +445,9 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
     }
 
     List<LeadModel> leadsToInsert = [];
+    List<EditableLeadRow> remainingLeadRows = [];
     List<String> errorMessages = [];
+    int skippedNoEmployeeCount = 0;
 
     for (int i = 0; i < gridRows.length; i++) {
       final cells = gridRows[i].cells;
@@ -465,11 +470,34 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
           (areaName == null || areaName.isEmpty);
       if (isEmptyRow) continue;
 
-      // فحص هل المنصة هي Property Finder؟
-      final bool isPF = (platformName != null &&
-          (platformName.toLowerCase().contains('property') ||
-              platformName.contains('فايندر') ||
-              platformName.toLowerCase() == 'pf'));
+      // إذا كان الصف بدون موظف، نتخطى إضافته ونتركه في الجدول ليحدده المستخدم بنفسه
+      final bool isUnassigned = (assignedToName == null || assignedToName.isEmpty || assignedToName == 'بدون موظف (غير محدد)');
+      if (isUnassigned) {
+        skippedNoEmployeeCount++;
+        final cityId = (cityName != null && cityName.isNotEmpty) ? _cityIdByName[cityName] : null;
+        final propTypeId = (propTypeName != null && propTypeName.isNotEmpty) ? (_optionIdByName['property_type'] ?? {})[propTypeName] : null;
+        final listTypeId = (listTypeName != null && listTypeName.isNotEmpty) ? (_optionIdByName['listing_type'] ?? {})[listTypeName] : null;
+        final platId = (platformName != null && platformName.isNotEmpty) ? (_optionIdByName['platform'] ?? {})[platformName] : null;
+
+        remainingLeadRows.add(EditableLeadRow(
+          id: 'rem_${DateTime.now().millisecondsSinceEpoch}_$i',
+          name: name,
+          phone: phone,
+          createdAt: (dateStr != null && dateStr.isNotEmpty) ? DateTime.tryParse(dateStr.replaceAll('/', '-')) : null,
+          propertyCode: pCode,
+          areaName: areaName,
+          cityId: cityId,
+          unmappedCity: (cityId == null && cityName != null && cityName.isNotEmpty) ? cityName : null,
+          propertyTypeId: propTypeId,
+          unmappedPropertyType: (propTypeId == null && propTypeName != null && propTypeName.isNotEmpty) ? propTypeName : null,
+          listingTypeId: listTypeId,
+          unmappedListingType: (listTypeId == null && listTypeName != null && listTypeName.isNotEmpty) ? listTypeName : null,
+          platformId: platId,
+          assignedTo: null,
+          unmappedAssignedTo: 'بدون موظف (غير محدد)',
+        ));
+        continue;
+      }
 
       // التحقق من المتطلبات
       List<String> missing = [];
@@ -480,14 +508,6 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
       }
 
       if (platformName == null || platformName.isEmpty) missing.add('اسم المنصة');
-      if (assignedToName == null || assignedToName.isEmpty) missing.add('اسم الموظف');
-
-      // شروط المدينة ونوع العقار ونوع الإعلان: إجبارية فقط إذا لم يكن Property Finder!
-      if (!isPF) {
-        if (cityName == null || cityName.isEmpty) missing.add('المدينة');
-        if (propTypeName == null || propTypeName.isEmpty) missing.add('نوع العقار');
-        if (listTypeName == null || listTypeName.isEmpty) missing.add('نوع الإعلان');
-      }
 
       if (missing.isNotEmpty) {
         errorMessages.add('الصف ${i + 1}: ينقصه (${missing.join('، ')})');
@@ -507,7 +527,20 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
                      statusMap['جديد'] ?? 
                      statusMap['تم التواصل اول مرة'] ?? 
                      '460be748-7685-49ef-abcf-c4dd49511ab7';
-      final assignedToId = (assignedToName != null && assignedToName.isNotEmpty) ? _employeeIdByName[assignedToName] : null;
+      // تحويل اسم الموظف إلى ID مع دعم case-insensitive
+      String? assignedToId;
+      if (assignedToName.isNotEmpty) {
+        assignedToId = _employeeIdByName[assignedToName];
+        if (assignedToId == null) {
+          final cleanAssigned = assignedToName.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+          for (var entry in _employeeIdByName.entries) {
+            if (entry.key.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ') == cleanAssigned) {
+              assignedToId = entry.value;
+              break;
+            }
+          }
+        }
+      }
 
       if (assignedToId == null) {
         errorMessages.add('الصف ${i + 1}: لم يتم التعرف على الموظف ($assignedToName)');
@@ -566,14 +599,24 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
     }
 
     if (leadsToInsert.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('جميع الصفوف فارغة، لا يوجد شيء للحفظ'), backgroundColor: Colors.orange),
-      );
+      if (skippedNoEmployeeCount > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('لم يتم حفظ أي عميل لأن هناك $skippedNoEmployeeCount عميل بدون موظف. يرجى تحديد الموظفين أولاً لحفظهم.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('جميع الصفوف فارغة، لا يوجد شيء للحفظ'), backgroundColor: Colors.orange),
+        );
+      }
       return;
     }
 
-    // استدعاء خدمة الحفظ الجماعي السريع
-    context.read<BulkAddLeadsCubit>().saveLeadsList(leadsToInsert);
+    _lastSkippedNoEmployeeCount = skippedNoEmployeeCount;
+    // استدعاء خدمة الحفظ الجماعي السريع وتمرير الصفوف المتبقية للإبقاء عليها
+    context.read<BulkAddLeadsCubit>().saveLeadsList(leadsToInsert, remainingLeadRows);
   }
 
   @override
@@ -618,7 +661,17 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
           if (state is BulkAddLeadsError) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.error), backgroundColor: Colors.red));
           } else if (state is BulkAddLeadsSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ جميع العملاء بنجاح في قاعدة البيانات!'), backgroundColor: Colors.green));
+            final skipped = _lastSkippedNoEmployeeCount;
+            _lastSkippedNoEmployeeCount = 0;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(skipped > 0
+                    ? 'تم حفظ العملاء بنجاح، وتم الإبقاء على $skipped عميل في الجدول لعدم تحديد موظف لهم.'
+                    : 'تم حفظ جميع العملاء بنجاح في قاعدة البيانات!'),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 4),
+              ),
+            );
           } else if (state is BulkAddLeadsLoaded) {
             if (_isGridInitialized) {
               _syncGridWithRows(state.rows);
@@ -647,8 +700,14 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
           } else if (state is BulkAddLeadsLoaded) {
             return Column(
               children: [
+                if (state.unmappedEmployees.isNotEmpty)
+                  _buildDistinctEmployeeMappingBanner(context, state.unmappedEmployees),
                 if (state.unmappedLocations.isNotEmpty)
                   _buildDistinctMappingBanner(context, state.unmappedLocations),
+                if (state.unmappedPropertyTypes.isNotEmpty)
+                  _buildDistinctPropertyTypeMappingBanner(context, state.unmappedPropertyTypes),
+                if (state.unmappedListingTypes.isNotEmpty)
+                  _buildDistinctListingTypeMappingBanner(context, state.unmappedListingTypes),
                 _buildExcelToolbar(context),
                 Expanded(
                   child: Directionality(
@@ -795,6 +854,178 @@ class _BulkAddLeadsViewState extends State<_BulkAddLeadsView> {
                         final cityName = _cityNameById[cityId];
                         if (cityName != null) {
                           _stateManager!.changeCellValue(r.cells['city']!, cityName, notify: false);
+                        }
+                      }
+                    }
+                    _stateManager!.notifyListeners();
+                  }
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- شريط التنبيه للمطابقة السريعة للموظفين والأكواد غير المسجلة ---
+
+  Widget _buildDistinctEmployeeMappingBanner(BuildContext context, Map<String, int> unmapped) {
+    final int totalLeads = unmapped.values.fold(0, (sum, count) => sum + count);
+
+    return Container(
+      color: Colors.blue.shade50,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Icon(Icons.badge_outlined, color: Colors.blue.shade800),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'تنبيه: يوجد ${unmapped.length} كود عقار أو اسم موظف غير مطابق في النظام ($totalLeads عميل). يمكنك إسنادهم لموظفي السيستم بضغطة زر:',
+              style: TextStyle(color: Colors.blue.shade900, fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.person_search_outlined, size: 16),
+            label: const Text('مطابقة الموظفين (Employee Mapping)'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade800,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            ),
+            onPressed: () {
+              DistinctEmployeeMappingDialog.show(
+                context,
+                unmappedEmployees: unmapped,
+                onApply: (mapping) {
+                  context.read<BulkAddLeadsCubit>().applyDistinctEmployeeMapping(mapping);
+
+                  if (_stateManager != null) {
+                    for (final r in _stateManager!.rows) {
+                      final assignedVal = r.cells['assignedTo']?.value?.toString().trim();
+                      if (assignedVal != null && mapping.containsKey(assignedVal)) {
+                        final userId = mapping[assignedVal];
+                        final userName = _employeeNameById[userId];
+                        if (userName != null) {
+                          _stateManager!.changeCellValue(r.cells['assignedTo']!, userName, notify: false);
+                        }
+                      }
+                    }
+                    _stateManager!.notifyListeners();
+                  }
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- شريط التنبيه للمطابقة السريعة لأنواع العقارات غير المعرفة ---
+
+  Widget _buildDistinctPropertyTypeMappingBanner(BuildContext context, Map<String, int> unmapped) {
+    final int totalLeads = unmapped.values.fold(0, (sum, count) => sum + count);
+
+    return Container(
+      color: Colors.purple.shade50,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Icon(Icons.home_work_outlined, color: Colors.purple.shade800),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'تنبيه: يوجد ${unmapped.length} نوع عقار غير مطابق في النظام ($totalLeads عميل). يمكنك ربطها بأنواع عقارات السيستم بضغطة زر:',
+              style: TextStyle(color: Colors.purple.shade900, fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.category_outlined, size: 16),
+            label: const Text('مطابقة نوع العقار (Property Type)'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple.shade800,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            ),
+            onPressed: () {
+              DistinctLookupMappingDialog.show(
+                context,
+                title: 'مطابقة أنواع العقارات غير المعرفة',
+                category: 'property_type',
+                unmappedItems: unmapped,
+                onApply: (mapping) {
+                  context.read<BulkAddLeadsCubit>().applyDistinctPropertyTypeMapping(mapping);
+
+                  if (_stateManager != null) {
+                    for (final r in _stateManager!.rows) {
+                      final val = r.cells['propertyType']?.value?.toString().trim();
+                      if (val != null && mapping.containsKey(val)) {
+                        final optId = mapping[val];
+                        final optName = _optionNameById['property_type']?[optId];
+                        if (optName != null) {
+                          _stateManager!.changeCellValue(r.cells['propertyType']!, optName, notify: false);
+                        }
+                      }
+                    }
+                    _stateManager!.notifyListeners();
+                  }
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- شريط التنبيه للمطابقة السريعة لأنواع الإعلانات غير المعرفة ---
+
+  Widget _buildDistinctListingTypeMappingBanner(BuildContext context, Map<String, int> unmapped) {
+    final int totalLeads = unmapped.values.fold(0, (sum, count) => sum + count);
+
+    return Container(
+      color: Colors.teal.shade50,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Icon(Icons.sell_outlined, color: Colors.teal.shade800),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'تنبيه: يوجد ${unmapped.length} نوع إعلان غير مطابق في النظام ($totalLeads عميل). يمكنك ربطها بأنواع إعلانات السيستم بضغطة زر:',
+              style: TextStyle(color: Colors.teal.shade900, fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.style_outlined, size: 16),
+            label: const Text('مطابقة نوع الإعلان (Listing Type)'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.teal.shade800,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            ),
+            onPressed: () {
+              DistinctLookupMappingDialog.show(
+                context,
+                title: 'مطابقة أنواع الإعلانات غير المعرفة',
+                category: 'listing_type',
+                unmappedItems: unmapped,
+                onApply: (mapping) {
+                  context.read<BulkAddLeadsCubit>().applyDistinctListingTypeMapping(mapping);
+
+                  if (_stateManager != null) {
+                    for (final r in _stateManager!.rows) {
+                      final val = r.cells['listingType']?.value?.toString().trim();
+                      if (val != null && mapping.containsKey(val)) {
+                        final optId = mapping[val];
+                        final optName = _optionNameById['listing_type']?[optId];
+                        if (optName != null) {
+                          _stateManager!.changeCellValue(r.cells['listingType']!, optName, notify: false);
                         }
                       }
                     }

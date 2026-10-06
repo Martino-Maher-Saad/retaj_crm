@@ -200,6 +200,9 @@ class BulkAddLeadsLoaded extends BulkAddLeadsState {
   final Map<String, dynamic> pinnedValues;
   final Set<String> selectedRowIds;
   final Map<String, int> unmappedLocations;
+  final Map<String, int> unmappedEmployees;
+  final Map<String, int> unmappedPropertyTypes;
+  final Map<String, int> unmappedListingTypes;
 
   const BulkAddLeadsLoaded(
     this.rows, {
@@ -211,6 +214,9 @@ class BulkAddLeadsLoaded extends BulkAddLeadsState {
     this.pinnedValues = const {},
     this.selectedRowIds = const {},
     this.unmappedLocations = const {},
+    this.unmappedEmployees = const {},
+    this.unmappedPropertyTypes = const {},
+    this.unmappedListingTypes = const {},
   });
 
   BulkAddLeadsLoaded copyWith({
@@ -219,6 +225,9 @@ class BulkAddLeadsLoaded extends BulkAddLeadsState {
     Map<String, dynamic>? pinnedValues,
     Set<String>? selectedRowIds,
     Map<String, int>? unmappedLocations,
+    Map<String, int>? unmappedEmployees,
+    Map<String, int>? unmappedPropertyTypes,
+    Map<String, int>? unmappedListingTypes,
   }) {
     return BulkAddLeadsLoaded(
       rows ?? this.rows,
@@ -226,11 +235,17 @@ class BulkAddLeadsLoaded extends BulkAddLeadsState {
       pinnedValues: pinnedValues ?? this.pinnedValues,
       selectedRowIds: selectedRowIds ?? this.selectedRowIds,
       unmappedLocations: unmappedLocations ?? this.unmappedLocations,
+      unmappedEmployees: unmappedEmployees ?? this.unmappedEmployees,
+      unmappedPropertyTypes: unmappedPropertyTypes ?? this.unmappedPropertyTypes,
+      unmappedListingTypes: unmappedListingTypes ?? this.unmappedListingTypes,
     );
   }
 
   @override
-  List<Object?> get props => [rows, columnOrder, pinnedValues, selectedRowIds, unmappedLocations];
+  List<Object?> get props => [
+        rows, columnOrder, pinnedValues, selectedRowIds,
+        unmappedLocations, unmappedEmployees, unmappedPropertyTypes, unmappedListingTypes
+      ];
 }
 
 class BulkAddLeadsProgress extends BulkAddLeadsState {

@@ -711,4 +711,46 @@ class LeadService {
       ),
     );
   }
-}
+
+  /// استعلام لجلب بيانات العقارات (المدينة، نوع العقار، نوع الإعلان، المنطقة) المسجلة مسبقاً بالأكواد
+  Future<Map<String, Map<String, dynamic>>> lookupPropertiesByCodes(List<String> codes) async {
+    if (codes.isEmpty) return {};
+    try {
+      final cleanCodes = codes
+          .map((c) => c.trim().toUpperCase())
+          .where((c) => c.isNotEmpty)
+          .toSet()
+          .toList();
+      if (cleanCodes.isEmpty) return {};
+
+      final response = await _supabase
+          .from('leads')
+          .select('property_code, city_id, property_type_id, listing_type_id, area_name')
+          .filter('property_code', 'in', cleanCodes)
+          .not('property_code', 'is', null)
+          .order('created_at', ascending: false);
+
+      final Map<String, Map<String, dynamic>> catalog = {};
+      for (final item in response as List<dynamic>) {
+        final code = item['property_code']?.toString().trim().toUpperCase();
+        if (code != null && code.isNotEmpty && !catalog.containsKey(code)) {
+          final cityId = item['city_id'];
+          final propTypeId = item['property_type_id'];
+          final listTypeId = item['listing_type_id'];
+          final areaName = item['area_name'];
+          if (cityId != null || propTypeId != null || listTypeId != null || areaName != null) {
+            catalog[code] = {
+              'cityId': cityId,
+              'propertyTypeId': propTypeId,
+              'listingTypeId': listTypeId,
+              'areaName': areaName,
+            };
+          }
+        }
+      }
+      return catalog;
+    } catch (_) {
+      return {};
+    }
+  }
+}

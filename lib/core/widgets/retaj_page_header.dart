@@ -21,6 +21,9 @@ class RetajPageHeader extends StatelessWidget {
   /// فلاتر سريعة بجانب زر الفلاتر المتقدمة
   final Widget? quickFilters;
 
+  /// عرض زر الفلتر كأيقونة فقط (مربع 44x44)
+  final bool filterIconOnly;
+
   const RetajPageHeader({
     super.key,
     required this.title,
@@ -34,6 +37,7 @@ class RetajPageHeader extends StatelessWidget {
     this.extraAction,
     this.filterBar,
     this.quickFilters,
+    this.filterIconOnly = false,
   });
 
   @override
@@ -113,23 +117,49 @@ class RetajPageHeader extends StatelessWidget {
 
               // ─── أزرار الإجراءات ───
               if (onFilter != null) ...[
-                OutlinedButton(
-                  onPressed: onFilter,
-                  child: Text(filterLabel ?? 'فلاتر',
-                      style: TextStyle(
-                          fontSize: 14.sp,
-                          color: AppColors.brandPrimary,
-                          fontWeight: FontWeight.w600)),
-                  style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: 18.w, vertical: 12.h),
-                    side:
-                        BorderSide(color: AppColors.brandPrimary, width: 1.5),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.r)),
+                if (filterIconOnly)
+                  Container(
+                    width: 44.w,
+                    height: 44.h,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12.r),
+                      border: Border.all(
+                        color: AppColors.brandPrimary,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      icon: Icon(
+                        Icons.tune_rounded,
+                        color: AppColors.brandPrimary,
+                        size: 20.sp,
+                      ),
+                      onPressed: onFilter,
+                      tooltip: filterLabel ?? 'فلاتر متقدمة',
+                    ),
+                  )
+                else
+                  OutlinedButton(
+                    onPressed: onFilter,
+                    child: Text(filterLabel ?? 'فلاتر',
+                        style: TextStyle(
+                            fontSize: 14.sp,
+                            color: AppColors.brandPrimary,
+                            fontWeight: FontWeight.w600)),
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 18.w, vertical: 12.h),
+                      side:
+                          BorderSide(color: AppColors.brandPrimary, width: 1.5),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12.r)),
+                    ),
                   ),
-                ),
-                SizedBox(width: 12.w),
+                SizedBox(width: 8.w),
               ],
 
               if (extraAction != null) ...[

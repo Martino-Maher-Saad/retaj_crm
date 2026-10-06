@@ -44,10 +44,9 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
   bool _isAddingNewLead = false;
 
   bool _isExcelView = false;
+  final GlobalKey<LeadsTableViewState> _tableKey = GlobalKey<LeadsTableViewState>();
   bool _isBulkSelectMode = false;
   final Set<String> _selectedLeadIds = {};
-
-  final _dataManager = di.sl<StaticDataManager>();
 
   final ScrollController _scrollController = ScrollController();
 
@@ -179,8 +178,16 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
     super.build(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5FB),
-      body: Column(
-        children: [
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () {
+          if (_isExcelView) {
+            _tableKey.currentState?.unfocusGrid();
+          }
+          FocusScope.of(context).unfocus();
+        },
+        child: Column(
+          children: [
           // ─── Header bar ───
           BlocBuilder<LeadCubit, LeadState>(
             builder: (context, state) {
@@ -198,70 +205,32 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                     subtitle: 'تتبع وإدارة وتحويل فرص الاستثمار العقاري',
                     addLabel: 'إضافة عميل',
                     onAdd: () {
-                      setState(() {
-                        _isAddingNewLead = true;
-                        // سكرول لأعلى القائمة لرؤية الكارت الجديد
-                        if (_scrollController.hasClients) {
-                          _scrollController.animateTo(
-                            0,
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeOut,
-                          );
-                        }
-                      });
+                      if (_isExcelView) {
+                        _tableKey.currentState?.addNewInlineRow();
+                      } else {
+                        setState(() {
+                          _isAddingNewLead = true;
+                          // سكرول لأعلى القائمة لرؤية الكارت الجديد
+                          if (_scrollController.hasClients) {
+                            _scrollController.animateTo(
+                              0,
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeOut,
+                            );
+                          }
+                        });
+                      }
                     },
                     totalCount: total,
                     onFilter: () => _openFilterDialog(context),
                     filterLabel: 'فلاتر متقدمة',
+                    filterIconOnly: true,
                     filterBar: _isManagerRole
                         ? SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Container(
-                                  height: 48.h,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(8.r),
-                                    border: Border.all(
-                                      color: Colors.grey.shade300,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      IconButton(
-                                        icon: Icon(
-                                          Icons.grid_view_rounded,
-                                          color: !_isExcelView
-                                              ? AppColors.brandPrimary
-                                              : Colors.grey,
-                                        ),
-                                        onPressed: () => setState(
-                                          () => _isExcelView = false,
-                                        ),
-                                        tooltip: 'عرض الكروت',
-                                      ),
-                                      Container(
-                                        width: 1.w,
-                                        height: 28.h,
-                                        color: Colors.grey.shade300,
-                                      ),
-                                      IconButton(
-                                        icon: Icon(
-                                          Icons.table_chart_rounded,
-                                          color: _isExcelView
-                                              ? AppColors.brandPrimary
-                                              : Colors.grey,
-                                        ),
-                                        onPressed: () =>
-                                            setState(() => _isExcelView = true),
-                                        tooltip: 'عرض الجدول',
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                SizedBox(width: 12.w),
                                 Container(
                                   height: 48.h,
                                   decoration: BoxDecoration(
@@ -433,8 +402,17 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                               ],
                             ),
                           ),
-                    extraAction: _isManagerRole
-                        ? OutlinedButton.icon(
+                    extraAction: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildViewModeToggle(),
+                        SizedBox(width: 8.w),
+                        _buildSortButton(),
+                        SizedBox(width: 8.w),
+                        _buildRefreshButton(),
+                        if (_isManagerRole) ...[
+                          SizedBox(width: 8.w),
+                          OutlinedButton.icon(
                             onPressed: () {
                               Navigator.push(
                                 context,
@@ -457,8 +435,10 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                          )
-                        : null,
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
 
                   // ─── شريط الفلاتر السريعة: يُعرض فقط للمدير (لأن الموظفين أصبح مدمجاً في الـ Header مكسباً للمساحة) ───
@@ -680,47 +660,50 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: RefreshIndicator(
-                          onRefresh: () =>
-                              _refreshLeadsWithCurrentFilters(isRefresh: true),
-                          child: _isExcelView
-                              ? LeadsTableView(
-                                  leads: state.filteredLeads,
-                                  isBulkSelectMode: _isBulkSelectMode,
-                                  selectedIds: _selectedLeadIds,
-                                  scrollController: _scrollController,
-                                  isLoadingMore: state.isLoadingMore,
-                                  blinkItemId: state.blinkItemId,
-                                  onSelect: (id, isSelected) {
-                                    setState(() {
-                                      if (isSelected == true) {
-                                        _selectedLeadIds.add(id);
-                                      } else {
-                                        _selectedLeadIds.remove(id);
-                                      }
-                                    });
-                                  },
-                                  onSelectAll: () {
-                                    final visibleIds = state.filteredLeads
-                                        .map((l) => l.id!)
-                                        .where((id) => id.isNotEmpty)
-                                        .toList();
-                                    final allSelected =
-                                        visibleIds.isNotEmpty &&
-                                        visibleIds.every(
-                                          (id) => _selectedLeadIds.contains(id),
-                                        );
-                                    setState(() {
-                                      if (allSelected) {
-                                        _selectedLeadIds.removeAll(visibleIds);
-                                      } else {
-                                        _selectedLeadIds.addAll(visibleIds);
-                                      }
-                                    });
-                                  },
-                                )
-                              : ListView.builder(
-                                  cacheExtent: 3000,
+                        child: _isExcelView
+                            ? LeadsTableView(
+                                key: _tableKey,
+                                leads: state.filteredLeads,
+                                isBulkSelectMode: _isBulkSelectMode,
+                                selectedIds: _selectedLeadIds,
+                                scrollController: _scrollController,
+                                isLoadingMore: state.isLoadingMore,
+                                blinkItemId: state.blinkItemId,
+                                userRole: widget.user.role,
+                                currentUser: widget.user,
+                                onSelect: (id, isSelected) {
+                                  setState(() {
+                                    if (isSelected == true) {
+                                      _selectedLeadIds.add(id);
+                                    } else {
+                                      _selectedLeadIds.remove(id);
+                                    }
+                                  });
+                                },
+                                onSelectAll: () {
+                                  final visibleIds = state.filteredLeads
+                                      .map((l) => l.id!)
+                                      .where((id) => id.isNotEmpty)
+                                      .toList();
+                                  final allSelected =
+                                      visibleIds.isNotEmpty &&
+                                      visibleIds.every(
+                                        (id) => _selectedLeadIds.contains(id),
+                                      );
+                                  setState(() {
+                                    if (allSelected) {
+                                      _selectedLeadIds.removeAll(visibleIds);
+                                    } else {
+                                      _selectedLeadIds.addAll(visibleIds);
+                                    }
+                                  });
+                                },
+                              )
+                            : RefreshIndicator(
+                                onRefresh: () =>
+                                    _refreshLeadsWithCurrentFilters(isRefresh: true),
+                                child: ListView.builder(
+                                  cacheExtent: 5000,
                                   controller: _scrollController,
                                   padding: EdgeInsets.only(
                                     bottom: 20.h,
@@ -865,6 +848,105 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
           ),
         ],
       ),
+    ),
+  );
+}
+
+  Widget _buildViewModeToggle() {
+    return Container(
+      width: 44.w,
+      height: 44.h,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: _isExcelView
+            ? AppColors.brandPrimary.withValues(alpha: 0.12)
+            : Colors.white,
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(
+          color: _isExcelView ? AppColors.brandPrimary : Colors.grey.shade300,
+          width: 1.5,
+        ),
+      ),
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+        icon: Icon(
+          _isExcelView ? Icons.grid_view_rounded : Icons.table_chart_rounded,
+          color: _isExcelView ? AppColors.brandPrimary : Colors.grey.shade700,
+          size: 20.sp,
+        ),
+        tooltip: _isExcelView
+            ? 'التبديل إلى عرض الكروت 🗂️'
+            : 'التبديل إلى عرض جدول الإكسيل 📊',
+        onPressed: () {
+          setState(() {
+            _isExcelView = !_isExcelView;
+          });
+        },
+      ),
+    );
+  }
+
+  Widget _buildSortButton() {
+    final isAscending = _cubit.isSortAscending;
+    return Container(
+      width: 44.w,
+      height: 44.h,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: isAscending ? Colors.white : AppColors.brandPrimary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: AppColors.brandPrimary, width: 1.5),
+      ),
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+        onPressed: () {
+          setState(() {
+            _cubit.toggleSortOrder();
+          });
+        },
+        icon: Icon(
+          isAscending ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+          size: 20.sp,
+          color: AppColors.brandPrimary,
+        ),
+        tooltip: isAscending
+            ? 'الترتيب: الأقدم أولاً (انقر للتبديل للأحدث)'
+            : 'الترتيب: الأحدث أولاً (انقر للتبديل للأقدم)',
+      ),
+    );
+  }
+
+  Widget _buildRefreshButton() {
+    return Container(
+      width: 44.w,
+      height: 44.h,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: AppColors.brandPrimary, width: 1.5),
+      ),
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+        icon: Icon(
+          Icons.refresh_rounded,
+          color: AppColors.brandPrimary,
+          size: 20.sp,
+        ),
+        onPressed: () {
+          _refreshLeadsWithCurrentFilters(isRefresh: true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('جاري تحديث قائمة العملاء...'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+        },
+        tooltip: 'تحديث قائمة العملاء',
+      ),
     );
   }
 
@@ -886,6 +968,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
       {'key': 'لم يرد', 'label': 'لم يرد', 'icon': Icons.phone_missed_rounded},
       {'key': 'VIP', 'label': 'VIP', 'icon': Icons.star_rounded},
       {'key': 'بروكر', 'label': 'بروكر', 'icon': Icons.handshake_outlined},
+      {'key': 'تم التعاقد', 'label': 'تم التعاقد', 'icon': Icons.verified_rounded},
     ];
 
     return SingleChildScrollView(
@@ -897,7 +980,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
           final isHighlight = f['key'] == 'لم يتم التواصل';
 
           return Padding(
-            padding: EdgeInsets.only(left: 6.w),
+            padding: EdgeInsets.only(left: 4.w),
             child: InkWell(
               borderRadius: BorderRadius.circular(10.r),
               onTap: () {
@@ -905,7 +988,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
-                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+                padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 7.h),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? (isHighlight

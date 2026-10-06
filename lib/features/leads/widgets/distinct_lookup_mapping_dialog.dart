@@ -1,97 +1,97 @@
 import 'package:flutter/material.dart';
 import 'package:dropdown_search/dropdown_search.dart';
-import '../../../data/models/location_model.dart';
+import '../../../data/services/dropdown_service.dart';
 import '../../../core/utils/static_data_manager.dart';
 import '../../../core/di/injection_container.dart';
 
-class DistinctMappingDialog extends StatefulWidget {
-  final Map<String, int> unmappedLocations;
-  final Function(Map<String, int> mapping) onApply;
+class DistinctLookupMappingDialog extends StatefulWidget {
+  final String title;
+  final String category; // 'property_type' or 'listing_type'
+  final Map<String, int> unmappedItems;
+  final Function(Map<String, String> mapping) onApply;
 
-  const DistinctMappingDialog({
+  const DistinctLookupMappingDialog({
     super.key,
-    required this.unmappedLocations,
+    required this.title,
+    required this.category,
+    required this.unmappedItems,
     required this.onApply,
   });
 
   static Future<void> show(
     BuildContext context, {
-    required Map<String, int> unmappedLocations,
-    required Function(Map<String, int> mapping) onApply,
+    required String title,
+    required String category,
+    required Map<String, int> unmappedItems,
+    required Function(Map<String, String> mapping) onApply,
   }) {
     return showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => DistinctMappingDialog(
-        unmappedLocations: unmappedLocations,
+      builder: (ctx) => DistinctLookupMappingDialog(
+        title: title,
+        category: category,
+        unmappedItems: unmappedItems,
         onApply: onApply,
       ),
     );
   }
 
   @override
-  State<DistinctMappingDialog> createState() => _DistinctMappingDialogState();
+  State<DistinctLookupMappingDialog> createState() => _DistinctLookupMappingDialogState();
 }
 
-class _DistinctMappingDialogState extends State<DistinctMappingDialog> {
-  final Map<String, int?> _selectedMappings = {};
-  late List<City> _cities;
+class _DistinctLookupMappingDialogState extends State<DistinctLookupMappingDialog> {
+  final Map<String, String?> _selectedMappings = {};
+  late List<LookupOptionModel> _options;
 
   @override
   void initState() {
     super.initState();
     final dataManager = sl<StaticDataManager>();
-    _cities = dataManager.allCities.where((c) => c.isActive).toList();
+    _options = dataManager.getOptionModels(widget.category).where((o) => o.isActive).toList();
 
-    // محاولة مطابقة أولية ذكية إن وُجدت
-    widget.unmappedLocations.forEach((loc, _) {
-      final matchedCity = _guessCity(loc);
-      _selectedMappings[loc] = matchedCity?.id;
+    widget.unmappedItems.forEach((rawKey, _) {
+      final matched = _guessOption(rawKey);
+      _selectedMappings[rawKey] = matched?.id;
     });
   }
 
-  City? _guessCity(String location) {
-    final clean = location.toLowerCase();
-    for (var c in _cities) {
-      final name = c.name.toLowerCase();
-      if (clean.contains(name) || name.contains(clean)) return c;
-    }
-    if (clean.contains('تجمع') || clean.contains('settlement') || clean.contains('new cairo') || clean.contains('فانتدج') || clean.contains('سنشري')) {
-      return _cities.where((c) => c.name.contains('التجمع')).firstOrNull;
-    }
-    if (clean.contains('زايد') || clean.contains('zayed')) {
-      return _cities.where((c) => c.name.contains('الشيخ زايد')).firstOrNull;
-    }
-    if (clean.contains('نصر') || clean.contains('nasr')) {
-      return _cities.where((c) => c.name.contains('مدينة نصر')).firstOrNull;
+  LookupOptionModel? _guessOption(String rawKey) {
+    final clean = rawKey.trim().toLowerCase();
+    for (var o in _options) {
+      final name = o.nameAr.trim().toLowerCase();
+      if (clean == name || clean.contains(name) || name.contains(clean)) {
+        return o;
+      }
     }
     return null;
   }
 
   @override
   Widget build(BuildContext context) {
-    final int totalLeads = widget.unmappedLocations.values.fold(0, (sum, count) => sum + count);
+    final int totalLeads = widget.unmappedItems.values.fold(0, (sum, count) => sum + count);
 
     return AlertDialog(
       title: Row(
         children: [
-          const Icon(Icons.hub_outlined, color: Colors.indigo),
+          const Icon(Icons.category_outlined, color: Colors.purple),
           const SizedBox(width: 8),
-          const Expanded(
+          Expanded(
             child: Text(
-              'مطابقة المناطق والكمبوندات غير المعرفة',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              widget.title,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.amber.shade100,
+              color: Colors.purple.shade100,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              '${widget.unmappedLocations.length} منطقة فريدة ($totalLeads عميل)',
-              style: TextStyle(color: Colors.amber.shade900, fontWeight: FontWeight.bold, fontSize: 13),
+              '${widget.unmappedItems.length} عنصر فريد ($totalLeads عميل)',
+              style: TextStyle(color: Colors.purple.shade900, fontWeight: FontWeight.bold, fontSize: 13),
             ),
           ),
         ],
@@ -102,20 +102,20 @@ class _DistinctMappingDialogState extends State<DistinctMappingDialog> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'اختر المدينة التابعة لكل منطقة فريدة من القائمة. بمجرد الاختيار، ستُطبق المدينة آلياً على كافة صفوف الملف:',
-              style: TextStyle(fontSize: 13, color: Colors.black54),
+            Text(
+              'اختر القيمة المعتمدة من السيستم لكل نص حر قادم من ملف الإكسيل. بمجرد الاختيار سيتم تطبيقه على كافة الصفوف دفعة واحدة:',
+              style: const TextStyle(fontSize: 13, color: Colors.black54),
             ),
             const SizedBox(height: 12),
             const Divider(),
             Expanded(
               child: ListView.separated(
-                itemCount: widget.unmappedLocations.length,
+                itemCount: widget.unmappedItems.length,
                 separatorBuilder: (ctx, i) => const Divider(height: 1),
                 itemBuilder: (ctx, i) {
-                  final key = widget.unmappedLocations.keys.elementAt(i);
-                  final count = widget.unmappedLocations[key]!;
-                  final currentCityId = _selectedMappings[key];
+                  final key = widget.unmappedItems.keys.elementAt(i);
+                  final count = widget.unmappedItems[key]!;
+                  final currentId = _selectedMappings[key];
 
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
@@ -131,7 +131,7 @@ class _DistinctMappingDialogState extends State<DistinctMappingDialog> {
                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                               ),
                               Text(
-                                '$count عملاء مرتبطين بهذا الاسم',
+                                '$count عملاء مرتبطين بهذه القيمة',
                                 style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                               ),
                             ],
@@ -142,15 +142,15 @@ class _DistinctMappingDialogState extends State<DistinctMappingDialog> {
                         const SizedBox(width: 12),
                         Expanded(
                           flex: 4,
-                          child: DropdownSearch<City>(
+                          child: DropdownSearch<LookupOptionModel>(
                             items: (filter, infiniteScrollProps) {
                               final query = filter.trim().toLowerCase();
-                              if (query.isEmpty) return _cities;
-                              return _cities.where((city) => city.name.toLowerCase().contains(query)).toList();
+                              if (query.isEmpty) return _options;
+                              return _options.where((opt) => opt.nameAr.toLowerCase().contains(query)).toList();
                             },
-                            selectedItem: _cities.where((c) => c.id == currentCityId).firstOrNull,
-                            itemAsString: (city) => city.name,
-                            compareFn: (c1, c2) => c1.id == c2.id,
+                            selectedItem: _options.where((opt) => opt.id == currentId).firstOrNull,
+                            itemAsString: (opt) => opt.nameAr,
+                            compareFn: (o1, o2) => o1.id == o2.id,
                             onSelected: (val) {
                               setState(() {
                                 _selectedMappings[key] = val?.id;
@@ -162,7 +162,7 @@ class _DistinctMappingDialogState extends State<DistinctMappingDialog> {
                               searchFieldProps: TextFieldProps(
                                 autofocus: true,
                                 decoration: InputDecoration(
-                                  hintText: 'ابحث عن اسم المدينة...',
+                                  hintText: 'ابحث في الخيارات...',
                                   prefixIcon: const Icon(Icons.search, size: 20),
                                   isDense: true,
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -175,7 +175,7 @@ class _DistinctMappingDialogState extends State<DistinctMappingDialog> {
                                 isDense: true,
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                hintText: 'اختر المدينة...',
+                                hintText: 'اختر من السيستم...',
                               ),
                             ),
                           ),
@@ -198,15 +198,15 @@ class _DistinctMappingDialogState extends State<DistinctMappingDialog> {
           icon: const Icon(Icons.check_circle_outline),
           label: const Text('تطبيق على جميع الصفوف'),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.indigo,
+            backgroundColor: Colors.purple,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           ),
           onPressed: () {
-            final Map<String, int> validMappings = {};
-            _selectedMappings.forEach((key, cityId) {
-              if (cityId != null) {
-                validMappings[key] = cityId;
+            final Map<String, String> validMappings = {};
+            _selectedMappings.forEach((key, optId) {
+              if (optId != null && optId.isNotEmpty) {
+                validMappings[key] = optId;
               }
             });
             widget.onApply(validMappings);
