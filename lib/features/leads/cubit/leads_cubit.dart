@@ -403,15 +403,9 @@ class LeadCubit extends Cubit<LeadState> {
     _currentIsStagnant = isStagnant;
     _currentIsForTasks = isForTasks;
 
-    final isEmployee = !_isManagerOrAdmin();
     DateTime? effectiveFromDate = fromDate;
     DateTime? effectiveToDate = toDate;
-    if (isEmployee && fromDate == null && toDate == null) {
-      final now = DateTime.now();
-      effectiveFromDate = DateTime(now.year, now.month, 1);
-      effectiveToDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
-    }
-    final int fetchTo = isEmployee ? 50000 : 24;
+    final int fetchTo = 50000; // جلب كل عملاء الشهر دفعة واحدة لتمكين الفلترة والفرز الفوري
 
     try {
       final totalCount = await _repository.getLeadsCount(
@@ -464,7 +458,7 @@ class LeadCubit extends Cubit<LeadState> {
       }
 
       final sortedLeads = _sortLeads(leads);
-      final allList = (hasFilters && currentState != null) ? currentState.allLeads : sortedLeads;
+      final allList = sortedLeads;
       final filteredList = filterLeadsByQuickFilter(sortedLeads, _activeQuickFilter);
 
       emit(LeadLoaded(
@@ -835,8 +829,9 @@ class LeadCubit extends Cubit<LeadState> {
     if (_currentFromDate != null || _currentToDate != null) {
       list = list.where((l) {
         if (l.createdAt == null) return true;
-        if (_currentFromDate != null && l.createdAt!.isBefore(_currentFromDate!)) return false;
-        if (_currentToDate != null && l.createdAt!.isAfter(_currentToDate!)) return false;
+        final localCreated = l.createdAt!.toLocal();
+        if (_currentFromDate != null && localCreated.isBefore(_currentFromDate!)) return false;
+        if (_currentToDate != null && localCreated.isAfter(_currentToDate!)) return false;
         return true;
       }).toList();
     }

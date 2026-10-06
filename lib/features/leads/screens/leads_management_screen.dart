@@ -56,7 +56,7 @@ class _LeadsManagementScreenState extends State<LeadsManagementScreen>
     1,
   );
   bool _isAllMonths = false;
-  bool _onlyMyLeads = false; // الوضع الافتراضي للمدير: عرض كل عملاء الشركة
+  bool _onlyMyLeads = true; // الوضع الافتراضي للمدير: عرض عملائي فقط أول ما يفتح
 
   bool get _isManagerRole {
     final r = widget.user.role.toLowerCase();
