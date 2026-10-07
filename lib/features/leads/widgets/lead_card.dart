@@ -55,7 +55,10 @@ class LeadCard extends StatefulWidget {
   State<LeadCard> createState() => _LeadCardState();
 }
 
-class _LeadCardState extends State<LeadCard> {
+class _LeadCardState extends State<LeadCard> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   bool _isCommenting = false;
   final TextEditingController _commentController = TextEditingController();
   bool _isSubmittingComment = false;
@@ -157,28 +160,9 @@ class _LeadCardState extends State<LeadCard> {
   final TextEditingController _inlineBudgetToController =
       TextEditingController();
 
-  // قياس ارتفاع الكارت لجعل الفواصل مرنة
-  final GlobalKey _mainRowKey = GlobalKey();
-  double _dividerHeight = 120.0;
-
-  /// لكسر حلقة: divider يحدد Row، وRow يحدد divider
-  /// نعيّن الارتفاع إلى 1 أولاً حتى يتحدد الارتفاع بالمحتوى، ثم نقيس
+  // الفواصل تتمدد تلقائياً بدون الحاجة إلى قياس الارتفاع أو setState
   void _scheduleDividerUpdate({bool resetFirst = false}) {
-    if (resetFirst) {
-      // أعد التعيين داخل setState حتى يُعاد بناء Frame بارتفاع محتوى حقيقي
-      setState(() => _dividerHeight = 1.0);
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final RenderBox? box =
-          _mainRowKey.currentContext?.findRenderObject() as RenderBox?;
-      if (box != null) {
-        final newH = box.size.height;
-        if ((newH - _dividerHeight).abs() > 0.5) {
-          setState(() => _dividerHeight = newH);
-        }
-      }
-    });
+    // No-op: Layout manages divider stretching naturally without expensive setState loops
   }
 
   @override
@@ -307,6 +291,7 @@ class _LeadCardState extends State<LeadCard> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     if (widget.isAddingMode && !_isEditing) return const SizedBox.shrink();
     final bool isManagerOrAdmin =
         widget.role == 'manager' ||
@@ -315,88 +300,89 @@ class _LeadCardState extends State<LeadCard> {
     final Color sColor = _statusColor(widget.lead.leadStatus);
     final bool hasPlatform = widget.lead.platformId != null;
 
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(
-          color: !hasPlatform
-              ? Colors.red.withValues(alpha: 0.3)
-              : const Color(0xFFE5E7EB),
-          width: !hasPlatform ? 2.0 : 1.0,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 6,
-            spreadRadius: 0,
-            offset: const Offset(0, 2),
+    return RepaintBoundary(
+      child: Container(
+        margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(
+            color: !hasPlatform
+                ? Colors.red.withValues(alpha: 0.3)
+                : const Color(0xFFE5E7EB),
+            width: !hasPlatform ? 2.0 : 1.0,
           ),
-        ],
-      ),
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 18.h),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            if (widget.lead.isPinned)
-              Positioned(
-                top: -20.h,
-                right: -20.w,
-                child: Container(
-                  padding: EdgeInsets.all(4.r),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(color: Colors.black12, blurRadius: 4),
-                    ],
-                  ),
-                  child: Icon(
-                    Icons.push_pin_rounded,
-                    color: AppColors.brandPrimary,
-                    size: 16.sp,
-                  ),
-                ),
-              ),
-
-            // المحتوى الرئيسي مع Row مقيس الارتفاع
-            Row(
-              key: _mainRowKey,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // عمود الاسم والرقم
-                Expanded(
-                  flex: 7,
-                  child: _buildFirstColumn(context, sColor, hasPlatform),
-                ),
-
-                Container(
-                  width: 1.w,
-                  height: _dividerHeight,
-                  margin: EdgeInsets.symmetric(horizontal: 16.w),
-                  color: Colors.grey[300],
-                ),
-
-                Expanded(flex: 12, child: _buildSecondColumn(context)),
-
-                Container(
-                  width: 1.w,
-                  height: _dividerHeight,
-                  margin: EdgeInsets.symmetric(horizontal: 16.w),
-                  color: Colors.grey[300],
-                ),
-
-                Expanded(flex: 6, child: _buildThirdColumn(context)),
-
-                if (widget.role != 'sales' && widget.role != 'marketing') ...[
-                  SizedBox(width: 16.w),
-                  _buildActions(isManagerOrAdmin),
-                ],
-              ],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 6,
+              spreadRadius: 0,
+              offset: const Offset(0, 2),
             ),
           ],
+        ),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 18.h),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              if (widget.lead.isPinned)
+                Positioned(
+                  top: -20.h,
+                  right: -20.w,
+                  child: Container(
+                    padding: EdgeInsets.all(4.r),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(color: Colors.black12, blurRadius: 4),
+                      ],
+                    ),
+                    child: Icon(
+                      Icons.push_pin_rounded,
+                      color: AppColors.brandPrimary,
+                      size: 16.sp,
+                    ),
+                  ),
+                ),
+
+              // المحتوى الرئيسي مع فواصل متمددة تلقائياً
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // عمود الاسم والرقم
+                    Expanded(
+                      flex: 7,
+                      child: _buildFirstColumn(context, sColor, hasPlatform),
+                    ),
+
+                    Container(
+                      width: 1.w,
+                      margin: EdgeInsets.symmetric(horizontal: 16.w),
+                      color: Colors.grey[300],
+                    ),
+
+                    Expanded(flex: 12, child: _buildSecondColumn(context)),
+
+                    Container(
+                      width: 1.w,
+                      margin: EdgeInsets.symmetric(horizontal: 16.w),
+                      color: Colors.grey[300],
+                    ),
+
+                    Expanded(flex: 6, child: _buildThirdColumn(context)),
+
+                    if (widget.role != 'sales' && widget.role != 'marketing') ...[
+                      SizedBox(width: 16.w),
+                      _buildActions(isManagerOrAdmin),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

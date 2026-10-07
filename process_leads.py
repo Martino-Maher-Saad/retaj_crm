@@ -683,5 +683,83 @@ def main():
     print("🎉 اكتملت العملية بنجاح! الملف جاهز للرفع إلى سيستم Retaj CRM.")
     print("=" * 60)
 
+    # 5. عرض تقرير تحليلي وإحصائي للموظفين والـ prefixes
+    summary_df = print_employee_prefix_report(final_df)
+    return summary_df
+
+def print_employee_prefix_report(final_df):
+    """
+    طباعة تقرير تفصيلي وإحصائي لجميع الموظفين والـ Prefixes الخاصة بهم:
+    - كم prefix مختلف لكل موظف
+    - ما هي هذه الـ prefixes وكم مرة تكرر كل prefix
+    - كم عميل مسجل باسم الموظف إجمالاً
+    - عدد العملاء بدون prefix
+    """
+    if final_df is None or final_df.empty:
+        return None
+
+    df_copy = final_df.copy()
+    df_copy["اسم الموظف"] = df_copy["اسم الموظف"].fillna("").astype(str).str.strip()
+    df_copy["prefix"] = df_copy["prefix"].fillna("").astype(str).str.strip().str.upper()
+
+    summary_rows = []
+    for emp_name, group in df_copy.groupby("اسم الموظف", dropna=False):
+        emp_display = emp_name if emp_name else "[بدون اسم موظف (غير محدد)]"
+        total_leads = len(group)
+        
+        valid_prefixes = group[group["prefix"] != ""]["prefix"]
+        prefix_counts = valid_prefixes.value_counts()
+        distinct_count = len(prefix_counts)
+        no_prefix_count = len(group[group["prefix"] == ""])
+        
+        if distinct_count > 0:
+            prefix_details = ", ".join([f"{pref} ({cnt})" for pref, cnt in prefix_counts.items()])
+        else:
+            prefix_details = "—"
+
+        summary_rows.append({
+            "الموظف": emp_display,
+            "إجمالي العملاء": total_leads,
+            "عدد البريفكسات": distinct_count,
+            "البريفكسات وتكرارها": prefix_details,
+            "بدون بريفكس": no_prefix_count,
+        })
+
+    summary_df = pd.DataFrame(summary_rows)
+    # ترتيب تنازلياً حسب إجمالي العملاء
+    summary_df = summary_df.sort_values(by="إجمالي العملاء", ascending=False).reset_index(drop=True)
+
+    print("\n" + "=" * 90)
+    print("📊 تقرير إحصائي مفصل: الموظفون والـ Prefixes الخاصة بهم (Employee & Prefix Summary)")
+    print("=" * 90)
+
+    # محاولة استخدام display في Jupyter Notebook لظهور جدول HTML تفاعلي أنيق
+    try:
+        from IPython.display import display
+        display(summary_df)
+    except Exception:
+        pass
+
+    # طباعة الجدول النصي دائماً ليعمل في الكونسول ومخرجات Jupyter المباشرة
+    print(summary_df.to_string(index=False))
+    print("=" * 90)
+
+    # تنبيهات سريعة ومفيدة
+    multi_prefix_emps = summary_df[(summary_df["عدد البريفكسات"] > 1) & (summary_df["الموظف"] != "[بدون اسم موظف (غير محدد)]")]
+    if not multi_prefix_emps.empty:
+        print("\n🔍 ملاحظة: موظفون لديهم أكثر من Prefix مختلف:")
+        for _, row in multi_prefix_emps.iterrows():
+            print(f"   • {row['الموظف']}: لديه ({row['عدد البريفكسات']}) بريفكسات -> {row['البريفكسات وتكرارها']}")
+
+    unassigned = summary_df[summary_df["الموظف"] == "[بدون اسم موظف (غير محدد)]"]
+    if not unassigned.empty:
+        unassigned_count = unassigned["إجمالي العملاء"].values[0]
+        unassigned_prefixes = unassigned["البريفكسات وتكرارها"].values[0]
+        print(f"\n⚠️ ملاحظة: يوجد {unassigned_count} عميل بدون اسم موظف محدد -> الـ Prefixes المستخرجة لهم: {unassigned_prefixes}")
+
+    print("=" * 90 + "\n")
+    return summary_df
+
 if __name__ == "__main__":
     main()
+

@@ -110,7 +110,10 @@ class PropertyCard extends StatefulWidget {
   State<PropertyCard> createState() => _PropertyCardState();
 }
 
-class _PropertyCardState extends State<PropertyCard> {
+class _PropertyCardState extends State<PropertyCard> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   late bool _isEditing;
   bool _isSavingInline = false;
 
@@ -527,10 +530,9 @@ class _PropertyCardState extends State<PropertyCard> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isEditing) {
-      return _buildEditMode();
-    }
-    return _buildViewMode();
+    super.build(context);
+    final cardContent = _isEditing ? _buildEditMode() : _buildViewMode();
+    return RepaintBoundary(child: cardContent);
   }
 
   // ─── View Mode (4 Columns) ───
@@ -614,6 +616,9 @@ class _PropertyCardState extends State<PropertyCard> {
                                       cacheManager: PropertyCacheManager.instance,
                                       imageUrl: displayUrl,
                                       fit: BoxFit.cover,
+                                      memCacheWidth: 400,
+                                      maxWidthDiskCache: 600,
+                                      filterQuality: FilterQuality.low,
                                       placeholder: (context, url) => Container(
                                         color: AppColors.bgMain,
                                         child: const Center(
@@ -1813,6 +1818,9 @@ class _PropertyCardState extends State<PropertyCard> {
             imageUrl: url,
             width: 60.w,
             height: 60.w,
+            memCacheWidth: 150,
+            maxWidthDiskCache: 250,
+            filterQuality: FilterQuality.low,
             fit: BoxFit.cover,
           ),
         ),

@@ -105,6 +105,8 @@ class _PropertyFullScreenImageState extends State<PropertyFullScreenImage> {
                     imageUrl: widget.imageUrls[index],
                     cacheManager: PropertyCacheManager.instance,
                     fit: BoxFit.contain,
+                    memCacheWidth: 1200,
+                    maxWidthDiskCache: 1920,
                     placeholder: (_, __) => const Center(
                       child: CircularProgressIndicator(color: Colors.white),
                     ),

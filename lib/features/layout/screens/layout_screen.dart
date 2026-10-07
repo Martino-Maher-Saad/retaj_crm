@@ -42,8 +42,8 @@ class LayoutScreen extends StatefulWidget {
 class _NavItemData {
   final String label;
   final IconData icon;
-  final Widget page;
-  _NavItemData(this.label, this.icon, this.page);
+  final Widget Function() pageBuilder;
+  _NavItemData(this.label, this.icon, this.pageBuilder);
 }
 
 class _LayoutScreenState extends State<LayoutScreen> {
@@ -52,24 +52,27 @@ class _LayoutScreenState extends State<LayoutScreen> {
   late final LeadCubit _leadsCubit;
   late final MarketingCubit _marketingCubit;
 
+  final Set<int> _loadedIndices = {0};
+  final Map<int, Widget> _cachedPages = {};
+
   List<_NavItemData> _getNavItems(ProfileModel user) {
-    final dashboard = _NavItemData("لوحة القيادة", Icons.dashboard_outlined, DashboardScreen(key: const PageStorageKey('dashboard_page'), user: user));
-    final tasks = _NavItemData("المهام", Icons.assignment_late_rounded, TasksScreen(user: user, key: const PageStorageKey('tasks_page')));
-    final properties = _NavItemData("مخزون العقارات", Icons.home_work_outlined, BlocProvider.value(value: _propertiesCubit, child: PropertiesListScreen(userId: user.id, role: user.role, key: const PageStorageKey('properties_page'))));
-    final shares = _NavItemData("مشاركات العقارات", Icons.share_rounded, PropertySharesScreen(user: user, key: const PageStorageKey('shares_page')));
-    final leads = _NavItemData("مخزون العملاء", Icons.people_outline_rounded, BlocProvider.value(value: _leadsCubit, child: LeadsManagementScreen(user: user, key: const PageStorageKey('leads_page'))));
-    final designs = _NavItemData("معرض التشطيبات", Icons.format_paint_outlined, MultiBlocProvider(
+    final dashboard = _NavItemData("لوحة القيادة", Icons.dashboard_outlined, () => DashboardScreen(key: const PageStorageKey('dashboard_page'), user: user));
+    final tasks = _NavItemData("المهام", Icons.assignment_late_rounded, () => TasksScreen(user: user, key: const PageStorageKey('tasks_page')));
+    final properties = _NavItemData("مخزون العقارات", Icons.home_work_outlined, () => BlocProvider.value(value: _propertiesCubit, child: PropertiesListScreen(userId: user.id, role: user.role, key: const PageStorageKey('properties_page'))));
+    final shares = _NavItemData("مشاركات العقارات", Icons.share_rounded, () => PropertySharesScreen(user: user, key: const PageStorageKey('shares_page')));
+    final leads = _NavItemData("مخزون العملاء", Icons.people_outline_rounded, () => BlocProvider.value(value: _leadsCubit, child: LeadsManagementScreen(user: user, key: const PageStorageKey('leads_page'))));
+    final designs = _NavItemData("معرض التشطيبات", Icons.format_paint_outlined, () => MultiBlocProvider(
       providers: [
         BlocProvider(create: (_) => di.sl<DesignsCubit>()),
         BlocProvider(create: (_) => di.sl<DesignFormCubit>()),
       ],
       child: DesignsScreen(user: user, key: const PageStorageKey('designs_page')),
     ));
-    final duplicates = _NavItemData("سجل التكرارات", Icons.control_point_duplicate, DuplicatesScreen(user: user, key: const PageStorageKey('duplicates_page')));
-    final accounts = _NavItemData("إدارة الحسابات", Icons.manage_accounts_outlined, BlocProvider(key: const PageStorageKey('accounts_page'), create: (_) => di.sl<AdminUsersCubit>(), child: const AdminUsersScreen()));
-    final dropdowns = _NavItemData("إدارة القوائم", Icons.list_alt_rounded, const DropdownManagementScreen(key: PageStorageKey('dropdown_page')));
+    final duplicates = _NavItemData("سجل التكرارات", Icons.control_point_duplicate, () => DuplicatesScreen(user: user, key: const PageStorageKey('duplicates_page')));
+    final accounts = _NavItemData("إدارة الحسابات", Icons.manage_accounts_outlined, () => BlocProvider(key: const PageStorageKey('accounts_page'), create: (_) => di.sl<AdminUsersCubit>(), child: const AdminUsersScreen()));
+    final dropdowns = _NavItemData("إدارة القوائم", Icons.list_alt_rounded, () => const DropdownManagementScreen(key: PageStorageKey('dropdown_page')));
 
-    final marketing = _NavItemData("إدارة الإعلانات", Icons.campaign_rounded, BlocProvider.value(value: _marketingCubit, child: MarketingScreen(user: user, key: const PageStorageKey('marketing_page'))));
+    final marketing = _NavItemData("إدارة الإعلانات", Icons.campaign_rounded, () => BlocProvider.value(value: _marketingCubit, child: MarketingScreen(user: user, key: const PageStorageKey('marketing_page'))));
 
     if (user.role == 'sales') {
       return [dashboard, properties, leads, tasks, shares];
@@ -114,6 +117,9 @@ class _LayoutScreenState extends State<LayoutScreen> {
             if (state is LayoutNavigationChanged) {
               selectedIndex = state.selectedIndex;
             }
+            _loadedIndices.add(selectedIndex);
+            final navItems = _getNavItems(widget.user);
+
             return ResponsiveDebouncerWrapper(
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -134,7 +140,15 @@ class _LayoutScreenState extends State<LayoutScreen> {
                       Expanded(
                         child: IndexedStack(
                           index: selectedIndex,
-                          children: _getNavItems(widget.user).map((e) => e.page).toList(),
+                          children: List.generate(navItems.length, (i) {
+                            if (_loadedIndices.contains(i)) {
+                              return _cachedPages.putIfAbsent(
+                                i,
+                                () => navItems[i].pageBuilder(),
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          }),
                         ),
                       ),
                     ],

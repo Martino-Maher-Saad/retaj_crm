@@ -320,13 +320,25 @@ class PropertiesCubit extends Cubit<PropertiesState> {
     if (!isClosed) super.emit(state);
   }
 
+  bool _onlyMyProperties = true;
+  bool get onlyMyProperties => _onlyMyProperties;
+
+  void toggleOnlyMyProperties(bool val, {required String userId, required String role}) {
+    _onlyMyProperties = val;
+    fetchMyProperties(isRefresh: true, userId: userId, role: role, onlyMyProperties: val);
+  }
+
   Future<void> fetchMyProperties({
     bool isRefresh = false,
     required String userId,
     required String role,
+    bool? onlyMyProperties,
   }) async {
     _currentUserId = userId;
     _currentUserRole = role;
+    if (onlyMyProperties != null) {
+      _onlyMyProperties = onlyMyProperties;
+    }
 
     final current = state is PropertiesSuccess
         ? state as PropertiesSuccess
@@ -334,27 +346,30 @@ class PropertiesCubit extends Cubit<PropertiesState> {
 
     if (!isRefresh &&
         current.myProperties.length >= current.myTotalCount &&
-        current.myTotalCount != 0)
+        current.myTotalCount != 0) {
       return;
+    }
 
     try {
       if (isRefresh) emit(PropertiesLoading());
 
       final isManagerOrAdmin =
           role == 'manager' || role == 'admin' || role == 'ceo';
-      final count = isManagerOrAdmin
-          ? await _repo.fetchFilterCount()
-          : await _repo.fetchMyCount(userId);
+      final bool filterByMe = !isManagerOrAdmin || _onlyMyProperties;
 
-      final newItems = isManagerOrAdmin
-          ? await _repo.filterProperties(
-              isRefresh ? 0 : current.myProperties.length,
-              (isRefresh ? 0 : current.myProperties.length) + 14,
-            )
-          : await _repo.getMyProperties(
+      final count = filterByMe
+          ? await _repo.fetchMyCount(userId)
+          : await _repo.fetchFilterCount();
+
+      final newItems = filterByMe
+          ? await _repo.getMyProperties(
               userId,
               isRefresh ? 0 : current.myProperties.length,
-              (isRefresh ? 0 : current.myProperties.length) + 14,
+              1000,
+            )
+          : await _repo.filterProperties(
+              isRefresh ? 0 : current.myProperties.length,
+              1000,
             );
 
       emit(
@@ -430,7 +445,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
       );
       final newItems = await _repo.filterProperties(
         0,
-        14,
+        1000,
         cityId: cityId,
         propertyTypeId: propertyTypeId,
         governorateId: governorateId,
@@ -538,7 +553,7 @@ class PropertiesCubit extends Cubit<PropertiesState> {
       final from = current.filteredProperties.length;
       final newItems = await _repo.filterProperties(
         from,
-        from + 14,
+        from + 500,
         cityId: _filterCityId,
         propertyTypeId: _filterPropertyTypeId,
         governorateId: _filterGovernorateId,

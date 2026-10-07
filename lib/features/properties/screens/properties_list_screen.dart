@@ -44,6 +44,7 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
   bool _isAddingNewProperty = false;
   bool _isSelectionMode = false;
   Set<String> _selectedProperties = {};
+  bool _onlyMyProperties = true; // الوضع الافتراضي للمدير: عرض عقاراتي فقط أول ما يفتح
 
   @override
   bool get wantKeepAlive => true;
@@ -67,6 +68,7 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
         userId: widget.userId, 
         role: widget.role, 
         isRefresh: true,
+        onlyMyProperties: _onlyMyProperties,
       );
     _sync = di.sl<PropertySyncNotifier>()..addListener(_onPropertySync);
 
@@ -294,6 +296,120 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
                         ? Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              // ── زر التبديل: كل عقارات الشركة / عقاراتي فقط ──
+                              Container(
+                                padding: EdgeInsets.all(3.w),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(10.r),
+                                  border: Border.all(color: Colors.grey.shade300),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    InkWell(
+                                      borderRadius: BorderRadius.circular(8.r),
+                                      onTap: () {
+                                        if (_onlyMyProperties) {
+                                          setState(() => _onlyMyProperties = false);
+                                          _cubit.toggleOnlyMyProperties(
+                                            false,
+                                            userId: widget.userId,
+                                            role: widget.role,
+                                          );
+                                        }
+                                      },
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 180),
+                                        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+                                        decoration: BoxDecoration(
+                                          color: !_onlyMyProperties ? AppColors.brandPrimary : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(8.r),
+                                          boxShadow: !_onlyMyProperties
+                                              ? [
+                                                  BoxShadow(
+                                                    color: AppColors.brandPrimary.withValues(alpha: 0.25),
+                                                    blurRadius: 4,
+                                                    offset: const Offset(0, 1),
+                                                  ),
+                                                ]
+                                              : null,
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.domain_rounded,
+                                              size: 16.sp,
+                                              color: !_onlyMyProperties ? Colors.white : Colors.grey.shade700,
+                                            ),
+                                            SizedBox(width: 5.w),
+                                            Text(
+                                              'كل عقارات الشركة',
+                                              style: TextStyle(
+                                                fontSize: 12.sp,
+                                                fontWeight: !_onlyMyProperties ? FontWeight.bold : FontWeight.w600,
+                                                color: !_onlyMyProperties ? Colors.white : Colors.grey.shade800,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: 2.w),
+                                    InkWell(
+                                      borderRadius: BorderRadius.circular(8.r),
+                                      onTap: () {
+                                        if (!_onlyMyProperties) {
+                                          setState(() => _onlyMyProperties = true);
+                                          _cubit.toggleOnlyMyProperties(
+                                            true,
+                                            userId: widget.userId,
+                                            role: widget.role,
+                                          );
+                                        }
+                                      },
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 180),
+                                        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+                                        decoration: BoxDecoration(
+                                          color: _onlyMyProperties ? AppColors.brandPrimary : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(8.r),
+                                          boxShadow: _onlyMyProperties
+                                              ? [
+                                                  BoxShadow(
+                                                    color: AppColors.brandPrimary.withValues(alpha: 0.25),
+                                                    blurRadius: 4,
+                                                    offset: const Offset(0, 1),
+                                                  ),
+                                                ]
+                                              : null,
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.person_pin_circle_rounded,
+                                              size: 16.sp,
+                                              color: _onlyMyProperties ? Colors.white : Colors.grey.shade700,
+                                            ),
+                                            SizedBox(width: 5.w),
+                                            Text(
+                                              'عقاراتي فقط',
+                                              style: TextStyle(
+                                                fontSize: 12.sp,
+                                                fontWeight: _onlyMyProperties ? FontWeight.bold : FontWeight.w600,
+                                                color: _onlyMyProperties ? Colors.white : Colors.grey.shade800,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(width: 8.w),
                               OutlinedButton.icon(
                                 onPressed: () {
                                   setState(() {
@@ -457,7 +573,7 @@ class _PropertiesListScreenState extends State<PropertiesListScreen>
 
           Expanded(
             child: ListView.builder(
-              cacheExtent: 3000,
+              cacheExtent: 600,
               controller: _scrollController,
               padding: EdgeInsets.symmetric(horizontal: 10.w),
               itemCount: properties.length +
